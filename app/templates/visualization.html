@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Visualization - Psychic Source Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Data Visualization
+                </h5>
+                <div class="d-flex align-items-center">
+                    <div class="btn-group btn-group-sm me-2">
+                        <button type="button" class="btn btn-light timeframe-selector" data-timeframe="last_7_days">7 Days</button>
+                        <button type="button" class="btn btn-light timeframe-selector active" data-timeframe="last_30_days">30 Days</button>
+                        <button type="button" class="btn btn-light timeframe-selector" data-timeframe="last_90_days">90 Days</button>
+                    </div>
+                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="fas fa-filter me-1"></i>Custom Range
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="loading-overlay" class="d-none">
+                    <div class="d-flex justify-content-center align-items-center p-5">
+                        <div class="spinner-border text-primary me-3" role="status"></div>
+                        <h5 class="mb-0">Loading data...</h5>
+                    </div>
+                </div>
+                <div id="visualization-content">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Conversation Volume</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 200px;">
+                                        <canvas id="volumeChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Average Duration</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 200px;">
+                                        <canvas id="durationChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Time of Day Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 200px;">
+                                        <canvas id="timeOfDayChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Day of Week Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 200px;">
+                                        <canvas id="dayOfWeekChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Completion Rate</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div style="height: 200px;">
+                                        <canvas id="completionChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Custom Date Range</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="visualization-filter-form">
+                    <div class="mb-3">
+                        <label for="viz-start-date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="viz-start-date" name="start_date">
+                    </div>
+                    <div class="mb-3">
+                        <label for="viz-end-date" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="viz-end-date" name="end_date">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="apply-filter-button">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let visualizationCharts = {};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default date range (last 30 days)
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+        
+        document.getElementById('viz-start-date').value = startDate.toISOString().split('T')[0];
+        document.getElementById('viz-end-date').value = endDate.toISOString().split('T')[0];
+        
+        // Load initial visualization data with default timeframe
+        loadVisualizationData('last_30_days');
+        
+        // Set up event listeners for timeframe buttons
+        document.querySelectorAll('.timeframe-selector').forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active state
+                document.querySelectorAll('.timeframe-selector').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // Load data for selected timeframe
+                const timeframe = this.getAttribute('data-timeframe');
+                loadVisualizationData(timeframe);
+            });
+        });
+        
+        // Set up event listener for custom filter button
+        document.getElementById('apply-filter-button').addEventListener('click', function() {
+            const startDate = document.getElementById('viz-start-date').value;
+            const endDate = document.getElementById('viz-end-date').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates.');
+                return;
+            }
+            
+            // Deactivate all timeframe buttons
+            document.querySelectorAll('.timeframe-selector').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Hide modal
+            $('#filterModal').modal('hide');
+            
+            // Load data with custom date range
+            loadVisualizationData(null, startDate, endDate);
+        });
+    });
+    
+    function loadVisualizationData(timeframe, customStartDate, customEndDate) {
+        // Show loading overlay
+        document.getElementById('loading-overlay').classList.remove('d-none');
+        document.getElementById('visualization-content').classList.add('opacity-25');
+        
+        // Build query parameters
+        let url = '/api/visualization/data';
+        const params = new URLSearchParams();
+        
+        if (timeframe) {
+            params.append('timeframe', timeframe);
+        } else if (customStartDate && customEndDate) {
+            params.append('start_date', customStartDate);
+            params.append('end_date', customEndDate);
+        }
+        
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+        
+        // Make API request to get visualization data
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Create visualizations with the data
+                createVisualizations(data);
+                
+                // Hide loading overlay
+                document.getElementById('loading-overlay').classList.add('d-none');
+                document.getElementById('visualization-content').classList.remove('opacity-25');
+            })
+            .catch(error => {
+                console.error('Error fetching visualization data:', error);
+                alert('Failed to load visualization data. Please try again.');
+                
+                // Hide loading overlay
+                document.getElementById('loading-overlay').classList.add('d-none');
+                document.getElementById('visualization-content').classList.remove('opacity-25');
+            });
+    }
+    
+    function createVisualizations(data) {
+        // Create volume chart
+        createVolumeChart(data.volume);
+        
+        // Create duration chart
+        createDurationChart(data.duration);
+        
+        // Create time of day distribution chart
+        createTimeOfDayChart(data.time_of_day);
+        
+        // Create day of week distribution chart
+        createDayOfWeekChart(data.day_of_week);
+        
+        // Create completion rate chart
+        createCompletionChart(data.completion);
+    }
+    
+    function createVolumeChart(volumeData) {
+        // Destroy existing chart if it exists
+        if (visualizationCharts.volumeChart) {
+            visualizationCharts.volumeChart.destroy();
+        }
+        
+        // Create the chart with real data
+        const ctx = document.getElementById('volumeChart').getContext('2d');
+        
+        visualizationCharts.volumeChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: volumeData.labels || [],
+                datasets: [{
+                    label: 'Number of Conversations',
+                    data: volumeData.data || [],
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createDurationChart(durationData) {
+        // Destroy existing chart if it exists
+        if (visualizationCharts.durationChart) {
+            visualizationCharts.durationChart.destroy();
+        }
+        
+        // Create the chart with real data
+        const ctx = document.getElementById('durationChart').getContext('2d');
+        
+        visualizationCharts.durationChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: durationData.labels || [],
+                datasets: [{
+                    label: 'Average Duration (seconds)',
+                    data: durationData.data || [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    function createTimeOfDayChart(timeOfDayData) {
+        // Destroy existing chart if it exists
+        if (visualizationCharts.timeOfDayChart) {
+            visualizationCharts.timeOfDayChart.destroy();
+        }
+        
+        // Find peak hours (for highlighting)
+        const data = timeOfDayData.data || [];
+        const maxCount = Math.max(...data, 1);  // Avoid division by zero
+        const backgroundColor = data.map(count => {
+            const ratio = count / maxCount;
+            return `rgba(153, 102, 255, ${Math.max(0.2, ratio)})`;
+        });
+        
+        // Create the chart with real data
+        const ctx = document.getElementById('timeOfDayChart').getContext('2d');
+        
+        visualizationCharts.timeOfDayChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: timeOfDayData.labels || [],
+                datasets: [{
+                    label: 'Conversations',
+                    data: data,
+                    backgroundColor: backgroundColor,
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            autoSkip: true,
+                            maxRotation: 0
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createDayOfWeekChart(dayOfWeekData) {
+        // Destroy existing chart if it exists
+        if (visualizationCharts.dayOfWeekChart) {
+            visualizationCharts.dayOfWeekChart.destroy();
+        }
+        
+        // Create the chart with real data
+        const ctx = document.getElementById('dayOfWeekChart').getContext('2d');
+        
+        visualizationCharts.dayOfWeekChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dayOfWeekData.labels || [],
+                datasets: [{
+                    label: 'Conversations',
+                    data: dayOfWeekData.data || [],
+                    backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function createCompletionChart(completionData) {
+        // Destroy existing chart if it exists
+        if (visualizationCharts.completionChart) {
+            visualizationCharts.completionChart.destroy();
+        }
+        
+        // Create the chart with real data
+        const ctx = document.getElementById('completionChart').getContext('2d');
+        
+        visualizationCharts.completionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: completionData.labels || [],
+                datasets: [{
+                    label: 'Completion Rate (%)',
+                    data: completionData.data || [],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %} 

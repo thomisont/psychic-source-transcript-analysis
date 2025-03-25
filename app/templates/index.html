@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Psychic Source Analyzer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="card-title">Welcome to Psychic Source Transcript Analysis Tool</h1>
+                <p class="card-text">
+                    This tool helps you extract, analyze, and visualize conversation data from the ElevenLabs 
+                    Conversational Voice Agent "Lily". Use the navigation menu to explore different features.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Recent Activity
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-light time-selector" data-timeframe="last_7_days">7 Days</button>
+                    <button type="button" class="btn btn-light time-selector active" data-timeframe="last_30_days">30 Days</button>
+                    <button type="button" class="btn btn-light time-selector" data-timeframe="last_90_days">90 Days</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="recent-activity-chart" style="height: 250px;">
+                    <canvas id="conversationsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tasks me-2"></i>Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('main.data_selection') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-database me-2"></i>Browse Conversation Data
+                    </a>
+                    <a href="{{ url_for('main.analysis_page') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-search me-2"></i>Analyze Conversations
+                    </a>
+                    <a href="{{ url_for('main.visualization_page') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-pie me-2"></i>Visualize Insights
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action" id="quick-export">
+                        <i class="fas fa-file-export me-2"></i>Export Recent Data
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-phone-alt me-2"></i>Conversations
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <h3 id="total-conversations">-</h3>
+                <p class="text-muted">Total conversations</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-hourglass-half me-2"></i>Average Duration
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <h3 id="avg-duration">-</h3>
+                <p class="text-muted">Seconds per conversation</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-check-circle me-2"></i>Completion Rate
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <h3 id="completion-rate">-</h3>
+                <p class="text-muted">Successful conversations</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>Time of Day Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 250px;">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>Day of Week Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <div style="height: 250px;">
+                    <canvas id="weekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Getting Started
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <i class="fas fa-search fa-3x mb-3 text-primary"></i>
+                                <h5>Select Data</h5>
+                                <p class="card-text">Choose date ranges and filter conversation data.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <i class="fas fa-chart-bar fa-3x mb-3 text-primary"></i>
+                                <h5>Analyze</h5>
+                                <p class="card-text">Perform sentiment analysis and extract key topics.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-download fa-3x mb-3 text-primary"></i>
+                                <h5>Export</h5>
+                                <p class="card-text">Download your data in JSON, CSV, or Markdown format.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let activeCharts = {};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load dashboard data with default timeframe (30 days)
+        loadDashboardData('last_30_days');
+        
+        // Set up time selector buttons
+        document.querySelectorAll('.time-selector').forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active state
+                document.querySelectorAll('.time-selector').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // Load data for selected timeframe
+                const timeframe = this.getAttribute('data-timeframe');
+                loadDashboardData(timeframe);
+            });
+        });
+        
+        // Handle quick export
+        document.getElementById('quick-export').addEventListener('click', function(e) {
+            e.preventDefault();
+            // Get dates for last 7 days
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
+            // Redirect to export endpoint
+            window.location.href = `/api/export/json?type=conversations&start_date=${startDate}&end_date=${endDate}`;
+        });
+    });
+    
+    function loadDashboardData(timeframe) {
+        // Show loading state
+        document.getElementById('total-conversations').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        document.getElementById('avg-duration').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        document.getElementById('completion-rate').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        // Fetch data from API
+        fetch(`/api/dashboard/stats?timeframe=${timeframe}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update summary statistics
+                document.getElementById('total-conversations').textContent = data.total_conversations;
+                document.getElementById('avg-duration').textContent = formatDuration(data.avg_duration);
+                document.getElementById('completion-rate').textContent = `${data.completion_rate}%`;
+                
+                // Update charts
+                updateRecentActivityChart(data.daily_counts);
+                updateHourlyDistributionChart(data.hour_distribution);
+                updateWeekdayDistributionChart(data.weekday_distribution);
+            })
+            .catch(error => {
+                console.error('Error loading dashboard data:', error);
+                document.getElementById('total-conversations').textContent = 'Error';
+                document.getElementById('avg-duration').textContent = 'Error';
+                document.getElementById('completion-rate').textContent = 'Error';
+            });
+    }
+    
+    function updateRecentActivityChart(dailyData) {
+        // Convert daily data into labels and values arrays for chart
+        const dates = Object.keys(dailyData).sort();
+        const counts = dates.map(date => dailyData[date]);
+        
+        // Format dates to be more readable
+        const labels = dates.map(date => {
+            const d = new Date(date);
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        });
+        
+        // Destroy existing chart if it exists
+        if (activeCharts.conversationsChart) {
+            activeCharts.conversationsChart.destroy();
+        }
+        
+        // Create the chart
+        const ctx = document.getElementById('conversationsChart').getContext('2d');
+        activeCharts.conversationsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Conversations',
+                    data: counts,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return dates[context[0].dataIndex];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateHourlyDistributionChart(hourData) {
+        // Create 24 hour labels and data array
+        const hours = Array.from({length: 24}, (_, i) => i);
+        const labels = hours.map(hour => `${hour}:00`);
+        const counts = hours.map(hour => hourData[hour] || 0);
+        
+        // Destroy existing chart if it exists
+        if (activeCharts.hourlyChart) {
+            activeCharts.hourlyChart.destroy();
+        }
+        
+        // Find peak hours (for highlighting)
+        const maxCount = Math.max(...counts);
+        const backgroundColor = counts.map(count => {
+            const ratio = count / maxCount;
+            return `rgba(54, 162, 235, ${Math.max(0.2, ratio)})`;
+        });
+        
+        // Create the chart
+        const ctx = document.getElementById('hourlyChart').getContext('2d');
+        activeCharts.hourlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Conversations',
+                    data: counts,
+                    backgroundColor: backgroundColor,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    function updateWeekdayDistributionChart(weekdayData) {
+        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const counts = dayNames.map(day => weekdayData[day] || 0);
+        
+        // Destroy existing chart if it exists
+        if (activeCharts.weekdayChart) {
+            activeCharts.weekdayChart.destroy();
+        }
+        
+        // Find busiest days (for highlighting)
+        const maxCount = Math.max(...counts);
+        const backgroundColor = counts.map(count => {
+            const ratio = count / maxCount;
+            return `rgba(75, 192, 192, ${Math.max(0.2, ratio)})`;
+        });
+        
+        // Create the chart
+        const ctx = document.getElementById('weekdayChart').getContext('2d');
+        activeCharts.weekdayChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dayNames,
+                datasets: [{
+                    label: 'Conversations',
+                    data: counts,
+                    backgroundColor: backgroundColor,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Helper function to format duration in seconds
+    function formatDuration(seconds) {
+        if (seconds < 60) {
+            return `${Math.round(seconds)}s`;
+        } else {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.round(seconds % 60);
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+    }
+</script>
+{% endblock %} 

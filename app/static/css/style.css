@@ -1,0 +1,138 @@
+/* 
+ * Psychic Source Transcript Analysis Tool - Main stylesheet
+ */
+
+:root {
+    --primary-color: #6a5acd;
+    --secondary-color: #9370db;
+    --success-color: #28a745;
+    --info-color: #17a2b8;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Navbar customization */
+.navbar-dark.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+/* Card customizations */
+.card {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    border-top-left-radius: 0.5rem !important;
+    border-top-right-radius: 0.5rem !important;
+}
+
+.card-header.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+/* Dashboard widgets */
+.stat-card {
+    transition: transform 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+}
+
+/* Conversation transcript styling */
+.conversation-transcript {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+}
+
+.message {
+    margin-bottom: 1rem;
+}
+
+.message .bg-light {
+    background-color: #e9ecef !important;
+}
+
+.message .bg-primary.bg-opacity-10 {
+    background-color: rgba(106, 90, 205, 0.1) !important;
+}
+
+/* Analysis results */
+.analysis-section {
+    margin-bottom: 2rem;
+}
+
+.sentiment-positive {
+    color: var(--success-color);
+}
+
+.sentiment-negative {
+    color: var(--danger-color);
+}
+
+.sentiment-neutral {
+    color: var(--secondary-color);
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .conversation-transcript {
+        max-height: 50vh;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar, .footer, .btn {
+        display: none !important;
+    }
+    
+    .container {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+    }
+} 
