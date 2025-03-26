@@ -40,15 +40,15 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.data_selection' %}active{% endif %}" 
-                            href="{{ url_for('main.data_selection') }}">Data Selection</a>
+                            href="{{ url_for('main.data_selection') }}">Transcript Viewer</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.analysis_page' %}active{% endif %}" 
-                            href="{{ url_for('main.analysis_page') }}">Analysis</a>
+                            href="{{ url_for('main.analysis_page') }}">Themes & Sentiment</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.visualization_page' %}active{% endif %}" 
-                            href="{{ url_for('main.visualization_page') }}">Visualization</a>
+                            href="{{ url_for('main.visualization_page') }}">Engagement Metrics</a>
                     </li>
                 </ul>
             </div>

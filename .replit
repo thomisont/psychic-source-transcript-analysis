@@ -1,18 +1,23 @@
-run = ["python", "run.py"]
+run = "cd /home/runner/workspace && python run.py"
 language = "python3"
+entrypoint = "run.py"
+modules = ["web", "python-3.12", "nodejs-20", "nix"]
 
 [env]
 VIRTUAL_ENV = "/home/runner/${REPL_SLUG}/venv"
 PATH = "${VIRTUAL_ENV}/bin"
-PYTHONPATH = "${VIRTUAL_ENV}/lib/python3.8/site-packages"
+PYTHONPATH = "${VIRTUAL_ENV}/lib/python3.8/site-packages:/home/runner/workspace"
 REPLIT_POETRY_PYPI_REPOSITORY = "https://package-proxy.replit.com/pypi/"
 MPLBACKEND = "TkAgg"
+FLASK_APP = "run.py"
+FLASK_ENV = "development"
+FLASK_DEBUG = "1"
 
 [unitTest]
 language = "python3"
 
 [nix]
-channel = "stable-22_11"
+channel = "stable-24_05"
 
 [packager]
 language = "python3"
@@ -59,5 +64,9 @@ type = "request"
 logging = {}
 
 [deployment]
-run = ["python", "run.py"]
-deploymentTarget = "cloudrun" 
+run = ["sh", "-c", "cd /home/runner/workspace && python run.py"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 8080
+externalPort = 80

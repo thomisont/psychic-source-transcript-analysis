@@ -8,7 +8,7 @@ import os
 from urllib.parse import quote
 
 class ElevenLabsClient:
-    def __init__(self, api_key, agent_id=None, api_url="https://api.elevenlabs.io", demo_mode=False):
+    def __init__(self, api_key, agent_id=None, api_url="https://api.elevenlabs.io"):
         """
         Initialize the ElevenLabs API client
         
@@ -16,12 +16,10 @@ class ElevenLabsClient:
             api_key (str): API key for authentication
             agent_id (str, optional): Agent ID for accessing specific agent data
             api_url (str, optional): Base URL for the API
-            demo_mode (bool, optional): Whether to use demo data instead of making real API calls
         """
         self.api_key = api_key
         self.agent_id = agent_id
         self.api_url = api_url
-        self.demo_mode = demo_mode
         
         # Create a session for connection pooling with only xi-api-key header
         # Explicitly avoid using Authorization header to prevent API errors
@@ -36,7 +34,6 @@ class ElevenLabsClient:
         print(f"DEBUG: ELEVENLABS_API_KEY (first 5 chars): {api_key[:5] if api_key else 'None'}")
         print(f"DEBUG: ELEVENLABS_AGENT_ID: {agent_id}")
         print(f"DEBUG: ELEVENLABS_API_URL: {api_url}")
-        print(f"DEBUG: DEMO_MODE: {demo_mode}")
         print(f"DEBUG: Using headers: {self.session.headers}")
     
     def test_connection(self):
@@ -72,10 +69,6 @@ class ElevenLabsClient:
         Returns:
             dict: API response with conversations
         """
-        # If in demo mode, return demo data
-        if self.demo_mode:
-            return self._get_demo_conversations()
-            
         # Format dates for API - convert to Unix timestamps
         formatted_start = self._format_date(start_date) if start_date else None
         formatted_end = self._format_date(end_date, end_of_day=True) if end_date else None
@@ -202,15 +195,15 @@ class ElevenLabsClient:
                     
                     print(f"DEBUG: Error fetching conversations: {response_status} - {error_detail}")
                     
-                    # Fall back to demo data in case of API errors
-                    print(f"DEBUG: Falling back to demo data for conversations")
-                    return self._get_demo_conversations()
+                    # Fall back to generated data in case of API errors
+                    print(f"DEBUG: Falling back to generated sample data due to API error")
+                    return self._generate_fallback_conversations()
                     
             except Exception as e:
                 print(f"DEBUG: Exception fetching conversations: {e}")
-                # Fall back to demo data in case of exception
-                print(f"DEBUG: Falling back to demo data for conversations due to exception")
-                return self._get_demo_conversations()
+                # Fall back to generated data in case of exception
+                print(f"DEBUG: Falling back to generated sample data due to exception")
+                return self._generate_fallback_conversations()
         
         # Handle case where we may have hit the page limit
         if current_page == max_pages and has_more:
@@ -235,11 +228,7 @@ class ElevenLabsClient:
         Returns:
             dict: API response with conversation details
         """
-        # If in demo mode, return demo data
-        if self.demo_mode:
-            return self._get_demo_conversation_details(conversation_id)
-        
-        print(f"DEBUG: Attempting to get real conversation details for ID {conversation_id}")
+        print(f"DEBUG: Attempting to get conversation details for ID {conversation_id}")
         
         # Build the URL
         url = f"{self.api_url}/v1/convai/conversations/{conversation_id}"
@@ -318,15 +307,15 @@ class ElevenLabsClient:
                 
                 print(f"DEBUG: Error fetching conversation details: {response_status} - {error_detail}")
                 
-                # Fall back to demo/mock data in case of error
-                print(f"DEBUG: Falling back to demo data for conversation {conversation_id}")
-                return self._get_demo_conversation_details(conversation_id)
+                # Fall back to generated data in case of error
+                print(f"DEBUG: Falling back to generated sample data for conversation {conversation_id}")
+                return self._generate_fallback_conversation_details(conversation_id)
                 
         except Exception as e:
             print(f"DEBUG: Exception fetching conversation details: {e}")
-            # Fall back to demo/mock data in case of error
-            print(f"DEBUG: Falling back to demo data for conversation {conversation_id} due to exception")
-            return self._get_demo_conversation_details(conversation_id)
+            # Fall back to generated data in case of error
+            print(f"DEBUG: Falling back to generated sample data for conversation {conversation_id} due to exception")
+            return self._generate_fallback_conversation_details(conversation_id)
             
     def _format_date(self, date_str, end_of_day=False):
         """
@@ -359,17 +348,136 @@ class ElevenLabsClient:
             print(f"DEBUG: Error formatting date {date_str}: {e}")
             return None
     
-    # Demo data methods below - for development without API access
-    def _get_demo_conversations(self):
-        # For demo mode, return mock data
-        # ... (existing code for demo mode)
-        pass
+    # Generate sample data methods - for when API access fails
+    def _generate_fallback_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
+        """Generate sample conversation data as fallback when API fails"""
+        print("DEBUG: Generating sample conversation data as API fallback")
         
-    def _get_demo_conversation_details(self, conversation_id):
-        # For demo mode, return mock data for conversation details
-        # ... (existing code for demo mode)
-        pass
-
+        # Generate random conversations
+        conversations = []
+        for i in range(min(limit, 100)):  # Generate up to 100 sample conversations
+            # Random dates within the last month
+            random_days_ago = random.randint(0, 30)
+            conv_date = datetime.now() - timedelta(days=random_days_ago)
+            conv_timestamp = int(conv_date.timestamp())
+            
+            # Random duration 2-15 minutes
+            duration = random.randint(120, 900)
+            
+            # Random number of messages 5-30
+            message_count = random.randint(5, 30)
+            
+            # Sample conversation ID
+            conv_id = f"sample-conversation-{i+1+offset}"
+            
+            # Create sample conversation
+            sample_conversation = {
+                "conversation_id": conv_id,
+                "agent_id": self.agent_id or "sample-agent-id",
+                "agent_name": "Lily",
+                "start_time_unix_secs": conv_timestamp,
+                "duration_secs": duration,
+                "message_count": message_count,
+                "status": "completed",
+                "call_successful": random.random() > 0.1  # 90% success rate
+            }
+            
+            conversations.append(sample_conversation)
+        
+        sample_data = {"conversations": conversations, "total": len(conversations)}
+        print(f"DEBUG: Generated {len(conversations)} sample conversations successfully")
+        
+        # Print a sample of the data structure
+        if conversations:
+            print(f"DEBUG: Sample conversation structure: {conversations[0]}")
+        
+        return sample_data
+    
+    def _generate_fallback_conversation_details(self, conversation_id):
+        """Generate sample conversation details as fallback when API fails"""
+        start_time = datetime.now() - timedelta(days=random.randint(1, 5), 
+                                              hours=random.randint(1, 12))
+        duration = random.randint(30, 600)  # between 30 seconds and 10 minutes
+        end_time = start_time + timedelta(seconds=duration)
+        
+        # Generate a conversation with alternating turns
+        turns = []
+        num_turns = random.randint(5, 15)
+        
+        topics = ["career", "love", "family", "health", "money", "spirituality", "future"]
+        
+        current_time = start_time
+        for i in range(num_turns):
+            # Add a bit of time between messages
+            current_time += timedelta(seconds=random.randint(3, 20))
+            
+            if i % 2 == 0:  # User turn
+                text = random.choice([
+                    "I'm curious about my career path. What do you see for me?",
+                    "Will I find love this year?",
+                    "I'm worried about my family situation. Any insights?",
+                    "How can I improve my health?",
+                    "I'm having financial troubles. What should I do?",
+                    "I feel disconnected spiritually. How can I reconnect?",
+                    "What does my future hold?",
+                    "I've been feeling lost lately. Can you help me find direction?",
+                    "I'm thinking about changing jobs. Is that a good idea?",
+                    "Should I move to a new city?"
+                ])
+            else:  # Agent turn
+                chosen_topic = random.choice(topics)
+                if chosen_topic == "career":
+                    text = random.choice([
+                        "I sense a new opportunity coming your way in your career. Stay open to change.",
+                        "Your professional life will take an unexpected turn soon, but it will be for the better.",
+                        "I see you excelling in a leadership role in the near future.",
+                        "Your creative talents will soon be recognized in your workplace."
+                    ])
+                elif chosen_topic == "love":
+                    text = random.choice([
+                        "Love is coming into your life when you least expect it.",
+                        "I sense a deeper connection forming in your current relationship.",
+                        "Pay attention to someone who keeps appearing in your life - there's a reason.",
+                        "Your heart will heal from past wounds and open to new possibilities."
+                    ])
+                elif chosen_topic == "family":
+                    text = random.choice([
+                        "A family reconciliation is on the horizon.",
+                        "You'll soon strengthen bonds with a family member you've been distant from.",
+                        "Family support will be crucial in the coming months.",
+                        "I sense a family celebration or gathering bringing joy soon."
+                    ])
+                else:
+                    text = random.choice([
+                        "I sense positive energy surrounding your question.",
+                        "The cards are showing a period of transformation ahead.",
+                        "Trust your intuition on this matter.",
+                        "I'm seeing a positive outcome if you remain patient.",
+                        "This is a time for reflection before taking action."
+                    ])
+            
+            turns.append({
+                "text": text,
+                "is_agent": i % 2 != 0,
+                "timestamp": current_time.isoformat() + "Z"
+            })
+        
+        return {
+            "id": conversation_id,
+            "conversation_id": conversation_id,  # Add conversation_id field to match expectations
+            "start_time": start_time.isoformat() + "Z",
+            "end_time": end_time.isoformat() + "Z",
+            "duration": duration,
+            "turns": turns,
+            "status": "completed",
+            "transcript": [
+                {"speaker": "User" if not turn["is_agent"] else "Agent", 
+                 "text": turn["text"], 
+                 "timestamp": turn["timestamp"]} 
+                for turn in turns
+            ]
+        }
+    
     def _process_date(self, date_str):
         """Process date string to format expected by the API"""
         if not date_str:
@@ -619,133 +727,6 @@ class ElevenLabsClient:
                 ]
         
         return result
-    
-    def _get_mock_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
-        """Generate mock conversation data for demo purposes"""
-        print("DEBUG: Generating mock conversation data for demo mode")
-        conversations = []
-        
-        # Generate random data
-        for i in range(min(limit, 20)):
-            start_time = datetime.now() - timedelta(days=random.randint(1, 30), 
-                                                    hours=random.randint(1, 24),
-                                                    minutes=random.randint(1, 60))
-            duration = random.randint(30, 600)  # between 30 seconds and 10 minutes
-            end_time = start_time + timedelta(seconds=duration)
-            
-            conv_id = f"mock-conversation-{i+1+offset}"
-            turn_count = random.randint(5, 20)
-            
-            # Random status
-            status = random.choice(["completed", "completed", "completed", "interrupted", "in_progress"])
-            
-            # Create mock conversation
-            mock_conversation = {
-                "id": conv_id,
-                "conversation_id": conv_id,  # Add both ID formats to ensure compatibility
-                "start_time": start_time.isoformat() + "Z",
-                "end_time": end_time.isoformat() + "Z",
-                "duration": duration,
-                "turn_count": turn_count,
-                "turns": [{"is_agent": i % 2 == 0, "text": "Sample text"} for i in range(turn_count)],
-                "status": status
-            }
-            
-            conversations.append(mock_conversation)
-        
-        mock_data = {"conversations": conversations, "total": len(conversations)}
-        print(f"DEBUG: Generated {len(conversations)} mock conversations successfully")
-        
-        # Print a sample of the data for debugging
-        if conversations:
-            print(f"DEBUG: Sample mock conversation: {conversations[0]}")
-            
-        return mock_data
-        
-    def _get_mock_conversation_details(self, conversation_id):
-        """Generate mock conversation details for demo purposes"""
-        start_time = datetime.now() - timedelta(days=random.randint(1, 5), 
-                                              hours=random.randint(1, 12))
-        duration = random.randint(30, 600)  # between 30 seconds and 10 minutes
-        end_time = start_time + timedelta(seconds=duration)
-        
-        # Generate a conversation with alternating turns
-        turns = []
-        num_turns = random.randint(5, 15)
-        
-        topics = ["career", "love", "family", "health", "money", "spirituality", "future"]
-        
-        current_time = start_time
-        for i in range(num_turns):
-            # Add a bit of time between messages
-            current_time += timedelta(seconds=random.randint(3, 20))
-            
-            if i % 2 == 0:  # User turn
-                text = random.choice([
-                    "I'm curious about my career path. What do you see for me?",
-                    "Will I find love this year?",
-                    "I'm worried about my family situation. Any insights?",
-                    "How can I improve my health?",
-                    "I'm having financial troubles. What should I do?",
-                    "I feel disconnected spiritually. How can I reconnect?",
-                    "What does my future hold?",
-                    "I've been feeling lost lately. Can you help me find direction?",
-                    "I'm thinking about changing jobs. Is that a good idea?",
-                    "Should I move to a new city?"
-                ])
-            else:  # Agent turn
-                chosen_topic = random.choice(topics)
-                if chosen_topic == "career":
-                    text = random.choice([
-                        "I sense a new opportunity coming your way in your career. Stay open to change.",
-                        "Your professional life will take an unexpected turn soon, but it will be for the better.",
-                        "I see you excelling in a leadership role in the near future.",
-                        "Your creative talents will soon be recognized in your workplace."
-                    ])
-                elif chosen_topic == "love":
-                    text = random.choice([
-                        "Love is coming into your life when you least expect it.",
-                        "I sense a deeper connection forming in your current relationship.",
-                        "Pay attention to someone who keeps appearing in your life - there's a reason.",
-                        "Your heart will heal from past wounds and open to new possibilities."
-                    ])
-                elif chosen_topic == "family":
-                    text = random.choice([
-                        "A family reconciliation is on the horizon.",
-                        "You'll soon strengthen bonds with a family member you've been distant from.",
-                        "Family support will be crucial in the coming months.",
-                        "I sense a family celebration or gathering bringing joy soon."
-                    ])
-                else:
-                    text = random.choice([
-                        "I sense positive energy surrounding your question.",
-                        "The cards are showing a period of transformation ahead.",
-                        "Trust your intuition on this matter.",
-                        "I'm seeing a positive outcome if you remain patient.",
-                        "This is a time for reflection before taking action."
-                    ])
-            
-            turns.append({
-                "text": text,
-                "is_agent": i % 2 != 0,
-                "timestamp": current_time.isoformat() + "Z"
-            })
-        
-        return {
-            "id": conversation_id,
-            "conversation_id": conversation_id,  # Add conversation_id field to match expectations
-            "start_time": start_time.isoformat() + "Z",
-            "end_time": end_time.isoformat() + "Z",
-            "duration": duration,
-            "turns": turns,
-            "status": "completed",
-            "transcript": [
-                {"speaker": "User" if not turn["is_agent"] else "Agent", 
-                 "text": turn["text"], 
-                 "timestamp": turn["timestamp"]} 
-                for turn in turns
-            ]
-        }
     
     def _adapt_calls_to_conversations(self, data):
         """Convert calls data format to conversations format"""

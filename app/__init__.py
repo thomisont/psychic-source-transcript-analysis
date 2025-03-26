@@ -42,7 +42,6 @@ def create_app():
     api_key = app.config.get('ELEVENLABS_API_KEY')
     agent_id = app.config.get('ELEVENLABS_AGENT_ID')
     api_url = app.config.get('ELEVENLABS_API_URL', 'https://api.elevenlabs.io')
-    demo_mode = app.config.get('DEMO_MODE', '0') == '1'
     
     print(f"DEBUG: About to initialize ElevenLabsClient with: api_key={api_key[:5] if api_key else 'None'}..., agent_id={agent_id}")
     
@@ -50,8 +49,7 @@ def create_app():
     elevenlabs_client = ElevenLabsClient(
         api_key=api_key,
         agent_id=agent_id,
-        api_url=api_url,
-        demo_mode=demo_mode
+        api_url=api_url
     )
     
     # Test the connection

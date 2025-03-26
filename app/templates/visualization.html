@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Visualization - Psychic Source Analyzer{% endblock %}
+{% block title %}Engagement Metrics - Psychic Source Analyzer{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -8,20 +8,41 @@
         <div class="card shadow-sm">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-chart-pie me-2"></i>Data Visualization
+                    <i class="fas fa-chart-pie me-2"></i>Engagement Metrics
                 </h5>
                 <div class="d-flex align-items-center">
-                    <div class="btn-group btn-group-sm me-2">
-                        <button type="button" class="btn btn-light timeframe-selector" data-timeframe="last_7_days">7 Days</button>
-                        <button type="button" class="btn btn-light timeframe-selector active" data-timeframe="last_30_days">30 Days</button>
-                        <button type="button" class="btn btn-light timeframe-selector" data-timeframe="last_90_days">90 Days</button>
+                    <div class="btn-group me-2" role="group" aria-label="Date range selection">
+                        <button type="button" class="btn btn-outline-light timeframe-selector" data-timeframe="last_7_days">7 Days</button>
+                        <button type="button" class="btn btn-outline-light timeframe-selector active" data-timeframe="last_30_days">30 Days</button>
+                        <button type="button" class="btn btn-outline-light timeframe-selector" data-timeframe="last_90_days">90 Days</button>
+                        <button type="button" class="btn btn-outline-light timeframe-selector" data-timeframe="all_time">All</button>
                     </div>
-                    <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#filterModal">
-                        <i class="fas fa-filter me-1"></i>Custom Range
+                    <button type="button" class="btn btn-outline-light px-3" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="fas fa-calendar-alt me-1"></i>Custom Range
                     </button>
                 </div>
             </div>
             <div class="card-body">
+                <!-- Add date range indicator -->
+                <div id="date-range-indicator" class="alert alert-info mb-3 py-2">
+                    <small><strong>Current date range:</strong> <span id="current-date-range">Last 30 days</span></small>
+                    <span class="float-end" id="aggregation-note" style="display: none;">
+                        <i class="fas fa-info-circle"></i> Time of Day and Day of Week charts show aggregated patterns across the selected time period.
+                    </span>
+                </div>
+                
+                <!-- Add call count indicator -->
+                <div id="call-count-indicator" class="alert alert-light mb-3 py-2">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-phone-alt fa-2x text-primary"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0"><span id="total-calls-count">0</span> <small class="text-muted">total calls</small></h5>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="loading-overlay" class="d-none">
                     <div class="d-flex justify-content-center align-items-center p-5">
                         <div class="spinner-border text-primary me-3" role="status"></div>
@@ -145,21 +166,53 @@
         document.getElementById('viz-start-date').value = startDate.toISOString().split('T')[0];
         document.getElementById('viz-end-date').value = endDate.toISOString().split('T')[0];
         
+        // Style the active button correctly on page load
+        const activeButton = document.querySelector('.timeframe-selector.active');
+        if (activeButton) {
+            activeButton.classList.add('active');
+            activeButton.classList.remove('btn-outline-light');
+            activeButton.classList.add('btn-warning');
+            activeButton.style.fontWeight = 'bold';
+            
+            // Set initial date range text
+            document.getElementById('current-date-range').textContent = 'Last 30 days';
+        }
+        
         // Load initial visualization data with default timeframe
         loadVisualizationData('last_30_days');
         
         // Set up event listeners for timeframe buttons
         document.querySelectorAll('.timeframe-selector').forEach(button => {
             button.addEventListener('click', function() {
-                // Update active state
-                document.querySelectorAll('.timeframe-selector').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                this.classList.add('active');
-                
-                // Load data for selected timeframe
-                const timeframe = this.getAttribute('data-timeframe');
-                loadVisualizationData(timeframe);
+                // Only perform action if this button is not already active
+                if (!this.classList.contains('active')) {
+                    // First deactivate all buttons
+                    document.querySelectorAll('.timeframe-selector').forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.classList.remove('btn-warning');
+                        btn.style.fontWeight = 'normal';
+                        btn.classList.add('btn-outline-light');
+                    });
+                    
+                    // Then activate only this button
+                    this.classList.add('active');
+                    this.classList.remove('btn-outline-light');
+                    this.classList.add('btn-warning');
+                    this.style.fontWeight = 'bold';
+                    
+                    // Update date range text
+                    const timeframe = this.getAttribute('data-timeframe');
+                    const timeframeText = {
+                        'last_7_days': 'Last 7 days',
+                        'last_30_days': 'Last 30 days',
+                        'last_90_days': 'Last 90 days',
+                        'all_time': 'All time (since Jan 2025)'
+                    };
+                    document.getElementById('current-date-range').textContent = timeframeText[timeframe];
+                    
+                    // Load data for selected timeframe
+                    loadVisualizationData(timeframe);
+                }
             });
         });
         
@@ -173,16 +226,29 @@
                 return;
             }
             
+            // Format dates for display
+            const startDateObj = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            const formattedStartDate = startDateObj.toLocaleDateString();
+            const formattedEndDate = endDateObj.toLocaleDateString();
+            
+            // Update date range text
+            document.getElementById('current-date-range').textContent = 
+                `Custom: ${formattedStartDate} to ${formattedEndDate}`;
+            
             // Deactivate all timeframe buttons
             document.querySelectorAll('.timeframe-selector').forEach(btn => {
                 btn.classList.remove('active');
+                btn.classList.remove('btn-warning');
+                btn.style.fontWeight = 'normal';
+                btn.classList.add('btn-outline-light');
             });
             
             // Hide modal
             $('#filterModal').modal('hide');
             
             // Load data with custom date range
-            loadVisualizationData(null, startDate, endDate);
+            loadVisualizationData('custom', startDate, endDate);
         });
     });
     
@@ -191,20 +257,65 @@
         document.getElementById('loading-overlay').classList.remove('d-none');
         document.getElementById('visualization-content').classList.add('opacity-25');
         
+        // Calculate date range for any timeframe
+        let startDate, endDate;
+        const today = new Date();
+        endDate = new Date(today);
+        endDate.setHours(23, 59, 59, 999); // End of today
+        
+        if (timeframe === 'custom') {
+            startDate = new Date(customStartDate);
+            endDate = new Date(customEndDate);
+            endDate.setHours(23, 59, 59, 999); // End of the day for end date
+            
+            // Show aggregation note for all date ranges
+            document.getElementById('aggregation-note').style.display = 'inline';
+        } else {
+            // Calculate start date based on timeframe
+            startDate = new Date(today);
+            startDate.setHours(0, 0, 0, 0); // Start of today
+            
+            if (timeframe === 'last_7_days') {
+                startDate.setDate(startDate.getDate() - 7);
+            } else if (timeframe === 'last_30_days') {
+                startDate.setDate(startDate.getDate() - 30);
+            } else if (timeframe === 'last_90_days') {
+                startDate.setDate(startDate.getDate() - 90);
+            } else if (timeframe === 'all_time') {
+                // Set start date to January 1, 2025
+                startDate = new Date(2025, 0, 1); // Month is 0-indexed in JavaScript
+            }
+            
+            // Show aggregation note for all date ranges
+            document.getElementById('aggregation-note').style.display = 'inline';
+        }
+        
+        // Store the date range in sessionStorage for all timeframes
+        const dateRange = {
+            start: startDate.toISOString().split('T')[0],
+            end: endDate.toISOString().split('T')[0]
+        };
+        sessionStorage.setItem('currentDateRange', JSON.stringify(dateRange));
+        
         // Build query parameters
         let url = '/api/visualization/data';
         const params = new URLSearchParams();
         
-        if (timeframe) {
-            params.append('timeframe', timeframe);
-        } else if (customStartDate && customEndDate) {
+        if (timeframe === 'custom') {
+            // For custom timeframes, ensure we're sending proper format
             params.append('start_date', customStartDate);
             params.append('end_date', customEndDate);
+        } else {
+            // For preset timeframes, send as before
+            params.append('timeframe', timeframe);
         }
         
         if (params.toString()) {
             url += `?${params.toString()}`;
         }
+        
+        console.log('Fetching data with URL:', url);
+        console.log('Using date range:', dateRange);
         
         // Make API request to get visualization data
         fetch(url)
@@ -215,7 +326,37 @@
                 return response.json();
             })
             .then(data => {
-                // Create visualizations with the data
+                console.log('Received visualization data:', data);
+                
+                // Filter all time series data to match the exact date range
+                const filterTimeSeriesByRange = (seriesData) => {
+                    if (!seriesData || !seriesData.labels || !seriesData.data) return seriesData;
+                    
+                    const filteredLabels = [];
+                    const filteredData = [];
+                    
+                    seriesData.labels.forEach((label, index) => {
+                        const labelDate = new Date(label);
+                        if (labelDate >= startDate && labelDate <= endDate) {
+                            filteredLabels.push(label);
+                            filteredData.push(seriesData.data[index]);
+                        }
+                    });
+                    
+                    return {
+                        labels: filteredLabels,
+                        data: filteredData
+                    };
+                };
+                
+                // Filter time-series datasets for ALL date ranges (custom and preset)
+                if (data.volume) data.volume = filterTimeSeriesByRange(data.volume);
+                if (data.duration) data.duration = filterTimeSeriesByRange(data.duration);
+                if (data.completion) data.completion = filterTimeSeriesByRange(data.completion);
+                
+                // Note: We don't filter time_of_day and day_of_week as they are aggregations
+                
+                // Create visualizations with the filtered data
                 createVisualizations(data);
                 
                 // Hide loading overlay
@@ -224,7 +365,14 @@
             })
             .catch(error => {
                 console.error('Error fetching visualization data:', error);
-                alert('Failed to load visualization data. Please try again.');
+                
+                // Show error message in visualization area
+                document.getElementById('visualization-content').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Failed to load visualization data: ${error.message}. Please try again.
+                    </div>
+                `;
                 
                 // Hide loading overlay
                 document.getElementById('loading-overlay').classList.add('d-none');
@@ -233,6 +381,110 @@
     }
     
     function createVisualizations(data) {
+        console.log('Creating visualizations with data:', data);
+        
+        // Check if we have a date range from sessionStorage
+        const dateRangeStr = sessionStorage.getItem('currentDateRange');
+        const isCustomRange = dateRangeStr !== null;
+        
+        // Check if we have empty data
+        const hasValidData = data && 
+            data.volume && data.volume.labels && data.volume.labels.length > 0 &&
+            data.duration && data.duration.labels && data.duration.labels.length > 0;
+            
+        if (!hasValidData) {
+            // Display a message if no data is available for this date range
+            document.getElementById('visualization-content').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    No data available for the selected date range. Please try a different range.
+                </div>
+            `;
+            return;
+        }
+        
+        // Calculate total calls if volume data is available
+        if (data.volume && data.volume.data) {
+            const totalCalls = data.volume.data.reduce((sum, count) => sum + count, 0);
+            document.getElementById('total-calls-count').textContent = totalCalls;
+        }
+        
+        // Reset content if it was previously showing no data message
+        if (!document.getElementById('volumeChart')) {
+            document.getElementById('visualization-content').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Conversation Volume</h5>
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 200px;">
+                                    <canvas id="volumeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Average Duration</h5>
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 200px;">
+                                    <canvas id="durationChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Time of Day Distribution</h5>
+                                ${isCustomRange ? '<small class="text-muted">Aggregated across selected dates</small>' : ''}
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 200px;">
+                                    <canvas id="timeOfDayChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Day of Week Distribution</h5>
+                                ${isCustomRange ? '<small class="text-muted">Aggregated across selected dates</small>' : ''}
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 200px;">
+                                    <canvas id="dayOfWeekChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Completion Rate</h5>
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 200px;">
+                                    <canvas id="completionChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         // Create volume chart
         createVolumeChart(data.volume);
         
@@ -258,6 +510,9 @@
         // Create the chart with real data
         const ctx = document.getElementById('volumeChart').getContext('2d');
         
+        // Get the actual date range from the data to adjust scales if needed
+        const dateRange = volumeData.labels ? volumeData.labels.length : 0;
+        
         visualizationCharts.volumeChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -277,9 +532,24 @@
                 plugins: {
                     legend: {
                         display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                // Ensure we show full date in tooltip
+                                return tooltipItems[0].label;
+                            }
+                        }
                     }
                 },
                 scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            autoSkip: dateRange > 10 // Auto-skip labels if we have more than 10 days
+                        }
+                    },
                     y: {
                         beginAtZero: true,
                         ticks: {
@@ -299,6 +569,9 @@
         
         // Create the chart with real data
         const ctx = document.getElementById('durationChart').getContext('2d');
+        
+        // Get the actual date range from the data to adjust scales if needed
+        const dateRange = durationData.labels ? durationData.labels.length : 0;
         
         visualizationCharts.durationChart = new Chart(ctx, {
             type: 'bar',
@@ -321,6 +594,13 @@
                     }
                 },
                 scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            autoSkip: dateRange > 10 // Auto-skip labels if we have more than 10 days
+                        }
+                    },
                     y: {
                         beginAtZero: true
                     }
