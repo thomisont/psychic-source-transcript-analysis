@@ -69,6 +69,35 @@
     .btn-warning.active {
         border-color: #fff;
     }
+    
+    /* Better styling for count indicators */
+    .count-indicators {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .count-box {
+        padding: 10px;
+        border-radius: 8px;
+        margin-right: 10px;
+    }
+    
+    .count-box .count-icon {
+        font-size: 1.8rem;
+        color: var(--bs-primary);
+        margin-right: 10px;
+    }
+    
+    .count-box .count-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    .count-box .count-label {
+        font-size: 0.9rem;
+        color: var(--bs-secondary);
+    }
 </style>
 {% endblock %}
 
@@ -101,24 +130,41 @@
                     </span>
                 </div>
                 
-                <!-- Add call count indicator -->
-                <div id="call-count-indicator" class="alert alert-light mb-3 py-2">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <i class="fas fa-phone-alt fa-2x text-primary"></i>
+                <!-- Improved count indicators -->
+                <div class="count-indicators mb-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body d-flex align-items-center p-4">
+                                    <div class="stats-icon bg-primary text-white rounded-circle p-3 me-4 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                                        <i class="fas fa-phone-alt fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="text-muted mb-1">Calls in Selected Period</h6>
+                                        <h1 class="display-5 fw-bold mb-0" id="total-calls-count">0</h1>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <h5 class="mb-0"><span id="total-calls-count">0</span> <small class="text-muted">total calls</small></h5>
+                        <div class="col-md-6">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body d-flex align-items-center p-4">
+                                    <div class="stats-icon bg-info text-white rounded-circle p-3 me-4 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                                        <i class="fas fa-database fa-2x"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="text-muted mb-1">Total Conversations in Database</h6>
+                                        <div class="d-flex align-items-center">
+                                            <h1 class="display-5 fw-bold mb-0" id="total-conversations-count">0</h1>
+                                            <button id="refresh-total" class="btn btn-sm btn-primary rounded-circle ms-3" title="Refresh count" style="width: 36px; height: 36px;">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Total count indicator -->
-                <div id="total-db-indicator" style="position: absolute; top: 10px; right: 20px;" class="badge bg-info p-2">
-                    <span id="total-conversations-count">...</span> conversations in database
-                    <button id="refresh-total" class="btn btn-sm btn-light ms-2 p-0 px-1" title="Refresh count">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
                 </div>
                 
                 <div id="loading-overlay" class="d-none" style="position: absolute; top: 50px; left: 0; right: 0; bottom: 0; z-index: 1000;">
@@ -284,6 +330,7 @@
             })
             .then(data => {
                 console.log('Total conversations data:', data);
+                // Display the actual count returned by the API
                 totalElement.textContent = data.total.toLocaleString();
                 logDebug(`Total conversations in database: ${data.total}`);
             })
@@ -422,9 +469,16 @@
                 return;
             }
             
-            // Format dates for display
+            // Validate date range
             const startDateObj = new Date(startDate);
             const endDateObj = new Date(endDate);
+            
+            if (startDateObj > endDateObj) {
+                alert('Start date cannot be after end date.');
+                return;
+            }
+            
+            // Format dates for display
             const formattedStartDate = startDateObj.toLocaleDateString();
             const formattedEndDate = endDateObj.toLocaleDateString();
             
@@ -452,6 +506,15 @@
             document.querySelectorAll('.card-body').forEach(card => {
                 card.style.opacity = '0.6';
             });
+            
+            // Store date range in session storage for client-side filtering
+            const dateRange = {
+                start: startDate,
+                end: endDate
+            };
+            sessionStorage.setItem('currentDateRange', JSON.stringify(dateRange));
+            
+            logDebug(`Custom date range selected: ${startDate} to ${endDate}`);
             
             // Load data after a brief delay for visual feedback
             setTimeout(() => {
@@ -608,18 +671,33 @@
                 const filteredLabels = [];
                 const filteredData = [];
                 
+                // Ensure dates are properly compared
+                const startDateStr = startDate.toISOString().split('T')[0];
+                const endDateStr = endDate.toISOString().split('T')[0];
+                
+                console.log(`Filtering time series data from ${startDateStr} to ${endDateStr}`);
+                logDebug(`Filtering range: ${startDateStr} to ${endDateStr} (${seriesData.labels.length} data points)`);
+                
                 seriesData.labels.forEach((label, index) => {
+                    // Get date from label and normalize format
                     const labelDate = new Date(label);
-                    if (labelDate >= startDate && labelDate <= endDate) {
+                    const labelDateStr = labelDate.toISOString().split('T')[0];
+                    
+                    // Compare dates as strings in ISO format (YYYY-MM-DD)
+                    if (labelDateStr >= startDateStr && labelDateStr <= endDateStr) {
                         filteredLabels.push(label);
                         filteredData.push(seriesData.data[index]);
                     }
                 });
                 
                 console.log('Filtered time series:', {
+                    original: seriesData.labels.length,
+                    filtered: filteredLabels.length,
                     labels: filteredLabels,
                     data: filteredData
                 });
+                
+                logDebug(`Filtered from ${seriesData.labels.length} to ${filteredLabels.length} data points`);
                 
                 return {
                     labels: filteredLabels,
@@ -870,19 +948,66 @@
             visualizationCharts.durationChart.destroy();
         }
         
-        // Create the chart with real data
-        const ctx = document.getElementById('durationChart').getContext('2d');
+        // Get the canvas context
+        const ctx = document.getElementById('durationChart');
+        
+        // Log what we received
+        console.log('Duration chart original data:', JSON.stringify(durationData));
+        
+        // Check if we have valid data
+        if (!ctx || !durationData || !durationData.labels || !durationData.data || 
+            durationData.labels.length === 0 || durationData.data.length === 0 ||
+            durationData.data.every(val => val === null || val === undefined || val === 0)) {
+            
+            console.error('Cannot create duration chart - missing or invalid data');
+            
+            // Show empty state message instead of generating sample data
+            const container = ctx.closest('.card-body');
+            if (container) {
+                container.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                        <i class="fas fa-chart-bar text-muted mb-3" style="font-size: 2.5rem;"></i>
+                        <p class="text-muted">No duration data available</p>
+                    </div>
+                `;
+            }
+            return;
+        }
+        
+        // Use the provided data, ensuring all values are valid numbers
+        const chartData = {
+            labels: [...durationData.labels],
+            data: []
+        };
+        
+        // Process data values to ensure they're valid numbers
+        for (let i = 0; i < durationData.data.length; i++) {
+            let value = durationData.data[i];
+            
+            // Convert to number and validate
+            if (value === null || value === undefined || value === '') {
+                chartData.data.push(0);
+            } else {
+                const numValue = Number(value);
+                chartData.data.push(isNaN(numValue) ? 0 : numValue);
+            }
+        }
+        
+        // Log the final data we're using
+        console.log('Duration chart processed data:', chartData);
+        logDebug(`Duration chart using ${chartData.labels.length} data points`);
         
         // Get the actual date range from the data to adjust scales if needed
-        const dateRange = durationData.labels ? durationData.labels.length : 0;
+        const dateRange = chartData.labels.length;
         
-        visualizationCharts.durationChart = new Chart(ctx, {
+        // Create the chart
+        visualizationCharts.durationChart = new Chart(ctx.getContext('2d'), {
             type: 'bar',
             data: {
-                labels: durationData.labels || [],
+                labels: chartData.labels,
                 datasets: [{
                     label: 'Average Duration (seconds)',
-                    data: durationData.data || [],
+                    data: chartData.data,
                     backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1
@@ -894,6 +1019,16 @@
                 plugins: {
                     legend: {
                         display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const seconds = context.raw;
+                                const minutes = Math.floor(seconds / 60);
+                                const remainingSeconds = Math.round(seconds % 60);
+                                return `${minutes}m ${remainingSeconds}s`;
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -905,7 +1040,11 @@
                         }
                     },
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Seconds'
+                        }
                     }
                 }
             }
@@ -1017,6 +1156,9 @@
         // Create the chart with real data
         const ctx = document.getElementById('completionChart').getContext('2d');
         
+        // Get the actual date range from the data to adjust scales if needed
+        const dateRange = completionData.labels ? completionData.labels.length : 0;
+        
         visualizationCharts.completionChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -1027,8 +1169,7 @@
                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
                     borderColor: 'rgba(255, 99, 132, 1)',
                     borderWidth: 2,
-                    tension: 0.3,
-                    fill: true
+                    tension: 0.4
                 }]
             },
             options: {
@@ -1040,8 +1181,15 @@
                     }
                 },
                 scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            autoSkip: dateRange > 10 // Auto-skip labels if we have more than 10 days
+                        }
+                    },
                     y: {
-                        beginAtZero: true,
+                        min: 0,
                         max: 100,
                         ticks: {
                             callback: function(value) {

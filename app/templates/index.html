@@ -24,6 +24,39 @@
         font-weight: bold;
         box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.5);
     }
+    
+    /* Count indicators styling */
+    .count-indicators .stats-icon {
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .count-indicators .card {
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .count-indicators .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    /* Fix for btn-outline-light contrast on primary background */
+    .btn-outline-light {
+        border-color: #fff;
+        color: #fff;
+    }
+    
+    .btn-outline-light:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        color: #fff;
+    }
+    
+    /* Most active time styling */
+    #most-active-time {
+        font-size: 1.8rem;
+    }
 </style>
 {% endblock %}
 
@@ -37,6 +70,43 @@
                     This tool helps you extract, analyze, and visualize conversation data from the ElevenLabs 
                     Conversational Voice Agent "Lily". Use the navigation menu to explore different features.
                 </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add improved count indicators at the top -->
+<div class="count-indicators mb-4">
+    <div class="row">
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon bg-primary text-white rounded-circle p-3 me-4 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                        <i class="fas fa-phone-alt fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-1">Calls in Selected Period</h6>
+                        <h1 class="display-5 fw-bold mb-0" id="total-conversations">-</h1>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center p-4">
+                    <div class="stats-icon bg-info text-white rounded-circle p-3 me-4 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                        <i class="fas fa-database fa-2x"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1">Total Conversations in Database</h6>
+                        <div class="d-flex align-items-center">
+                            <h1 class="display-5 fw-bold mb-0" id="total-conversations-count">...</h1>
+                            <button id="refresh-total" class="btn btn-sm btn-primary rounded-circle ms-3" title="Refresh count" style="width: 36px; height: 36px;">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -93,21 +163,7 @@
 
 <div class="row mt-4">
     <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-success text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-phone-alt me-2"></i>Conversations
-                </h5>
-            </div>
-            <div class="card-body text-center">
-                <h3 id="total-conversations">-</h3>
-                <p class="text-muted">Total conversations</p>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm h-100">
             <div class="card-header bg-info text-white">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-hourglass-half me-2"></i>Average Duration
@@ -115,13 +171,13 @@
             </div>
             <div class="card-body text-center">
                 <h3 id="avg-duration">-</h3>
-                <p class="text-muted">Seconds per conversation</p>
+                <p class="text-muted">Per conversation</p>
             </div>
         </div>
     </div>
     
     <div class="col-md-4">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm h-100">
             <div class="card-header bg-primary text-white">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-check-circle me-2"></i>Completion Rate
@@ -130,6 +186,20 @@
             <div class="card-body text-center">
                 <h3 id="completion-rate">-</h3>
                 <p class="text-muted">Successful conversations</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-comments me-2"></i>Most Active Time
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <h3 id="most-active-time">-</h3>
+                <p class="text-muted">Peak conversation hour</p>
             </div>
         </div>
     </div>
@@ -210,14 +280,6 @@
     </div>
 </div>
 
-<!-- Total count indicator -->
-<div id="total-db-indicator" style="position: absolute; top: 10px; right: 20px;" class="badge bg-info p-2">
-    <span id="total-conversations-count">...</span> conversations in database
-    <button id="refresh-total" class="btn btn-sm btn-light ms-2 p-0 px-1" title="Refresh count">
-        <i class="fas fa-sync-alt"></i>
-    </button>
-</div>
-
 <!-- Debug panel (hidden by default) -->
 <div id="debug-panel" class="position-fixed bottom-0 end-0 p-3 bg-dark text-light" style="max-width: 400px; display: none; max-height: 300px; overflow-y: auto; z-index: 1050; opacity: 0.9;">
     <div class="d-flex justify-content-between mb-2">
@@ -241,6 +303,7 @@
         document.getElementById('total-conversations').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         document.getElementById('avg-duration').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         document.getElementById('completion-rate').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        document.getElementById('most-active-time').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
         // Add loading indicators to charts too
         document.getElementById('recent-activity-chart').innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><i class="fas fa-spinner fa-spin me-2"></i> Loading...</div>';
@@ -309,6 +372,7 @@
                 document.getElementById('total-conversations').textContent = 'Error';
                 document.getElementById('avg-duration').textContent = 'Error';
                 document.getElementById('completion-rate').textContent = 'Error';
+                document.getElementById('most-active-time').textContent = 'Error';
                 
                 // Show error in chart area
                 document.getElementById('recent-activity-chart').innerHTML = 
@@ -318,29 +382,47 @@
             
             // Update summary statistics
             document.getElementById('total-conversations').textContent = data.total_conversations;
-            document.getElementById('avg-duration').textContent = formatDuration(data.avg_duration);
+            
+            // Format the duration nicely
+            const formattedDuration = formatDuration(data.avg_duration);
+            document.getElementById('avg-duration').textContent = formattedDuration;
+            
+            // Set completion rate percentage
             document.getElementById('completion-rate').textContent = `${data.completion_rate}%`;
+            
+            // Find and display most active hour
+            const mostActiveHour = findMostActiveHour(data.hour_distribution);
+            if (mostActiveHour) {
+                document.getElementById('most-active-time').textContent = mostActiveHour;
+            } else {
+                document.getElementById('most-active-time').textContent = 'N/A';
+            }
             
             // Update charts
             document.getElementById('recent-activity-chart').innerHTML = '<canvas id="conversationsChart"></canvas>';
             
             // Reset canvas for other charts
-            document.getElementById('hourlyChart').getContext('2d').clearRect(0, 0, 
-                document.getElementById('hourlyChart').width, 
-                document.getElementById('hourlyChart').height);
-            document.getElementById('weekdayChart').getContext('2d').clearRect(0, 0, 
-                document.getElementById('weekdayChart').width, 
-                document.getElementById('weekdayChart').height);
+            document.getElementById('hourlyChart')?.getContext('2d')?.clearRect(0, 0, 
+                document.getElementById('hourlyChart')?.width || 0, 
+                document.getElementById('hourlyChart')?.height || 0);
+            document.getElementById('weekdayChart')?.getContext('2d')?.clearRect(0, 0, 
+                document.getElementById('weekdayChart')?.width || 0, 
+                document.getElementById('weekdayChart')?.height || 0);
             
             updateRecentActivityChart(data.daily_counts || {});
-            updateHourlyDistributionChart(data.hour_distribution || {});
-            updateWeekdayDistributionChart(data.weekday_distribution || {});
+            
+            // Check if we have hourly and weekday charts to update
+            if (document.getElementById('hourlyChart') && document.getElementById('weekdayChart')) {
+                updateHourlyDistributionChart(data.hour_distribution || {});
+                updateWeekdayDistributionChart(data.weekday_distribution || {});
+            }
         })
         .catch(error => {
             console.error('Error loading dashboard data:', error);
             document.getElementById('total-conversations').textContent = 'Error';
             document.getElementById('avg-duration').textContent = 'Error';
             document.getElementById('completion-rate').textContent = 'Error';
+            document.getElementById('most-active-time').textContent = 'Error';
             
             // Restore card opacity
             document.querySelectorAll('.card-body').forEach(card => {
@@ -546,8 +628,16 @@
         });
     }
     
-    // Helper function to format duration in seconds
+    // Helper function to format duration in a user-friendly way
     function formatDuration(seconds) {
+        // Handle null, undefined, NaN or non-numeric values
+        if (seconds === null || seconds === undefined || isNaN(seconds) || seconds === 0) {
+            return "0s";
+        }
+        
+        // Convert to number if it's not already
+        seconds = Number(seconds);
+        
         if (seconds < 60) {
             return `${Math.round(seconds)}s`;
         } else {
@@ -722,5 +812,29 @@
         // Log initial debug info
         logDebug(`Dashboard initialized with ${timeSelectors.length} timeframe selectors`);
     });
+
+    // Find most active hour from hour distribution
+    function findMostActiveHour(hourDistribution) {
+        if (!hourDistribution) return null;
+        
+        let maxCount = 0;
+        let mostActiveHour = null;
+        
+        Object.entries(hourDistribution).forEach(([hour, count]) => {
+            if (count > maxCount) {
+                maxCount = count;
+                mostActiveHour = hour;
+            }
+        });
+        
+        if (mostActiveHour === null) return null;
+        
+        // Format the hour nicely
+        const hourNum = parseInt(mostActiveHour);
+        const displayHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
+        const amPm = hourNum < 12 ? 'AM' : 'PM';
+        
+        return `${displayHour}:00 ${amPm}`;
+    }
 </script>
 {% endblock %} 
