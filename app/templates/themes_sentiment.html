@@ -1586,5 +1586,130 @@
             container.appendChild(card);
         });
     }
+
+    function createVisualizations(data) {
+        console.log('Creating theme & sentiment visualizations with data:', data);
+        
+        // First validate the data structure to avoid errors
+        if (!data || typeof data !== 'object') {
+            showError('Invalid data received from server');
+            return;
+        }
+        
+        // Check if there's any sentiment data
+        if (!data.sentiment_over_time || !Array.isArray(data.sentiment_over_time) || data.sentiment_over_time.length === 0) {
+            showError('No sentiment data available for the selected time period');
+            return;
+        }
+        
+        // Check if there are themes
+        if (!data.top_themes || !Array.isArray(data.top_themes) || data.top_themes.length === 0) {
+            showError('No theme data available for the selected time period');
+            return;
+        }
+        
+        // Check if there is sentiment by theme
+        if (!data.sentiment_by_theme || !Array.isArray(data.sentiment_by_theme) || data.sentiment_by_theme.length === 0) {
+            showError('No sentiment by theme data available for the selected time period');
+            return;
+        }
+        
+        // Calculate overall sentiment
+        const overallSentiment = calculateOverallSentiment(data.sentiment_over_time);
+        updateOverallSentiment(overallSentiment);
+        
+        // Create or update visualizations
+        createSentimentOverTimeChart(data.sentiment_over_time);
+        createTopThemesChart(data.top_themes);
+        createSentimentByThemeChart(data.sentiment_by_theme);
+        
+        // Hide loading spinner if it's still showing
+        document.getElementById('loading-overlay').classList.add('d-none');
+        document.getElementById('visualization-content').classList.remove('opacity-25');
+    }
+
+    function calculateOverallSentiment(sentimentData) {
+        // Handle empty or invalid data
+        if (!sentimentData || !Array.isArray(sentimentData) || sentimentData.length === 0) {
+            return { score: 0, label: 'Neutral', color: '#6c757d' };
+        }
+        
+        // Calculate average sentiment
+        let totalSentiment = 0;
+        let validValues = 0;
+        
+        sentimentData.forEach(item => {
+            // Check if the item has a valid sentiment property
+            const sentiment = typeof item === 'object' ? 
+                (item.sentiment || item.score || item.overall_score || 0) : 0;
+                
+            if (typeof sentiment === 'number' && !isNaN(sentiment)) {
+                totalSentiment += sentiment;
+                validValues++;
+            }
+        });
+        
+        const averageSentiment = validValues > 0 ? totalSentiment / validValues : 0;
+        
+        // Determine sentiment label and color
+        let label, color;
+        if (averageSentiment >= 0.5) {
+            label = 'Very Positive';
+            color = '#28a745';
+        } else if (averageSentiment >= 0.1) {
+            label = 'Positive';
+            color = '#5cb85c';
+        } else if (averageSentiment >= -0.1) {
+            label = 'Neutral';
+            color = '#6c757d';
+        } else if (averageSentiment >= -0.5) {
+            label = 'Negative';
+            color = '#d9534f';
+        } else {
+            label = 'Very Negative';
+            color = '#dc3545';
+        }
+        
+        return {
+            score: averageSentiment,
+            label: label,
+            color: color
+        };
+    }
+
+    function updateOverallSentiment(sentimentInfo) {
+        const scoreElement = document.getElementById('overall-sentiment-score');
+        const labelElement = document.getElementById('overall-sentiment-label');
+        
+        if (scoreElement) {
+            scoreElement.textContent = sentimentInfo.score.toFixed(2);
+            scoreElement.style.color = sentimentInfo.color;
+        }
+        
+        if (labelElement) {
+            labelElement.textContent = sentimentInfo.label;
+            labelElement.style.color = sentimentInfo.color;
+        }
+    }
+
+    function showError(message) {
+        // Display error message
+        const container = document.getElementById('visualization-content');
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${message}
+                </div>
+            `;
+        }
+        
+        // Hide loading overlay
+        document.getElementById('loading-overlay').classList.add('d-none');
+        document.getElementById('visualization-content').classList.remove('opacity-25');
+        
+        // Log error
+        console.error(message);
+    }
 </script>
 {% endblock %} 

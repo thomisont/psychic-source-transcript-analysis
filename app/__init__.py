@@ -6,6 +6,9 @@ import logging
 from dotenv import load_dotenv
 from app.api.elevenlabs_client import ElevenLabsClient
 import datetime
+from app.services.conversation_service import ConversationService
+from app.services.analysis_service import AnalysisService
+from app.services.export_service import ExportService
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -71,6 +74,11 @@ def create_app(test_config=None):
         api_key=os.getenv('ELEVENLABS_API_KEY', ''),
         agent_id=os.getenv('ELEVENLABS_AGENT_ID', '')
     )
+    
+    # Initialize and attach services
+    app.conversation_service = ConversationService(app.elevenlabs_client)
+    app.analysis_service = AnalysisService()
+    app.export_service = ExportService()
     
     # Register blueprints
     from app.routes import main_bp

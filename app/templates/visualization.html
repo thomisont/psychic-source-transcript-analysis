@@ -2,6 +2,76 @@
 
 {% block title %}Engagement Metrics - Psychic Source Analyzer{% endblock %}
 
+{% block styles %}
+<style>
+    /* Button pulse effect for feedback */
+    .btn-pulse {
+        animation: btn-pulse 0.3s ease-in-out;
+    }
+    @keyframes btn-pulse {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.3); }
+        50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 193, 7, 0.3); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.3); }
+    }
+    
+    /* Transitions for smoother updates */
+    .card-body {
+        transition: opacity 0.2s ease-in-out;
+    }
+    
+    /* Make active buttons more prominent */
+    .btn-warning.active {
+        font-weight: bold;
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.5);
+    }
+    
+    /* Timeframe selector spacing */
+    .timeframe-selector {
+        margin-right: 2px;
+    }
+    
+    /* Ensure card content is always visible */
+    .card-body canvas {
+        max-height: 200px;
+    }
+    
+    /* Style for loading overlay */
+    #loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.8);
+        z-index: 100;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    /* Make sure visualization content doesn't get too dimmed */
+    #visualization-content.opacity-25 {
+        opacity: 0.5 !important;
+    }
+    
+    /* Fix contrast issue with timeframe selectors */
+    .btn-outline-light {
+        border-color: #fff;
+        color: #fff;
+        font-weight: normal;
+    }
+    
+    .btn-outline-light:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        color: #fff;
+    }
+    
+    .btn-warning.active {
+        border-color: #fff;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -13,7 +83,7 @@
                 <div class="d-flex align-items-center">
                     <div class="btn-group me-2" role="group" aria-label="Date range selection">
                         <button type="button" class="btn btn-outline-light timeframe-selector" data-timeframe="last_7_days">7 Days</button>
-                        <button type="button" class="btn btn-outline-light timeframe-selector active" data-timeframe="last_30_days">30 Days</button>
+                        <button type="button" class="btn btn-warning timeframe-selector active" data-timeframe="last_30_days">30 Days</button>
                         <button type="button" class="btn btn-outline-light timeframe-selector" data-timeframe="last_90_days">90 Days</button>
                         <button type="button" class="btn btn-outline-light timeframe-selector" data-timeframe="all_time">All</button>
                     </div>
@@ -43,7 +113,15 @@
                     </div>
                 </div>
                 
-                <div id="loading-overlay" class="d-none">
+                <!-- Total count indicator -->
+                <div id="total-db-indicator" style="position: absolute; top: 10px; right: 20px;" class="badge bg-info p-2">
+                    <span id="total-conversations-count">...</span> conversations in database
+                    <button id="refresh-total" class="btn btn-sm btn-light ms-2 p-0 px-1" title="Refresh count">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                
+                <div id="loading-overlay" class="d-none" style="position: absolute; top: 50px; left: 0; right: 0; bottom: 0; z-index: 1000;">
                     <div class="d-flex justify-content-center align-items-center p-5">
                         <div class="spinner-border text-primary me-3" role="status"></div>
                         <h5 class="mb-0">Loading data...</h5>
@@ -151,13 +229,108 @@
         </div>
     </div>
 </div>
+
+<!-- Debug panel (hidden by default) -->
+<div id="debug-panel" class="position-fixed bottom-0 end-0 p-3 bg-dark text-light" style="max-width: 400px; display: none; max-height: 300px; overflow-y: auto; z-index: 1050; opacity: 0.9;">
+    <div class="d-flex justify-content-between mb-2">
+        <h6 class="m-0">Debug Information</h6>
+        <button id="close-debug" class="btn btn-sm btn-outline-light p-0 px-1">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div id="debug-content" class="small">
+        <div>Press Alt+D to toggle this panel</div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     let visualizationCharts = {};
     
+    // Debug utilities
+    let debugLines = [];
+    function logDebug(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        debugLines.push(`[${timestamp}] ${message}`);
+        
+        // Keep only the last 50 lines
+        if (debugLines.length > 50) {
+            debugLines = debugLines.slice(-50);
+        }
+        
+        // Update debug panel if it's visible
+        const debugContent = document.getElementById('debug-content');
+        if (debugContent && document.getElementById('debug-panel').style.display !== 'none') {
+            debugContent.innerHTML = debugLines.map(line => `<div>${line}</div>`).join('');
+            // Scroll to bottom
+            debugContent.scrollTop = debugContent.scrollHeight;
+        }
+    }
+
+    // Function to fetch total conversations count
+    function fetchTotalConversations() {
+        const totalElement = document.getElementById('total-conversations-count');
+        if (!totalElement) return;
+        
+        totalElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        fetch('/api/total_conversations')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Total conversations data:', data);
+                totalElement.textContent = data.total.toLocaleString();
+                logDebug(`Total conversations in database: ${data.total}`);
+            })
+            .catch(error => {
+                console.error('Error fetching total conversations:', error);
+                totalElement.textContent = 'Error';
+            });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Visualization page ready - setting up timeframe selectors');
+        
+        // Get all timeframe selectors
+        const timeframeSelectors = document.querySelectorAll('.timeframe-selector');
+        console.log(`Found ${timeframeSelectors.length} timeframe selectors`);
+        
+        // Load total conversations count
+        fetchTotalConversations();
+        
+        // Set up refresh button
+        document.getElementById('refresh-total').addEventListener('click', function() {
+            fetchTotalConversations();
+        });
+        
+        // Set up debug panel toggle
+        document.addEventListener('keydown', function(e) {
+            // Alt+D to toggle debug panel
+            if (e.altKey && e.key === 'd') {
+                const debugPanel = document.getElementById('debug-panel');
+                if (debugPanel.style.display === 'none') {
+                    debugPanel.style.display = 'block';
+                    // Update content
+                    const debugContent = document.getElementById('debug-content');
+                    debugContent.innerHTML = debugLines.map(line => `<div>${line}</div>`).join('');
+                    // Scroll to bottom
+                    debugContent.scrollTop = debugContent.scrollHeight;
+                } else {
+                    debugPanel.style.display = 'none';
+                }
+            }
+        });
+        
+        // Set up close button for debug panel
+        document.getElementById('close-debug').addEventListener('click', function() {
+            document.getElementById('debug-panel').style.display = 'none';
+        });
+        
         // Set default date range (last 30 days)
         const endDate = new Date();
         const startDate = new Date();
@@ -182,16 +355,30 @@
         loadVisualizationData('last_30_days');
         
         // Set up event listeners for timeframe buttons
-        document.querySelectorAll('.timeframe-selector').forEach(button => {
-            button.addEventListener('click', function() {
+        timeframeSelectors.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
                 // Only perform action if this button is not already active
                 if (!this.classList.contains('active')) {
+                    const timeframe = this.getAttribute('data-timeframe');
+                    console.log('Timeframe button clicked:', timeframe);
+                    logDebug(`Timeframe selector clicked: ${timeframe}`);
+                    
+                    // Show visual pulse for feedback
+                    this.classList.add('btn-pulse');
+                    setTimeout(() => {
+                        this.classList.remove('btn-pulse');
+                    }, 300);
+                    
                     // First deactivate all buttons
-                    document.querySelectorAll('.timeframe-selector').forEach(btn => {
+                    timeframeSelectors.forEach(btn => {
                         btn.classList.remove('active');
                         btn.classList.remove('btn-warning');
                         btn.style.fontWeight = 'normal';
                         btn.classList.add('btn-outline-light');
+                        btn.style.opacity = '0.8';
                     });
                     
                     // Then activate only this button
@@ -199,9 +386,9 @@
                     this.classList.remove('btn-outline-light');
                     this.classList.add('btn-warning');
                     this.style.fontWeight = 'bold';
+                    this.style.opacity = '1';
                     
                     // Update date range text
-                    const timeframe = this.getAttribute('data-timeframe');
                     const timeframeText = {
                         'last_7_days': 'Last 7 days',
                         'last_30_days': 'Last 30 days',
@@ -210,14 +397,23 @@
                     };
                     document.getElementById('current-date-range').textContent = timeframeText[timeframe];
                     
-                    // Load data for selected timeframe
-                    loadVisualizationData(timeframe);
+                    // Add loading indicator to cards
+                    document.querySelectorAll('.card-body').forEach(card => {
+                        card.style.opacity = '0.6';
+                    });
+                    
+                    // Load data after a brief delay for visual feedback
+                    setTimeout(() => {
+                        loadVisualizationData(timeframe);
+                    }, 100);
                 }
             });
         });
         
         // Set up event listener for custom filter button
-        document.getElementById('apply-filter-button').addEventListener('click', function() {
+        document.getElementById('apply-filter-button').addEventListener('click', function(e) {
+            e.preventDefault();
+            
             const startDate = document.getElementById('viz-start-date').value;
             const endDate = document.getElementById('viz-end-date').value;
             
@@ -237,18 +433,30 @@
                 `Custom: ${formattedStartDate} to ${formattedEndDate}`;
             
             // Deactivate all timeframe buttons
-            document.querySelectorAll('.timeframe-selector').forEach(btn => {
+            timeframeSelectors.forEach(btn => {
                 btn.classList.remove('active');
                 btn.classList.remove('btn-warning');
                 btn.style.fontWeight = 'normal';
                 btn.classList.add('btn-outline-light');
+                btn.style.opacity = '0.8';
             });
             
             // Hide modal
-            $('#filterModal').modal('hide');
+            const modal = document.getElementById('filterModal');
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
             
-            // Load data with custom date range
-            loadVisualizationData('custom', startDate, endDate);
+            // Add loading indicator to cards
+            document.querySelectorAll('.card-body').forEach(card => {
+                card.style.opacity = '0.6';
+            });
+            
+            // Load data after a brief delay for visual feedback
+            setTimeout(() => {
+                loadVisualizationData('custom', startDate, endDate);
+            }, 100);
         });
     });
     
@@ -256,6 +464,18 @@
         // Show loading overlay
         document.getElementById('loading-overlay').classList.remove('d-none');
         document.getElementById('visualization-content').classList.add('opacity-25');
+        document.getElementById('total-calls-count').textContent = '...';
+        
+        // Reset card opacity to ensure it's visible
+        document.querySelectorAll('.card-body').forEach(card => {
+            card.style.opacity = '1';
+        });
+        
+        // Log our inputs
+        console.log('Loading visualization data with timeframe:', timeframe);
+        console.log('Custom start date:', customStartDate);
+        console.log('Custom end date:', customEndDate);
+        logDebug(`Loading visualization data: timeframe=${timeframe}, custom dates=${customStartDate} to ${customEndDate}`);
         
         // Calculate date range for any timeframe
         let startDate, endDate;
@@ -263,7 +483,7 @@
         endDate = new Date(today);
         endDate.setHours(23, 59, 59, 999); // End of today
         
-        if (timeframe === 'custom') {
+        if (timeframe === 'custom' && customStartDate && customEndDate) {
             startDate = new Date(customStartDate);
             endDate = new Date(customEndDate);
             endDate.setHours(23, 59, 59, 999); // End of the day for end date
@@ -282,13 +502,17 @@
             } else if (timeframe === 'last_90_days') {
                 startDate.setDate(startDate.getDate() - 90);
             } else if (timeframe === 'all_time') {
-                // Set start date to January 1, 2025
-                startDate = new Date(2025, 0, 1); // Month is 0-indexed in JavaScript
+                // Set start date to January 1, 2020 for "all time"
+                startDate = new Date(2020, 0, 1); // Month is 0-indexed in JavaScript
+                logDebug('Using all_time timeframe with start date Jan 1, 2020');
             }
             
             // Show aggregation note for all date ranges
             document.getElementById('aggregation-note').style.display = 'inline';
         }
+        
+        console.log('Calculated date range:', startDate, 'to', endDate);
+        logDebug(`Calculated date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
         
         // Store the date range in sessionStorage for all timeframes
         const dateRange = {
@@ -301,13 +525,17 @@
         let url = '/api/visualization/data';
         const params = new URLSearchParams();
         
-        if (timeframe === 'custom') {
+        if (timeframe === 'custom' && customStartDate && customEndDate) {
             // For custom timeframes, ensure we're sending proper format
             params.append('start_date', customStartDate);
             params.append('end_date', customEndDate);
         } else {
-            // For preset timeframes, send as before
+            // For preset timeframes, send the timeframe parameter
             params.append('timeframe', timeframe);
+            
+            // Also send the calculated dates for extra clarity
+            params.append('start_date', dateRange.start);
+            params.append('end_date', dateRange.end);
         }
         
         if (params.toString()) {
@@ -316,68 +544,143 @@
         
         console.log('Fetching data with URL:', url);
         console.log('Using date range:', dateRange);
+        logDebug(`Fetching visualization data from: ${url}`);
         
-        // Make API request to get visualization data
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Received visualization data:', data);
-                
-                // Filter all time series data to match the exact date range
-                const filterTimeSeriesByRange = (seriesData) => {
-                    if (!seriesData || !seriesData.labels || !seriesData.data) return seriesData;
-                    
-                    const filteredLabels = [];
-                    const filteredData = [];
-                    
-                    seriesData.labels.forEach((label, index) => {
-                        const labelDate = new Date(label);
-                        if (labelDate >= startDate && labelDate <= endDate) {
-                            filteredLabels.push(label);
-                            filteredData.push(seriesData.data[index]);
-                        }
-                    });
-                    
-                    return {
-                        labels: filteredLabels,
-                        data: filteredData
-                    };
-                };
-                
-                // Filter time-series datasets for ALL date ranges (custom and preset)
-                if (data.volume) data.volume = filterTimeSeriesByRange(data.volume);
-                if (data.duration) data.duration = filterTimeSeriesByRange(data.duration);
-                if (data.completion) data.completion = filterTimeSeriesByRange(data.completion);
-                
-                // Note: We don't filter time_of_day and day_of_week as they are aggregations
-                
-                // Create visualizations with the filtered data
-                createVisualizations(data);
-                
-                // Hide loading overlay
-                document.getElementById('loading-overlay').classList.add('d-none');
-                document.getElementById('visualization-content').classList.remove('opacity-25');
-            })
-            .catch(error => {
-                console.error('Error fetching visualization data:', error);
-                
-                // Show error message in visualization area
+        // Set a longer timeout for slower connections
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+        
+        // Make API request to get visualization data with cache-busting and timeout
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            },
+            signal: controller.signal
+        })
+        .then(response => {
+            clearTimeout(timeoutId); // Clear the timeout
+            if (!response.ok) {
+                console.error(`HTTP error ${response.status}`);
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Received visualization data:', data);
+            
+            // Restore card opacity
+            document.querySelectorAll('.card-body').forEach(card => {
+                card.style.opacity = '1';
+            });
+            
+            // Check if there's an error message in the response
+            if (data.error) {
+                console.error('Error in API response:', data.error);
                 document.getElementById('visualization-content').innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-circle me-2"></i>
-                        Failed to load visualization data: ${error.message}. Please try again.
+                        API Error: ${data.error}
                     </div>
                 `;
                 
                 // Hide loading overlay
                 document.getElementById('loading-overlay').classList.add('d-none');
                 document.getElementById('visualization-content').classList.remove('opacity-25');
+                document.getElementById('total-calls-count').textContent = '0';
+                return;
+            }
+            
+            // Log data details for debugging
+            if (data.volume && data.volume.labels) {
+                logDebug(`Received data with ${data.volume.labels.length} data points from ${data.volume.labels[0]} to ${data.volume.labels[data.volume.labels.length - 1]}`);
+            }
+            
+            // Filter all time series data to match the exact date range
+            const filterTimeSeriesByRange = (seriesData) => {
+                if (!seriesData || !seriesData.labels || !seriesData.data) {
+                    console.warn('Invalid or empty time series data');
+                    return { labels: [], data: [] };
+                }
+                
+                const filteredLabels = [];
+                const filteredData = [];
+                
+                seriesData.labels.forEach((label, index) => {
+                    const labelDate = new Date(label);
+                    if (labelDate >= startDate && labelDate <= endDate) {
+                        filteredLabels.push(label);
+                        filteredData.push(seriesData.data[index]);
+                    }
+                });
+                
+                console.log('Filtered time series:', {
+                    labels: filteredLabels,
+                    data: filteredData
+                });
+                
+                return {
+                    labels: filteredLabels,
+                    data: filteredData
+                };
+            };
+            
+            // Filter time-series datasets for ALL date ranges (custom and preset)
+            if (data.volume) data.volume = filterTimeSeriesByRange(data.volume);
+            if (data.duration) data.duration = filterTimeSeriesByRange(data.duration);
+            if (data.completion) data.completion = filterTimeSeriesByRange(data.completion);
+            
+            // Validate filtered datasets
+            if (!data.volume || !data.volume.labels || data.volume.labels.length === 0) {
+                console.warn('No volume data available after filtering');
+                document.getElementById('visualization-content').innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No conversation data available for the selected date range. Please try a different range.
+                    </div>
+                `;
+                
+                // Hide loading overlay
+                document.getElementById('loading-overlay').classList.add('d-none');
+                document.getElementById('visualization-content').classList.remove('opacity-25');
+                document.getElementById('total-calls-count').textContent = '0';
+                return;
+            }
+            
+            // Note: We don't filter time_of_day and day_of_week as they are aggregations
+            
+            // Create visualizations with the filtered data
+            createVisualizations(data);
+            
+            // Hide loading overlay
+            document.getElementById('loading-overlay').classList.add('d-none');
+            document.getElementById('visualization-content').classList.remove('opacity-25');
+        })
+        .catch(error => {
+            clearTimeout(timeoutId); // Clear the timeout
+            console.error('Error fetching visualization data:', error);
+            logDebug(`Error: ${error.message}`);
+            
+            // Restore card opacity
+            document.querySelectorAll('.card-body').forEach(card => {
+                card.style.opacity = '1';
             });
+            
+            // Show error message in visualization area
+            document.getElementById('visualization-content').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    Failed to load visualization data: ${error.message}. Please try again.
+                </div>
+            `;
+            
+            // Hide loading overlay
+            document.getElementById('loading-overlay').classList.add('d-none');
+            document.getElementById('visualization-content').classList.remove('opacity-25');
+            document.getElementById('total-calls-count').textContent = '0';
+        });
     }
     
     function createVisualizations(data) {

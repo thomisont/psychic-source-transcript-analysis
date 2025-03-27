@@ -15,6 +15,22 @@ pkill -9 python || echo "No Python processes to kill"
 pkill -9 python3 || echo "No Python3 processes to kill"
 pkill -9 flask || echo "No Flask processes to kill"
 
+# Check if port 8080 is in use
+PORT_PID=$(lsof -t -i:8080 2>/dev/null)
+if [ -n "$PORT_PID" ]; then
+  echo "Port 8080 is in use by process $PORT_PID. Attempting to terminate..."
+  kill -9 $PORT_PID
+  sleep 1
+  # Verify port is now free
+  if lsof -i:8080 >/dev/null 2>&1; then
+    echo "Warning: Port 8080 is still in use. Application may fail to start."
+  else
+    echo "Port 8080 is now free."
+  fi
+else
+  echo "Port 8080 is available."
+fi
+
 # Install NLTK data
 echo "Ensuring NLTK data is available..."
 python -c "

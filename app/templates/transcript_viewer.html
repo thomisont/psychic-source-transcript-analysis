@@ -1,0 +1,440 @@
+<!-- Total count indicator -->
+<div id="total-db-indicator" style="position: absolute; top: 10px; right: 20px;" class="badge bg-info p-2">
+    <span id="total-conversations-count">...</span> conversations in database
+    <button id="refresh-total" class="btn btn-sm btn-light ms-2 p-0 px-1" title="Refresh count">
+        <i class="fas fa-sync-alt"></i>
+    </button>
+</div>
+
+<!-- Debug panel (hidden by default) -->
+<div id="debug-panel" class="position-fixed bottom-0 end-0 p-3 bg-dark text-light" style="max-width: 400px; display: none; max-height: 300px; overflow-y: auto; z-index: 1050; opacity: 0.9;">
+    <div class="d-flex justify-content-between mb-2">
+        <h6 class="m-0">Debug Information</h6>
+        <button id="close-debug" class="btn btn-sm btn-outline-light p-0 px-1">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div id="debug-content" class="small">
+        <div>Press Alt+D to toggle this panel</div>
+    </div>
+</div>
+
+<script>
+// Debug utilities
+let debugLines = [];
+function logDebug(message) {
+    const timestamp = new Date().toLocaleTimeString();
+    debugLines.push(`[${timestamp}] ${message}`);
+    
+    // Keep only the last 50 lines
+    if (debugLines.length > 50) {
+        debugLines = debugLines.slice(-50);
+    }
+    
+    // Update debug panel if it's visible
+    const debugContent = document.getElementById('debug-content');
+    if (debugContent && document.getElementById('debug-panel').style.display !== 'none') {
+        debugContent.innerHTML = debugLines.map(line => `<div>${line}</div>`).join('');
+        // Scroll to bottom
+        debugContent.scrollTop = debugContent.scrollHeight;
+    }
+}
+
+// Function to fetch total conversations count
+function fetchTotalConversations() {
+    const totalElement = document.getElementById('total-conversations-count');
+    if (!totalElement) return;
+    
+    totalElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    fetch('/api/total_conversations')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Total conversations data:', data);
+            totalElement.textContent = data.total.toLocaleString();
+            logDebug(`Total conversations in database: ${data.total}`);
+        })
+        .catch(error => {
+            console.error('Error fetching total conversations:', error);
+            totalElement.textContent = 'Error';
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Load total conversations count
+    fetchTotalConversations();
+    
+    // Set up refresh button
+    document.getElementById('refresh-total').addEventListener('click', function() {
+        fetchTotalConversations();
+    });
+    
+    // Set up debug panel toggle
+    document.addEventListener('keydown', function(e) {
+        // Alt+D to toggle debug panel
+        if (e.altKey && e.key === 'd') {
+            const debugPanel = document.getElementById('debug-panel');
+            if (debugPanel.style.display === 'none') {
+                debugPanel.style.display = 'block';
+                // Update content
+                const debugContent = document.getElementById('debug-content');
+                debugContent.innerHTML = debugLines.map(line => `<div>${line}</div>`).join('');
+                // Scroll to bottom
+                debugContent.scrollTop = debugContent.scrollHeight;
+            } else {
+                debugPanel.style.display = 'none';
+            }
+        }
+    });
+    
+    // Set up close button for debug panel
+    document.getElementById('close-debug').addEventListener('click', function() {
+        document.getElementById('debug-panel').style.display = 'none';
+    });
+    
+    // Debug initial load state
+    logDebug('Transcript viewer page loaded');
+});
+
+function loadTranscript(conversationId) {
+    // Show loading indicator
+    const transcriptContainer = document.getElementById('transcript-container');
+    transcriptContainer.innerHTML = '<div class="d-flex justify-content-center my-5"><div class="spinner-border text-primary" role="status"></div><span class="ms-3">Loading transcript...</span></div>';
+    
+    // Log the request
+    logDebug(`Loading transcript for conversation ID: ${conversationId}`);
+    
+    // Fetch transcript data
+    fetch(`/api/conversations/${conversationId}`)
+        .then(response => {
+            if (!response.ok) {
+                logDebug(`HTTP error ${response.status} from API. Response status: ${response.statusText}`);
+                throw new Error(`HTTP error ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Log full data for debugging
+            logDebug(`Received transcript data type: ${typeof data}`);
+            if (data) {
+                if (typeof data === 'object') {
+                    logDebug(`Received transcript data keys: ${Object.keys(data).join(', ')}`);
+                    
+                    // Log specific key values for debugging
+                    if (data.transcript) {
+                        logDebug(`Transcript type: ${typeof data.transcript}, isArray: ${Array.isArray(data.transcript)}, length: ${Array.isArray(data.transcript) ? data.transcript.length : 'N/A'}`);
+                    }
+                    if (data.turns) {
+                        logDebug(`Turns type: ${typeof data.turns}, isArray: ${Array.isArray(data.turns)}, length: ${Array.isArray(data.turns) ? data.turns.length : 'N/A'}`);
+                    }
+                    if (data.messages) {
+                        logDebug(`Messages type: ${typeof data.messages}, isArray: ${Array.isArray(data.messages)}, length: ${Array.isArray(data.messages) ? data.messages.length : 'N/A'}`);
+                    }
+                }
+            }
+            
+            logDebug(`Received transcript data: ${JSON.stringify(data).substring(0, 200)}...`);
+            
+            // Check if we have a valid response format
+            if (!data) {
+                throw new Error('Received empty response from the server');
+            }
+            
+            // Handle different API response formats
+            let processedData = processConversationData(data);
+            
+            // Create transcript UI with processed data
+            createTranscriptUI(processedData, transcriptContainer);
+        })
+        .catch(error => {
+            console.error('Error loading transcript:', error);
+            logDebug(`Error: ${error.message}`);
+            
+            // Show user-friendly error message
+            transcriptContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Error loading transcript:</strong> ${error.message}
+                    <div class="mt-2 small">
+                        <p>Possible reasons:</p>
+                        <ul>
+                            <li>The conversation ID may be invalid</li>
+                            <li>The server may be experiencing issues</li>
+                            <li>The data format from the API may have changed</li>
+                        </ul>
+                        <p>Try refreshing the page or selecting a different conversation.</p>
+                        
+                        <button class="btn btn-sm btn-outline-danger mt-3" id="show-error-details">
+                            <i class="fas fa-bug me-1"></i> Show Technical Details
+                        </button>
+                        
+                        <div id="error-details" class="mt-3 small" style="display: none;">
+                            <pre class="bg-light p-2 rounded">${error.stack || error.message}</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add listener for error details toggle
+            setTimeout(() => {
+                const detailsBtn = document.getElementById('show-error-details');
+                if (detailsBtn) {
+                    detailsBtn.addEventListener('click', function() {
+                        const details = document.getElementById('error-details');
+                        if (details.style.display === 'none') {
+                            details.style.display = 'block';
+                            this.innerHTML = '<i class="fas fa-eye-slash me-1"></i> Hide Technical Details';
+                        } else {
+                            details.style.display = 'none';
+                            this.innerHTML = '<i class="fas fa-bug me-1"></i> Show Technical Details';
+                        }
+                    });
+                }
+            }, 100);
+        });
+}
+
+// Process conversation data to normalize different API response formats
+function processConversationData(data) {
+    // Ensure we return an object with consistent structure
+    let processedData = {
+        conversation_id: null,
+        start_time: null,
+        end_time: null,
+        duration: 0,
+        status: 'unknown',
+        transcript: []
+    };
+    
+    // Debug the incoming data
+    logDebug(`Processing data type: ${typeof data}`);
+    if (typeof data === 'object' && data !== null) {
+        logDebug(`Data has keys: ${Object.keys(data).join(', ')}`);
+    }
+    
+    // Handle error message in response
+    if (data && data.error) {
+        logDebug(`Error message found in response: ${data.error}`);
+        throw new Error(data.error);
+    }
+    
+    if (!data) {
+        logDebug(`WARNING: Received null or undefined data`);
+        return processedData;
+    }
+    
+    // Extract conversation ID (could be in different properties)
+    processedData.conversation_id = data.conversation_id || data.id || data.conversationId || 'Unknown ID';
+    
+    // Extract timestamps
+    if (data.start_time) {
+        processedData.start_time = data.start_time;
+    } else if (data.start_time_unix_secs) {
+        // Convert Unix timestamp to ISO string
+        processedData.start_time = new Date(data.start_time_unix_secs * 1000).toISOString();
+    } else if (data.timestamp) {
+        processedData.start_time = data.timestamp;
+    }
+    
+    // Extract end time
+    if (data.end_time) {
+        processedData.end_time = data.end_time;
+    } else if (data.end_time_unix_secs) {
+        processedData.end_time = new Date(data.end_time_unix_secs * 1000).toISOString();
+    }
+    
+    // Extract duration
+    processedData.duration = data.duration || data.call_duration_secs || 0;
+    
+    // Extract status
+    processedData.status = data.status || (data.call_successful ? 'done' : 'failed');
+    
+    // Extract transcript (could be in different properties)
+    // First check for standard transcript arrays
+    if (data.transcript && Array.isArray(data.transcript)) {
+        logDebug(`Using data.transcript array with ${data.transcript.length} items`);
+        processedData.transcript = data.transcript;
+    } else if (data.turns && Array.isArray(data.turns)) {
+        logDebug(`Using data.turns array with ${data.turns.length} items`);
+        processedData.transcript = data.turns;
+    } else if (data.messages && Array.isArray(data.messages)) {
+        logDebug(`Using data.messages array with ${data.messages.length} items`);
+        processedData.transcript = data.messages;
+    } else {
+        // Special case: if this looks like a single transcript entry, wrap it
+        if (typeof data === 'object' && 
+            (data.text || data.content || data.message) && 
+            !Array.isArray(data.transcript) && 
+            !Array.isArray(data.turns) && 
+            !Array.isArray(data.messages)) {
+            
+            logDebug(`Data appears to be a single transcript entry, wrapping as array`);
+            processedData.transcript = [{
+                speaker: data.speaker || (data.is_agent ? 'Agent' : 'User'),
+                is_agent: Boolean(data.is_agent),
+                text: data.text || data.content || data.message || '',
+                timestamp: data.timestamp || data.created_at
+            }];
+        } else {
+            logDebug(`WARNING: No recognized transcript format found`);
+        }
+    }
+    
+    // Ensure transcript items have consistent properties
+    if (processedData.transcript.length > 0) {
+        processedData.transcript = processedData.transcript.map(item => {
+            // Create a new object with standardized properties
+            return {
+                text: item.text || item.content || item.message || 'No text content',
+                is_agent: item.is_agent || item.role === 'assistant' || 
+                        (item.speaker && ['agent', 'Agent', 'Lily'].includes(item.speaker)) ||
+                        (item.sender_type === 'agent'),
+                speaker: item.speaker || (item.is_agent ? 'Agent' : 'User'),
+                timestamp: item.timestamp || item.created_at
+            };
+        });
+    }
+    
+    // Log the processed data
+    logDebug(`Processed data - ID: ${processedData.conversation_id}, Transcript entries: ${processedData.transcript.length}`);
+    
+    return processedData;
+}
+
+function createTranscriptUI(data, container) {
+    // Extract transcript data - handle different possible formats
+    const transcript = data.transcript || [];
+    const conversationId = data.conversation_id || 'Unknown ID';
+    
+    // Extract metadata
+    const startTime = data.start_time ? new Date(data.start_time).toLocaleString() : 'Unknown';
+    const duration = data.duration ? formatDuration(data.duration) : 'Unknown';
+    const status = data.status || 'Unknown';
+    
+    // Log detailed debug information about the transcript format
+    if (transcript.length > 0) {
+        const firstItem = transcript[0];
+        logDebug(`First transcript item keys: ${Object.keys(firstItem).join(', ')}`);
+        logDebug(`First transcript item type: ${typeof firstItem}`);
+        if (typeof firstItem === 'object') {
+            logDebug(`Speaker field exists: ${Boolean(firstItem.speaker)}`);
+            logDebug(`Text field exists: ${Boolean(firstItem.text)}`);
+            logDebug(`Is agent field exists: ${Boolean(firstItem.is_agent)}`);
+        }
+    } else {
+        logDebug(`Transcript array is empty`);
+    }
+    
+    // Create UI
+    let html = `
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-comment-alt me-2"></i>Conversation Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Conversation ID:</strong> ${conversationId}</p>
+                        <p><strong>Status:</strong> <span class="badge ${status === 'done' ? 'bg-success' : 'bg-secondary'}">${status}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Start Time:</strong> ${startTime}</p>
+                        <p><strong>Duration:</strong> ${duration}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-comments me-2"></i>Transcript
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="transcript-messages">
+    `;
+    
+    // Generate message bubbles for each turn in the transcript
+    if (transcript.length === 0) {
+        html += `<div class="alert alert-warning">No messages in this transcript.</div>`;
+    } else {
+        transcript.forEach((turn, index) => {
+            // Determine if this is a user or agent message (checking all possible field names)
+            const isAgent = turn.is_agent || 
+                           turn.role === 'assistant' || 
+                           turn.speaker === 'agent' || 
+                           turn.speaker === 'Lily' || 
+                           turn.speaker === 'Agent' ||
+                           (turn.sender_type && turn.sender_type === 'agent');
+                           
+            const messageClass = isAgent ? 'agent-message' : 'user-message';
+            const alignClass = isAgent ? 'align-self-start' : 'align-self-end';
+            const bgColor = isAgent ? 'bg-primary text-white' : 'bg-light';
+            
+            // Get message text, handling different possible formats
+            const messageText = turn.text || turn.content || turn.message || 
+                               (typeof turn.message === 'object' ? turn.message.content : null) || 
+                               'No text content';
+            
+            // Format timestamp if available
+            let timestamp = '';
+            if (turn.timestamp) {
+                try {
+                    timestamp = new Date(turn.timestamp).toLocaleTimeString();
+                } catch (e) {
+                    timestamp = turn.timestamp;
+                }
+            } else if (turn.created_at) {
+                try {
+                    timestamp = new Date(turn.created_at).toLocaleTimeString();
+                } catch (e) {
+                    timestamp = turn.created_at;
+                }
+            }
+            
+            html += `
+                <div class="message-container ${alignClass} mb-3" style="max-width: 75%;">
+                    <div class="message ${messageClass} p-3 rounded ${bgColor}">
+                        <div class="message-header mb-2">
+                            <strong>${isAgent ? 'Agent' : 'User'}</strong>
+                            ${timestamp ? `<small class="text-muted ms-2">${timestamp}</small>` : ''}
+                        </div>
+                        <div class="message-body">
+                            ${messageText}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    html += `
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    logDebug(`Rendered transcript with ${transcript.length} messages`);
+}
+
+function formatDuration(seconds) {
+    if (!seconds || isNaN(seconds)) return 'Unknown';
+    
+    if (seconds < 60) {
+        return `${Math.round(seconds)}s`;
+    } else {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.round(seconds % 60);
+        return `${minutes}m ${remainingSeconds}s`;
+    }
+}
+</script> 

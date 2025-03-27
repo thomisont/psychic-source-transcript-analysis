@@ -1,10 +1,71 @@
----
-description:
-globs:
-alwaysApply: true
----
+# Psychic Source ElevenLabs - Rules
 
-# Your rule content
+## HTML/CSS/JavaScript Best Practices for Transcript Viewer
 
-- You can @ files here
-- You can use markdown but dont have to
+```javascript
+const transcriptViewerLessons = [
+  "Prefer standard Bootstrap components over custom HTML when implementing complex UI elements in Flask templates",
+  "Use DOM manipulation rather than string interpolation when complex HTML needs to be generated dynamically",
+  "Implement explicit HTML escaping when injecting user-generated content into the DOM",
+  "Always test UI components with real data that includes special characters and formatting edge cases",
+  "Add fallback mechanisms and recovery options for UI elements that might get stuck in loading states",
+  "Use CSS transitions and animations sparingly to enhance user experience without affecting performance",
+  "Implement proper error boundaries with user-friendly recovery options",
+  "Design interactive elements with clear visual feedback (active states, hover effects)"
+];
+```
+
+## Flask-Specific Implementation Notes for Chat Interfaces
+
+```javascript
+const flaskImplementationNotes = `
+1. When implementing chat-like interfaces in Flask applications:
+   - Use CSS for styling message bubbles rather than complex HTML structures
+   - Implement proper left/right alignment with flexbox
+   - Consider browser compatibility when using advanced CSS features
+   - Add visual indicators for message status (sender, timestamp)
+
+2. Error handling considerations:
+   - Implement timeouts for all asynchronous operations
+   - Add backup recovery scripts that run independently
+   - Include manual reset options for users when automatic recovery fails
+   - Use CSS animations with fallbacks for loading indicators
+
+3. Data presentation best practices:
+   - Format timestamps consistently across the application
+   - Handle missing or incomplete data gracefully
+   - Implement proper scrolling for overflow content
+   - Use responsive design patterns for all UI components
+`;
+```
+
+## Framework Integration Guidelines
+
+```javascript
+const frameworkIntegrationGuidelines = `
+1. Bootstrap + Flask integration:
+   - Use Bootstrap's native card components for consistent styling
+   - Leverage utility classes instead of custom CSS when possible
+   - Test responsive layouts across breakpoints
+   - Customize Bootstrap variables rather than overriding styles
+
+2. JavaScript considerations:
+   - Implement progressive enhancement where possible
+   - Add timeout-based fallbacks for all async operations
+   - Use feature detection rather than browser detection
+   - Properly separate concerns between JS, templates, and Flask routes
+`;
+```
+
+## HTMX and Flask Best Practices
+
+```javascript
+const htmxFlaskBestPractices = [
+  "Use Flask's render_template for server-side rendering",
+  "Implement Flask-WTF for form handling",
+  "Utilize Flask's url_for for generating URLs",
+  "Use Flask's jsonify for JSON responses",
+  "Implement Flask-SQLAlchemy for database operations",
+  "Utilize Flask's Blueprint for modular applications",
+];
+``` 

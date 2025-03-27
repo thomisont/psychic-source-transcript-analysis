@@ -1047,27 +1047,9 @@ class ConversationAnalyzer:
         return self._generate_fallback_concerns()
         
     def _generate_fallback_concerns(self):
-        """Generate fallback concerns data when LLM analysis fails"""
-        return [
-            {
-                'type': 'skepticism',
-                'count': 9,
-                'examples': [
-                    {'type': 'skepticism', 'text': 'I\'m not sure I believe in psychic abilities.', 'conversation_id': '3ae98c14'},
-                    {'type': 'skepticism', 'text': 'Is this just cold reading or do you really have a gift?', 'conversation_id': '5f23d97b'},
-                    {'type': 'skepticism', 'text': 'How does this work exactly? It seems a bit vague.', 'conversation_id': '8e67a42c'}
-                ]
-            },
-            {
-                'type': 'accuracy',
-                'count': 7,
-                'examples': [
-                    {'type': 'accuracy', 'text': 'How do you know that will happen? It seems too specific.', 'conversation_id': '6ad1fa83'},
-                    {'type': 'accuracy', 'text': 'But what if that prediction doesn\'t come true?', 'conversation_id': '9cb24e51'},
-                    {'type': 'accuracy', 'text': 'I\'ve had readings before that weren\'t accurate.', 'conversation_id': '7df36b2a'}
-                ]
-            }
-        ]
+        """Return empty data structure when analysis is unavailable"""
+        logging.info("Unable to analyze concerns - returning empty dataset")
+        return []
     
     def _extract_questions_with_llm(self, conversations):
         """
@@ -1231,24 +1213,6 @@ class ConversationAnalyzer:
         return self._generate_fallback_questions()
     
     def _generate_fallback_questions(self):
-        """Generate fallback question categories when LLM analysis fails"""
-        return [
-            {
-                'category': 'love_relationships',
-                'count': 12,
-                'examples': [
-                    {'text': 'Will I meet someone special soon?', 'conversation_id': '7a23b94c'},
-                    {'text': 'Is my current relationship going to last?', 'conversation_id': '5d16e82f'},
-                    {'text': 'When will I find my soulmate?', 'conversation_id': '3b49c75a'}
-                ]
-            },
-            {
-                'category': 'career_work',
-                'count': 9,
-                'examples': [
-                    {'text': 'Should I accept the new job offer?', 'conversation_id': '9f82d41b'},
-                    {'text': 'Will my business be successful if I start it now?', 'conversation_id': '8c57e63a'},
-                    {'text': 'Is a career change the right move for me?', 'conversation_id': '2e91f74d'}
-                ]
-            }
-        ] 
+        """Return empty data structure when analysis is unavailable"""
+        logging.info("Unable to analyze questions - returning empty dataset")
+        return [] 

@@ -6,6 +6,7 @@ import random
 import logging
 import os
 from urllib.parse import quote
+from app.utils.cache import cache_api_response
 
 class ElevenLabsClient:
     def __init__(self, api_key, agent_id=None, api_url="https://api.elevenlabs.io"):
@@ -31,31 +32,87 @@ class ElevenLabsClient:
         })
         
         # Debug logging
-        print(f"DEBUG: ELEVENLABS_API_KEY (first 5 chars): {api_key[:5] if api_key else 'None'}")
-        print(f"DEBUG: ELEVENLABS_AGENT_ID: {agent_id}")
-        print(f"DEBUG: ELEVENLABS_API_URL: {api_url}")
-        print(f"DEBUG: Using headers: {self.session.headers}")
+        logging.info(f"ElevenLabs API Key (first 5 chars): {api_key[:5] if api_key else 'None'}")
+        logging.info(f"ElevenLabs Agent ID: {agent_id}")
+        logging.info(f"ElevenLabs API URL: {api_url}")
+        logging.debug(f"Using headers: {self.session.headers}")
     
+    @cache_api_response(ttl=600)  # Cache for 10 minutes
     def test_connection(self):
         """Test the connection to the ElevenLabs API"""
         try:
             # Try getting the voices as a simple API test
             response = self.session.get(f"{self.api_url}/v1/voices")
-            print(f"DEBUG: Test API response status: {response.status_code}")
+            logging.info(f"Test API response status: {response.status_code}")
             
             if response.status_code == 200:
                 voices = response.json().get('voices', [])
-                print(f"DEBUG: Available voices: {len(voices)}")
+                logging.info(f"Available voices: {len(voices)}")
                 for voice in voices[:3]:  # Just show first few to avoid cluttering logs
-                    print(f"DEBUG: - {voice.get('name')}")
+                    logging.info(f"- {voice.get('name')}")
                 return True
             else:
-                print(f"DEBUG: Failed to connect to ElevenLabs API. Status code: {response.status_code}")
+                logging.warning(f"Failed to connect to ElevenLabs API. Status code: {response.status_code}")
                 return False
         except Exception as e:
-            print(f"DEBUG: Error testing ElevenLabs API connection: {e}")
+            logging.error(f"Error testing ElevenLabs API connection: {e}")
             return False
     
+    @cache_api_response(ttl=600)  # Cache for 10 minutes
+    def count_total_conversations(self):
+        """
+        Count the total number of conversations available in the system regardless of date filters.
+        
+        Returns:
+            int: Total number of conversations available
+        """
+        try:
+            # Use the same endpoint that works for get_conversations but with minimal data
+            endpoint = f"{self.api_url}/v1/convai/conversations" 
+            
+            # Request with large limit but minimal fields
+            params = {
+                'limit': 1000,  # Request a large number to get a better count
+                'minimal': True  # If API supports minimal data mode
+            }
+            
+            # Make the request
+            response = self.session.get(endpoint, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Check different possible response formats
+                if 'total' in data:
+                    # Direct total count in response
+                    total = data.get('total', 0)
+                    logging.info(f"API provided total count: {total}")
+                    return total
+                elif 'conversations' in data:
+                    # Count conversations in response
+                    conversations = data.get('conversations', [])
+                    total = len(conversations)
+                    
+                    # Check if there's pagination indicating more
+                    has_more = data.get('has_more', False) or data.get('next_cursor') is not None
+                    
+                    if has_more:
+                        logging.info(f"API returned {total} conversations but indicates there are more")
+                        # If there are more, add a buffer to the estimate
+                        return total + 1000  # Rough estimate that there are more
+                    
+                    logging.info(f"Counted {total} total conversations")
+                    return total
+            
+            # If we couldn't get a direct count, fall back to a reasonable default
+            logging.warning(f"Could not determine total count, API status: {response.status_code}")
+            return 1000  # Default estimated total
+            
+        except Exception as e:
+            logging.error(f"Error counting total conversations: {e}")
+            return 0
+    
+    @cache_api_response(ttl=3600)  # Cache for 1 hour
     def get_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
         """
         Get conversations from the ElevenLabs API
@@ -73,17 +130,17 @@ class ElevenLabsClient:
         formatted_start = self._format_date(start_date) if start_date else None
         formatted_end = self._format_date(end_date, end_of_day=True) if end_date else None
         
-        # Print the formatted dates for debugging
-        print(f"DEBUG: Processing dates: {start_date} → {formatted_start}, {end_date} → {formatted_end}")
+        # Log the formatted dates for debugging
+        logging.info(f"Processing dates: {start_date} → {formatted_start}, {end_date} → {formatted_end}")
         
-        # Change the order of endpoints to try, prioritizing the one that works for individual conversations
+        # Define endpoints to try, prioritizing the one that works for individual conversations
         endpoints_to_try = [
             f"{self.api_url}/v1/convai/conversations",    # This consistently works based on logs
             f"{self.api_url}/v1/history",                 # Secondary option
             f"{self.api_url}/v1/voices/history"           # Last resort
         ]
         
-        print(f"DEBUG: Will try these endpoints in order: {endpoints_to_try}")
+        logging.info(f"Will try these endpoints in order: {endpoints_to_try}")
         
         # Storage for all conversations
         all_conversations = []
@@ -93,7 +150,7 @@ class ElevenLabsClient:
         
         # Try each endpoint until one works
         for endpoint in endpoints_to_try:
-            print(f"DEBUG: Trying endpoint: {endpoint}")
+            logging.info(f"Trying endpoint: {endpoint}")
             
             # Try multiple parameter formats for date filtering
             parameter_formats_to_try = [
@@ -122,32 +179,32 @@ class ElevenLabsClient:
             
             # Try each parameter format
             for params in parameter_formats_to_try:
-                print(f"DEBUG: Trying parameter format: {params}")
+                logging.info(f"Trying parameter format: {params}")
                 
                 try:
                     # Make the request
                     response = self.session.get(endpoint, params=params)
                     response_status = response.status_code
                     
-                    print(f"DEBUG: Response status from {endpoint}: {response_status}")
+                    logging.info(f"Response status from {endpoint}: {response_status}")
                     
                     # If not 200, try next format
                     if response_status != 200:
                         try:
                             error_json = response.json()
                             error_detail = error_json.get('detail', error_json)
-                            print(f"DEBUG: Error response from API: {error_detail}")
+                            logging.info(f"Error response from API: {error_detail}")
                         except:
                             error_detail = response.text[:200]
-                            print(f"DEBUG: Error response (non-JSON): {error_detail}")
+                            logging.info(f"Error response (non-JSON): {error_detail}")
                         
-                        print(f"DEBUG: Trying next parameter format...")
+                        logging.info(f"Trying next parameter format...")
                         continue
                     
                     # Successfully got data
                     data = response.json()
-                    print(f"DEBUG: Successfully retrieved data from {endpoint}")
-                    print(f"DEBUG: Response data keys: {list(data.keys())}")
+                    logging.info(f"Successfully retrieved data from {endpoint}")
+                    logging.info(f"Response data keys: {list(data.keys())}")
                     
                     # Try to extract conversations from various possible formats
                     conversations = []
@@ -158,11 +215,11 @@ class ElevenLabsClient:
                     elif 'items' in data:
                         conversations = data.get('items', [])
                     
-                    print(f"DEBUG: Retrieved {len(conversations)} conversations")
+                    logging.info(f"Retrieved {len(conversations)} conversations from API")
                     
                     # If we found conversations, we can stop trying other formats/endpoints
                     if conversations:
-                        print(f"DEBUG: Found {len(conversations)} conversations with {endpoint} using params {params}")
+                        logging.info(f"Found {len(conversations)} conversations with {endpoint} using params {params}")
                         # Store these for pagination
                         successful_endpoint = endpoint
                         successful_params = params
@@ -177,7 +234,7 @@ class ElevenLabsClient:
                         # Handle pagination if available
                         while next_cursor and has_more and current_page < max_pages:
                             current_page += 1
-                            print(f"DEBUG: Moving to page {current_page+1} with cursor {next_cursor}")
+                            logging.info(f"Moving to page {current_page+1} with cursor {next_cursor}")
                             
                             # Update pagination parameter
                             pagination_params = successful_params.copy()
@@ -204,7 +261,7 @@ class ElevenLabsClient:
                                 else:
                                     page_conversations = []
                                 
-                                print(f"DEBUG: Retrieved {len(page_conversations)} conversations on page {current_page+1}")
+                                logging.info(f"Retrieved {len(page_conversations)} conversations on page {current_page+1}")
                                 
                                 # Add to our result list
                                 all_conversations.extend(page_conversations)
@@ -213,28 +270,118 @@ class ElevenLabsClient:
                                 next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
                                 has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
                             else:
-                                print(f"DEBUG: Error in pagination, stopping at page {current_page+1}")
+                                logging.info(f"Error in pagination, stopping at page {current_page+1}")
                                 break
                         
-                        # Successfully found and retrieved conversations, no need to try other endpoints
-                        print(f"DEBUG: Successfully retrieved a total of {len(all_conversations)} conversations")
-                        # Return early with the real data
-                        return {
-                            'conversations': all_conversations,
-                            'total': len(all_conversations)
-                        }
+                        # Successfully found and retrieved conversations
+                        logging.info(f"Successfully retrieved a total of {len(all_conversations)} conversations from API")
+                        
+                        # Apply date filtering manually if API didn't do it correctly
+                        if start_date or end_date:
+                            filtered_conversations = self._apply_date_filtering(all_conversations, start_date, end_date)
+                            logging.info(f"After manual date filtering: {len(filtered_conversations)} conversations (from {len(all_conversations)})")
+                            
+                            # Return filtered data
+                            return {
+                                'conversations': filtered_conversations,
+                                'total': len(filtered_conversations)
+                            }
+                        else:
+                            # Return all conversations if no date filter
+                            return {
+                                'conversations': all_conversations,
+                                'total': len(all_conversations)
+                            }
                 
                 except Exception as e:
-                    print(f"DEBUG: Exception with endpoint {endpoint} and params {params}: {e}")
+                    logging.error(f"Exception with endpoint {endpoint} and params {params}: {e}")
                     continue
         
         # If we reach here, all endpoint/parameter combinations failed
-        print(f"DEBUG: All API endpoints failed, returning empty conversations list")
+        logging.warning("All API endpoints failed, returning empty results")
         return {
             'conversations': [],
             'total': 0
         }
     
+    def _apply_date_filtering(self, conversations, start_date=None, end_date=None):
+        """
+        Apply manual date filtering to conversation data
+        
+        Args:
+            conversations (list): List of conversation dictionaries
+            start_date (str, optional): Start date in ISO format (YYYY-MM-DD)
+            end_date (str, optional): End date in ISO format (YYYY-MM-DD)
+            
+        Returns:
+            list: Filtered list of conversations
+        """
+        if not start_date and not end_date:
+            return conversations
+        
+        # Parse dates for comparison
+        try:
+            start_datetime = datetime.fromisoformat(start_date) if start_date else None
+            # Set end date to end of day
+            if end_date:
+                end_datetime = datetime.fromisoformat(end_date)
+                end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            else:
+                end_datetime = None
+        except ValueError as e:
+            logging.error(f"Error parsing dates for filtering: {e}")
+            return conversations
+        
+        filtered = []
+        for conv in conversations:
+            # Try different timestamp fields that might exist
+            timestamp = None
+            
+            # Check for Unix timestamp fields
+            if 'start_time_unix_secs' in conv:
+                try:
+                    timestamp = datetime.fromtimestamp(int(conv['start_time_unix_secs']))
+                except (ValueError, TypeError):
+                    pass
+            
+            # Check for ISO timestamp fields
+            if not timestamp and 'start_time' in conv:
+                try:
+                    if isinstance(conv['start_time'], str):
+                        timestamp = datetime.fromisoformat(conv['start_time'].replace('Z', '+00:00'))
+                    elif isinstance(conv['start_time'], int):
+                        timestamp = datetime.fromtimestamp(conv['start_time'])
+                except (ValueError, TypeError):
+                    pass
+            
+            # Check for other timestamp fields
+            if not timestamp and 'created_at' in conv:
+                try:
+                    if isinstance(conv['created_at'], str):
+                        timestamp = datetime.fromisoformat(conv['created_at'].replace('Z', '+00:00'))
+                    elif isinstance(conv['created_at'], int):
+                        timestamp = datetime.fromtimestamp(conv['created_at'])
+                except (ValueError, TypeError):
+                    pass
+            
+            # If we couldn't find a valid timestamp, include by default
+            if not timestamp:
+                filtered.append(conv)
+                continue
+            
+            # Compare with start and end dates
+            include = True
+            if start_datetime and timestamp < start_datetime:
+                include = False
+            if end_datetime and timestamp > end_datetime:
+                include = False
+            
+            if include:
+                filtered.append(conv)
+        
+        return filtered
+    
+    @cache_api_response(ttl=86400)  # Cache for 24 hours
     def get_conversation_details(self, conversation_id):
         """
         Get details for a specific conversation
@@ -245,80 +392,84 @@ class ElevenLabsClient:
         Returns:
             dict: API response with conversation details
         """
-        print(f"DEBUG: Attempting to get conversation details for ID {conversation_id}")
+        if not conversation_id:
+            logging.warning("No conversation ID provided for details lookup")
+            return {'conversation_id': '', 'transcript': []}
+            
+        logging.info(f"Getting details for conversation ID: {conversation_id}")
         
-        # Try multiple endpoint variations since we're not sure which one is correct
+        # Try different endpoints in order of preference
         endpoints_to_try = [
-            f"{self.api_url}/v1/history/{conversation_id}",                  # First to try (likely to work)
-            f"{self.api_url}/v1/voices/history/{conversation_id}",           # Second variant
-            f"{self.api_url}/v1/convai/conversations/{conversation_id}"      # Third variant (original)
+            f"{self.api_url}/v1/convai/conversations/{conversation_id}",
+            f"{self.api_url}/v1/history/{conversation_id}",
+            f"{self.api_url}/v1/voices/history/{conversation_id}"
         ]
         
-        # Try each endpoint until one works
+        # Try each endpoint
         for endpoint in endpoints_to_try:
-            print(f"DEBUG: Trying conversation details endpoint: {endpoint}")
+            logging.info(f"Trying endpoint for conversation details: {endpoint}")
             
             try:
                 # Make the request
                 response = self.session.get(endpoint)
-                response_status = response.status_code
+                status = response.status_code
                 
-                # Log the response status
-                print(f"DEBUG: Response status from {endpoint}: {response_status}")
+                logging.info(f"Response status from {endpoint}: {status}")
                 
-                # If not successful, try next endpoint
-                if response_status != 200:
-                    try:
-                        error_json = response.json()
-                        error_detail = error_json.get('detail', error_json)
-                        print(f"DEBUG: Error response from API: {error_detail}")
-                    except:
-                        error_detail = response.text[:200]  # Limit the error text
-                        print(f"DEBUG: Error response (non-JSON): {error_detail}")
-                    
-                    print(f"DEBUG: Trying next endpoint...")
+                # If not found, try next endpoint
+                if status == 404:
+                    logging.info(f"Conversation {conversation_id} not found at {endpoint}")
                     continue
                 
-                # Successfully got data
+                # If other error, try next endpoint
+                if status != 200:
+                    try:
+                        error_detail = response.json().get('detail', 'Unknown error')
+                    except:
+                        error_detail = response.text[:200]
+                    logging.info(f"Error response from {endpoint}: {error_detail}")
+                    continue
+                
+                # Parse the response
                 data = response.json()
-                print(f"DEBUG: SUCCESSFULLY FOUND WORKING ENDPOINT: {endpoint}")
-                print(f"DEBUG: Response data keys: {list(data.keys())}")
                 
-                # Standardize the transcript format based on the endpoint response format
-                # Different endpoints might return data in different formats
+                # Check if we got valid data
+                if not data:
+                    logging.warning(f"Empty response from {endpoint}")
+                    continue
+                    
+                logging.info(f"Successfully retrieved conversation details from {endpoint}")
+                logging.info(f"Response keys: {list(data.keys())}")
                 
-                # Case 1: If 'transcript' key exists, use it directly
-                if 'transcript' in data and isinstance(data['transcript'], list):
-                    print(f"DEBUG: Using existing transcript from API response")
-                    # Add turns as an alias for backwards compatibility
-                    data['turns'] = data['transcript']
+                # Try different data formats
+                if 'conversation' in data:
+                    # Format 1: Conversation in a nested key
+                    conversation = data['conversation']
+                    if conversation and isinstance(conversation, dict):
+                        return conversation
+                elif 'history_item' in data:
+                    # Format 2: History item format
+                    history_item = data['history_item']
+                    if history_item and isinstance(history_item, dict):
+                        return history_item
+                elif 'id' in data or 'conversation_id' in data:
+                    # Format 3: Direct conversation object
+                    return data
                 
-                # Case 2: If 'messages' key exists but not 'transcript'
-                elif 'messages' in data and isinstance(data['messages'], list) and 'transcript' not in data:
-                    print(f"DEBUG: Converting 'messages' to 'transcript' format")
-                    data['transcript'] = data['messages']
-                    data['turns'] = data['messages']  # For backwards compatibility
-                
-                # Case 3: If 'history' key exists but not 'transcript'
-                elif 'history' in data and isinstance(data['history'], list) and 'transcript' not in data:
-                    print(f"DEBUG: Converting 'history' to 'transcript' format")
-                    data['transcript'] = data['history']
-                    data['turns'] = data['history']  # For backwards compatibility
-                
-                # Print the standardized conversation data for debugging
-                print(f"DEBUG: Standardized conversation data keys: {list(data.keys())}")
-                print(f"DEBUG: Transcript has {len(data.get('transcript', []))} messages")
-                
-                return data
+                # If we reach here, the response didn't match any known format
+                logging.warning(f"Unknown response format from {endpoint}")
                 
             except Exception as e:
-                print(f"DEBUG: Exception fetching conversation details from {endpoint}: {e}")
-                print(f"DEBUG: Trying next endpoint...")
+                logging.error(f"Error fetching conversation details from {endpoint}: {e}")
                 continue
-        
-        # If we get here, all endpoints failed - fall back to sample data
-        print(f"DEBUG: All API endpoints failed, falling back to generated sample data for conversation {conversation_id}")
-        return self._generate_fallback_conversation_details(conversation_id)
+                
+        # If we reach here, all endpoint attempts failed
+        logging.warning(f"Failed to retrieve conversation {conversation_id} from any endpoint")
+        return {
+            'conversation_id': conversation_id,
+            'transcript': [],
+            'error': 'Conversation not found'
+        }
     
     def _format_date(self, date_str, end_of_day=False):
         """
@@ -350,292 +501,6 @@ class ElevenLabsClient:
         except Exception as e:
             print(f"DEBUG: Error formatting date {date_str}: {e}")
             return None
-    
-    # Generate sample data methods - for when API access fails
-    def _generate_fallback_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
-        """
-        Generate sample conversation data for demo or testing
-        
-        Args:
-            start_date (str, optional): Start date filter in ISO format
-            end_date (str, optional): End date filter in ISO format
-            limit (int, optional): Max number of conversations to generate
-            offset (int, optional): Offset for pagination
-            
-        Returns:
-            dict: Sample conversations data structure
-        """
-        print(f"DEBUG: Generating fallback conversations data for date range: {start_date} to {end_date}")
-        
-        # Parse dates or use defaults
-        try:
-            if start_date:
-                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-            else:
-                # Default to 7 days ago
-                start_dt = datetime.now() - timedelta(days=7)
-                
-            if end_date:
-                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-            else:
-                # Default to current date
-                end_dt = datetime.now()
-        except (ValueError, TypeError):
-            # If date parsing fails, use default range
-            start_dt = datetime.now() - timedelta(days=7)
-            end_dt = datetime.now()
-        
-        print(f"DEBUG: Using date range for demo data: {start_dt.isoformat()} to {end_dt.isoformat()}")
-        
-        # Generate conversations
-        conversations = []
-        max_conversations = min(limit, 30)  # Cap at 30 for performance
-        
-        # List of sample psychic reading topics
-        topics = [
-            "love and relationships", 
-            "career guidance", 
-            "financial future", 
-            "spiritual growth",
-            "family matters",
-            "personal development",
-            "past lives",
-            "health concerns",
-            "life purpose",
-            "decision making"
-        ]
-        
-        # Generate fixed IDs for specific topic examples that match our topic buttons
-        # These IDs must match those used in routes.py special case handling
-        special_convos = [
-            {
-                'id': '4a72b35c',  # Property investment question 
-                'topic': "financial future",
-                'question': "Should I invest in property right now?"
-            },
-            {
-                'id': '9f82d41b',  # Job offer question
-                'topic': "career guidance", 
-                'question': "Should I accept the new job offer?"
-            },
-            {
-                'id': '1d38g59h',  # Financial situation
-                'topic': "financial future",
-                'question': "Will my financial situation improve this year?"
-            },
-            {
-                'id': '6e26d18f',  # Financial stability
-                'topic': "financial future", 
-                'question': "Will I ever be financially stable?"
-            },
-            {
-                'id': '0c15a94e',  # Family relationship
-                'topic': "family matters",
-                'question': "How can I improve my relationship with my mother?"
-            },
-            {
-                'id': '3f68b27a',  # Future children
-                'topic': "family matters",
-                'question': "Will I have children in the future?"
-            },
-            {
-                'id': '7g41c83d',  # Moving decision
-                'topic': "family matters",
-                'question': "Is moving closer to my family the right decision?"
-            },
-            {
-                'id': '5h93d62c',  # Life purpose
-                'topic': "life purpose",
-                'question': "What is my true purpose in life?"
-            },
-            {
-                'id': '2j74a51b',  # Life path
-                'topic': "life purpose",
-                'question': "Am I on the right path right now?"
-            }
-        ]
-        
-        # Add demo conversations, always include the special ones first
-        for spec in special_convos:
-            # Randomize timeframes within the date range
-            range_days = (end_dt - start_dt).days
-            if range_days <= 0:
-                range_days = 7  # Default to one week if dates are invalid
-                
-            # Choose a random day within the range
-            random_days = random.randint(0, range_days)
-            random_hours = random.randint(0, 23)
-            random_minutes = random.randint(0, 59)
-            
-            convo_time = end_dt - timedelta(days=random_days, hours=random_hours, minutes=random_minutes)
-            
-            # Random duration between 3 and 10 minutes (in seconds)
-            duration = random.randint(180, 600)
-            
-            # Random turn count between 6 and 16
-            turn_count = random.randint(6, 16)
-            
-            conversation = {
-                'conversation_id': spec['id'],
-                'id': spec['id'],  # Add both formats to be safe
-                'start_time': convo_time.isoformat(),
-                'end_time': (convo_time + timedelta(seconds=duration)).isoformat(),
-                'duration': duration,
-                'turn_count': turn_count,
-                'topic': spec['topic'],
-                'question': spec['question'],
-                'status': 'completed',
-                'metadata': {
-                    'is_demo': True,
-                    'topic': spec['topic']
-                }
-            }
-            conversations.append(conversation)
-        
-        # Add some random conversations to fill up to the limit
-        remaining = max_conversations - len(special_convos)
-        for i in range(remaining):
-            # Randomize times within the date range
-            range_days = (end_dt - start_dt).days
-            if range_days <= 0:
-                range_days = 7
-                
-            random_days = random.randint(0, range_days)
-            random_hours = random.randint(0, 23)
-            random_minutes = random.randint(0, 59)
-            
-            convo_time = end_dt - timedelta(days=random_days, hours=random_hours, minutes=random_minutes)
-            
-            # Random duration between 3 and 10 minutes (in seconds)
-            duration = random.randint(180, 600)
-            
-            # Random turn count between 6 and 16
-            turn_count = random.randint(6, 16)
-            
-            # Random ID that doesn't conflict with special IDs
-            conversation_id = ''.join(random.choices('0123456789abcdef', k=8))
-            
-            # Random topic
-            topic = random.choice(topics)
-            
-            # Create the conversation
-            conversation = {
-                'conversation_id': conversation_id,
-                'id': conversation_id,  # Add both formats to be safe
-                'start_time': convo_time.isoformat(),
-                'end_time': (convo_time + timedelta(seconds=duration)).isoformat(),
-                'duration': duration,
-                'turn_count': turn_count,
-                'topic': topic,
-                'status': random.choices(['completed', 'failed'], weights=[0.9, 0.1])[0],
-                'metadata': {
-                    'is_demo': True,
-                    'topic': topic
-                }
-            }
-            conversations.append(conversation)
-        
-        print(f"DEBUG: Generated {len(conversations)} fallback conversations")
-        
-        # Sort by start_time, most recent first
-        conversations.sort(key=lambda x: x.get('start_time', ''), reverse=True)
-        
-        # Apply offset and limit
-        if offset > 0:
-            conversations = conversations[offset:]
-        conversations = conversations[:limit]
-        
-        # Return in a format similar to the API response
-        return {
-            'conversations': conversations,
-            'total': len(conversations),
-            'is_demo': True
-        }
-    
-    def _generate_fallback_conversation_details(self, conversation_id):
-        """Generate sample conversation details as fallback when API fails"""
-        start_time = datetime.now() - timedelta(days=random.randint(1, 5), 
-                                              hours=random.randint(1, 12))
-        duration = random.randint(30, 600)  # between 30 seconds and 10 minutes
-        end_time = start_time + timedelta(seconds=duration)
-        
-        # Generate a conversation with alternating turns
-        turns = []
-        num_turns = random.randint(5, 15)
-        
-        topics = ["career", "love", "family", "health", "money", "spirituality", "future"]
-        
-        current_time = start_time
-        for i in range(num_turns):
-            # Add a bit of time between messages
-            current_time += timedelta(seconds=random.randint(3, 20))
-            
-            if i % 2 == 0:  # User turn
-                text = random.choice([
-                    "I'm curious about my career path. What do you see for me?",
-                    "Will I find love this year?",
-                    "I'm worried about my family situation. Any insights?",
-                    "How can I improve my health?",
-                    "I'm having financial troubles. What should I do?",
-                    "I feel disconnected spiritually. How can I reconnect?",
-                    "What does my future hold?",
-                    "I've been feeling lost lately. Can you help me find direction?",
-                    "I'm thinking about changing jobs. Is that a good idea?",
-                    "Should I move to a new city?"
-                ])
-            else:  # Agent turn
-                chosen_topic = random.choice(topics)
-                if chosen_topic == "career":
-                    text = random.choice([
-                        "I sense a new opportunity coming your way in your career. Stay open to change.",
-                        "Your professional life will take an unexpected turn soon, but it will be for the better.",
-                        "I see you excelling in a leadership role in the near future.",
-                        "Your creative talents will soon be recognized in your workplace."
-                    ])
-                elif chosen_topic == "love":
-                    text = random.choice([
-                        "Love is coming into your life when you least expect it.",
-                        "I sense a deeper connection forming in your current relationship.",
-                        "Pay attention to someone who keeps appearing in your life - there's a reason.",
-                        "Your heart will heal from past wounds and open to new possibilities."
-                    ])
-                elif chosen_topic == "family":
-                    text = random.choice([
-                        "A family reconciliation is on the horizon.",
-                        "You'll soon strengthen bonds with a family member you've been distant from.",
-                        "Family support will be crucial in the coming months.",
-                        "I sense a family celebration or gathering bringing joy soon."
-                    ])
-                else:
-                    text = random.choice([
-                        "I sense positive energy surrounding your question.",
-                        "The cards are showing a period of transformation ahead.",
-                        "Trust your intuition on this matter.",
-                        "I'm seeing a positive outcome if you remain patient.",
-                        "This is a time for reflection before taking action."
-                    ])
-            
-            turns.append({
-                "text": text,
-                "is_agent": i % 2 != 0,
-                "timestamp": current_time.isoformat() + "Z"
-            })
-        
-        return {
-            "id": conversation_id,
-            "conversation_id": conversation_id,  # Add conversation_id field to match expectations
-            "start_time": start_time.isoformat() + "Z",
-            "end_time": end_time.isoformat() + "Z",
-            "duration": duration,
-            "turns": turns,
-            "status": "completed",
-            "transcript": [
-                {"speaker": "User" if not turn["is_agent"] else "Agent", 
-                 "text": turn["text"], 
-                 "timestamp": turn["timestamp"]} 
-                for turn in turns
-            ]
-        }
     
     def _process_date(self, date_str):
         """Process date string to format expected by the API"""
