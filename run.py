@@ -1,23 +1,20 @@
 from app import create_app
 import os
-import nltk
-from nltk_setup import download_nltk_resources
+import logging
+import sys
 
-# Ensure NLTK resources are downloaded
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    download_nltk_resources()
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
+# Create the Flask application
 app = create_app()
 
 if __name__ == '__main__':
-    # Determine if we're running on Replit
-    is_replit = 'REPLIT_DB_URL' in os.environ
+    # Get port from environment variable or use default
+    port = int(os.environ.get('FLASK_RUN_PORT', 3000))
     
-    if is_replit:
-        # For Replit deployment
-        app.run(host='0.0.0.0', port=8080)
-    else:
-        # For local development
-        app.run(debug=True, host='0.0.0.0', port=3000) 
+    # Run the app - the host and port will be overridden by the Flask CLI when run with flask run
+    app.run(host='0.0.0.0', port=port) 

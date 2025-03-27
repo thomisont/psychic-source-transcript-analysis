@@ -1,0 +1,1590 @@
+{% extends "base.html" %}
+
+{% block title %}Themes & Sentiment - Psychic Source Analyzer{% endblock %}
+
+{% block styles %}
+<style>
+    /* Custom badge colors for theme categories */
+    .bg-purple {
+        background-color: #6f42c1 !important;
+        color: white !important;
+    }
+    
+    .bg-teal {
+        background-color: #20c997 !important;
+        color: white !important;
+    }
+    
+    /* Enhanced list and table styles */
+    .themes-list .list-group-item {
+        border-left: 3px solid #6f42c1;
+        transition: all 0.2s ease;
+    }
+    
+    .themes-list .list-group-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(3px);
+    }
+    
+    /* Style for sentiment chart */
+    #sentiment-trend-chart {
+        max-height: 300px;
+    }
+    
+    /* Better spacing for theme cards */
+    .theme-title {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    /* Style for theme-sentiment table */
+    #theme-sentiment-table tr.table-success {
+        border-left: 3px solid #28a745;
+    }
+    
+    #theme-sentiment-table tr.table-danger {
+        border-left: 3px solid #dc3545;
+    }
+    
+    /* Conversation Modal Styles */
+    .message {
+        margin-bottom: 1rem;
+    }
+    
+    .message-agent {
+        margin-right: 2rem;
+    }
+    
+    .message-user {
+        margin-left: 2rem;
+    }
+    
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 10px;
+        flex-shrink: 0;
+    }
+    
+    .message-content {
+        flex-grow: 1;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 10px 15px;
+    }
+    
+    .message-user .message-content {
+        background-color: #e9f5ff;
+    }
+    
+    .message-agent .message-content {
+        background-color: #f0f0f0;
+    }
+    
+    .message-header {
+        margin-bottom: 5px;
+    }
+    
+    .message-sender {
+        font-weight: bold;
+    }
+    
+    .message-text {
+        white-space: pre-wrap;
+    }
+    
+    /* Highlight styles for selected quote */
+    .highlighted-message {
+        border: 2px solid #ffc107 !important;
+        box-shadow: 0 0 10px rgba(255, 193, 7, 0.4);
+        animation: pulse 2s infinite;
+    }
+    
+    .highlighted-text {
+        background-color: #fff3cd;
+        font-weight: bold;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+        }
+    }
+    
+    /* Modal styles */
+    #conversationModal .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">Themes & Sentiment Analysis</h1>
+                <div class="btn-group" role="group" aria-label="Date range selector">
+                    <button type="button" class="btn btn-outline-primary timeframe-btn" data-timeframe="last_7_days">7 Days</button>
+                    <button type="button" class="btn btn-outline-primary timeframe-btn active" data-timeframe="last_30_days">30 Days</button>
+                    <button type="button" class="btn btn-outline-primary timeframe-btn" data-timeframe="last_90_days">90 Days</button>
+                    <button type="button" class="btn btn-outline-primary timeframe-btn" data-timeframe="all">All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Display -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="text-muted">Date Range: </span>
+                            <span id="date-range-display" class="text-primary fw-bold">Last 30 Days</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="form-check form-switch me-4">
+                                <input class="form-check-input" type="checkbox" id="superSafeMode" checked>
+                                <label class="form-check-label small" for="superSafeMode">
+                                    <i class="fas fa-bolt text-warning me-1"></i>Super Safe Mode
+                                    <i class="fas fa-info-circle ms-1 text-muted" data-bs-toggle="tooltip" 
+                                       title="Uses optimized sample data for better performance on Replit"></i>
+                                </label>
+                            </div>
+                            <div>
+                                <span class="text-muted">Conversations: </span>
+                                <span id="conversation-count" class="badge bg-primary">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-container" class="row mb-4 d-none">
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Analyzing conversations, please wait...</p>
+        </div>
+    </div>
+    
+    <!-- Error State -->
+    <div id="error-container" class="row mb-4 d-none">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Error Loading Data</h4>
+                <p id="error-message">There was an error loading the data. Please try again later.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="content-container">
+        <!-- First Row: Sentiment Overview & Top Themes -->
+        <div class="row mb-4">
+            <!-- Sentiment Overview Card -->
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-heart me-2"></i>Sentiment Overview
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Overall Sentiment</h6>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="sentiment-emoji me-2" id="sentiment-emoji">😐</div>
+                                <div class="progress flex-grow-1" style="height: 24px;">
+                                    <div id="sentiment-overall-bar" class="progress-bar" role="progressbar" style="width: 50%"></div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted small">
+                                <span>Negative</span>
+                                <span>Neutral</span>
+                                <span>Positive</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted">Sentiment Distribution</h6>
+                            <canvas id="sentiment-distribution-chart" height="180"></canvas>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h6 class="text-muted mb-1">Caller Sentiment</h6>
+                                    <h3 id="user-sentiment-value" class="mb-0">0.00</h3>
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-muted mb-1">Lily's Sentiment</h6>
+                                    <h3 id="agent-sentiment-value" class="mb-0">0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Top Themes Card -->
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-tags me-2"></i>Top Conversation Themes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <canvas id="themes-chart" height="250"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-2">Most Frequent Topics</h6>
+                                <div id="themes-list" class="list-group themes-list">
+                                    <!-- Themes will be added here -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <p class="text-muted font-italic small">
+                                <i class="fas fa-info-circle me-1"></i> 
+                                Analysis is based on natural language processing of conversation transcripts. 
+                                LLM-powered theme extraction identifies key topics across all conversations.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Second Row: Sentiment Trends & Theme-Sentiment Correlation -->
+        <div class="row mb-4">
+            <!-- Sentiment Trends Over Time -->
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Sentiment Trends Over Time
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="sentiment-trend-chart" height="250"></canvas>
+                        <div class="mt-3 d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                <i class="fas fa-info-circle me-1"></i> 
+                                Shows how average sentiment has changed over the selected time period
+                            </div>
+                            <div id="trend-indicator" class="badge bg-secondary">
+                                <i class="fas fa-equals me-1"></i> Neutral Trend
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Theme-Sentiment Correlation -->
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-link me-2"></i>Theme & Sentiment Correlation
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm" id="theme-sentiment-table">
+                                <thead>
+                                    <tr>
+                                        <th>Theme</th>
+                                        <th>Mentions</th>
+                                        <th>Sentiment</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Theme correlations will be added here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 small text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Shows how different themes correlate with positive or negative sentiment
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Third Row: Common Questions & Concerns/Skepticism -->
+        <div class="row mb-4">
+            <!-- Common Questions -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-question-circle me-2"></i>Common Questions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="questions-container">
+                            <!-- Question categories will be added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Concerns and Skepticism -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Concerns & Skepticism
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="concerns-container">
+                            <!-- Concerns will be added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fourth Row: Positive Interactions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-star me-2"></i>Most Positive Caller Interactions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="positive-interactions-container">
+                            <!-- Positive interactions will be added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LLM Analysis Note -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm bg-light">
+                    <div class="card-body py-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-robot text-primary me-3 fa-2x"></i>
+                            <div>
+                                <h5 class="mb-1">AI-Powered Analysis</h5>
+                                <p class="mb-0 text-muted">
+                                    This analysis uses advanced Large Language Models to extract deeper insights from conversation transcripts.
+                                    The themes, questions, and concerns are identified using natural language processing techniques to find patterns
+                                    that might not be apparent with traditional analysis methods.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversation Transcript Modal -->
+    <div class="modal fade" id="conversationModal" tabindex="-1" aria-labelledby="conversationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="conversationModalLabel">Conversation Transcript</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="modal-loading" class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading conversation transcript...</p>
+                    </div>
+                    <div id="modal-error" class="alert alert-danger m-3 d-none">
+                        <h4 class="alert-heading">Error</h4>
+                        <p id="modal-error-message">Failed to load conversation.</p>
+                    </div>
+                    <div id="modal-content" class="d-none">
+                        <div class="p-3 bg-light border-bottom">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-2">
+                                        <strong>ID:</strong> 
+                                        <code id="modal-conversation-id" class="user-select-all"></code>
+                                    </div>
+                                    <div class="mb-2"><strong>Date:</strong> <span id="modal-date"></span></div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-2"><strong>Duration:</strong> <span id="modal-duration"></span></div>
+                                    <div class="mb-2"><strong>Turn Count:</strong> <span id="modal-turn-count"></span></div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-2"><strong>Overall Sentiment:</strong> <span id="modal-sentiment"></span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="transcript-container" class="p-3">
+                            <!-- Transcript messages will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                    <a id="modal-full-page-link" href="#" class="btn btn-outline-primary" target="_blank">
+                        Open in Full View <i class="fas fa-external-link-alt ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global variables for charts
+    let sentimentDistributionChart = null;
+    let themesChart = null;
+    let sentimentTrendChart = null;
+    let conversationModal = null;
+    
+    // Initialize the page when loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Initialize conversation modal
+        conversationModal = new bootstrap.Modal(document.getElementById('conversationModal'));
+        
+        // Set up timeframe buttons
+        const timeframeButtons = document.querySelectorAll('.timeframe-btn');
+        timeframeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                timeframeButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                // Load data for the selected timeframe
+                loadData(this.dataset.timeframe);
+                
+                // Update date range display
+                const timeframeText = this.textContent;
+                document.getElementById('date-range-display').textContent = 
+                    timeframeText === 'All' ? 'All Data (since Jan 2025)' : `Last ${timeframeText}`;
+            });
+        });
+        
+        // Also reload data when Super Safe Mode is toggled
+        document.getElementById('superSafeMode').addEventListener('change', function() {
+            // Get the active timeframe
+            const activeTimeframe = document.querySelector('.timeframe-btn.active').dataset.timeframe;
+            // Reload data with the current timeframe
+            loadData(activeTimeframe);
+        });
+        
+        // Load data for the default timeframe (30 days)
+        loadData('last_30_days');
+    });
+    
+    // Function to load a conversation by ID and display in modal
+    function showConversationModal(conversationId, quote) {
+        // Reset modal state
+        document.getElementById('modal-loading').classList.remove('d-none');
+        document.getElementById('modal-error').classList.add('d-none');
+        document.getElementById('modal-content').classList.add('d-none');
+        document.getElementById('transcript-container').innerHTML = '';
+        
+        // Show the modal right away for better UX
+        conversationModal.show();
+        
+        // Log for debugging
+        console.log("Fetching conversation:", conversationId, "Quote to highlight:", quote);
+        
+        // Make sure we're using the full conversation ID (remove any truncation ellipsis)
+        const fullConversationId = conversationId.replace('...', '');
+        
+        // Set the full conversation ID in the modal immediately
+        document.getElementById('modal-conversation-id').textContent = fullConversationId;
+        
+        // Update the full view link with conversation ID and quote
+        let fullViewUrl = `/data-selection?conversation_id=${fullConversationId}`;
+        if (quote) {
+            fullViewUrl += `&quote=${encodeURIComponent(quote)}`;
+        }
+        document.getElementById('modal-full-page-link').href = fullViewUrl;
+        
+        // Open full view link in new tab
+        document.getElementById('modal-full-page-link').setAttribute('target', '_blank');
+        
+        // Special handling for demo conversations
+        if (fullConversationId === '4a72b35c') {
+            // Property investment question
+            console.log("Using special handling for property investment question");
+            handlePropertyInvestmentDemo(fullConversationId, quote);
+            return;
+        } else if (fullConversationId === '9f82d41b') {
+            // Job offer question
+            console.log("Using special handling for job offer question");
+            handleJobOfferDemo(fullConversationId, quote);
+            return;
+        }
+        
+        // Fetch conversation data from API for all other IDs
+        fetch(`/api/conversations/${fullConversationId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Conversation data received:", data);
+                
+                // Hide loading state
+                document.getElementById('modal-loading').classList.add('d-none');
+                
+                // Fill in conversation details - use safe fallbacks
+                const startTime = data.start_time && data.start_time !== '0' ? new Date(data.start_time) : new Date();
+                const formattedDate = startTime.toLocaleString();
+                
+                // Ensure we use the full conversation ID from the data if available
+                const displayConversationId = data.conversation_id || fullConversationId;
+                document.getElementById('modal-conversation-id').textContent = displayConversationId;
+                
+                // Update full page link with the ID from the data and the quote if provided
+                let fullViewUrl = `/data-selection?conversation_id=${displayConversationId}`;
+                if (quote) {
+                    fullViewUrl += `&quote=${encodeURIComponent(quote)}`;
+                }
+                document.getElementById('modal-full-page-link').href = fullViewUrl;
+                
+                document.getElementById('modal-date').textContent = formattedDate;
+                
+                // Handle duration properly (convert seconds to mm:ss)
+                const duration = data.duration || 0;
+                const minutes = Math.floor(duration / 60);
+                const seconds = Math.floor(duration % 60);
+                const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                document.getElementById('modal-duration').textContent = formattedDuration;
+                
+                document.getElementById('modal-turn-count').textContent = data.transcript ? data.transcript.length : 0;
+                
+                // Calculate sentiment if available
+                if (data.transcript && data.transcript.length > 0) {
+                    const sentimentSum = data.transcript.reduce((sum, turn) => {
+                        return sum + (turn.sentiment || 0);
+                    }, 0);
+                    const avgSentiment = sentimentSum / data.transcript.length;
+                    const sentimentBadge = document.createElement('span');
+                    sentimentBadge.className = `badge ${getSentimentBadgeClass(avgSentiment)}`;
+                    sentimentBadge.textContent = getSentimentText(avgSentiment);
+                    document.getElementById('modal-sentiment').innerHTML = '';
+                    document.getElementById('modal-sentiment').appendChild(sentimentBadge);
+                }
+                
+                // Build transcript (if available)
+                if (data.transcript && data.transcript.length > 0) {
+                    buildTranscript(data.transcript, quote);
+                }
+                
+                // Show content
+                document.getElementById('modal-content').classList.remove('d-none');
+            })
+            .catch(error => {
+                console.error("Error fetching conversation:", error);
+                
+                document.getElementById('modal-loading').classList.add('d-none');
+                document.getElementById('modal-error').classList.remove('d-none');
+                document.getElementById('modal-error-message').textContent = `Failed to load conversation: ${error.message}`;
+            });
+    }
+    
+    // Helper function to build the transcript
+    function buildTranscript(transcript, quote) {
+        const transcriptContainer = document.getElementById('transcript-container');
+        transcriptContainer.innerHTML = ''; // Clear previous content
+        
+        let foundHighlightedMessage = false;
+        let highlightedMessageElement = null;
+        
+        transcript.forEach((turn, index) => {
+            const messageDiv = document.createElement('div');
+            const isAgent = turn.speaker === 'Lily' || turn.speaker === 'Agent';
+            messageDiv.className = `message mb-3 ${isAgent ? 'message-agent' : 'message-user'}`;
+            
+            // Format timestamp
+            let timeDisplay = '';
+            if (turn.timestamp) {
+                const turnTime = new Date(turn.timestamp);
+                if (!isNaN(turnTime.getTime())) {
+                    timeDisplay = turnTime.toLocaleTimeString();
+                } else {
+                    timeDisplay = `Turn ${index + 1}`;
+                }
+            } else {
+                timeDisplay = `Turn ${index + 1}`;
+            }
+            
+            // Check if this message contains the quote we're looking for
+            let messageText = turn.text || '';
+            let messageClass = '';
+            
+            if (quote && messageText.includes(quote)) {
+                // This is the message with our quote, highlight it
+                messageClass = 'highlighted-message';
+                foundHighlightedMessage = true;
+                // Wrap the quote in a highlight span
+                const safeQuote = quote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape regex special chars
+                const regex = new RegExp(`(${safeQuote})`, 'gi');
+                messageText = messageText.replace(regex, '<span class="highlighted-text">$1</span>');
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="d-flex">
+                    <div class="message-avatar ${isAgent ? 'bg-primary' : 'bg-success'} text-white">
+                        ${isAgent ? 'L' : 'C'}
+                    </div>
+                    <div class="message-content ${messageClass}">
+                        <div class="message-header d-flex justify-content-between">
+                            <span class="message-sender">${isAgent ? 'Lily' : 'Caller'}</span>
+                            <span class="message-time text-muted small">${timeDisplay}</span>
+                        </div>
+                        <div class="message-text">${messageText}</div>
+                    </div>
+                </div>
+            `;
+            
+            transcriptContainer.appendChild(messageDiv);
+            
+            // Save reference to highlighted message for scrolling
+            if (messageClass === 'highlighted-message') {
+                highlightedMessageElement = messageDiv;
+            }
+        });
+        
+        // If a highlighted message was found, scroll to it after a delay
+        if (foundHighlightedMessage && highlightedMessageElement) {
+            setTimeout(() => {
+                highlightedMessageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
+    }
+    
+    // Handler for property investment demo conversation
+    function handlePropertyInvestmentDemo(conversationId, quote) {
+        console.log("Loading property investment demo with ID:", conversationId, "Quote:", quote);
+        const propertyInvestmentDemo = {
+            conversation_id: conversationId,
+            start_time: new Date().toISOString(),
+            end_time: new Date(Date.now() + 180000).toISOString(),
+            duration: 180,
+            status: 'completed',
+            channel: 'voice',
+            transcript: [
+                {
+                    speaker: 'Caller',
+                    text: 'I have some money saved up and wondering about investing.',
+                    timestamp: new Date(Date.now() - 170000).toISOString(),
+                    sentiment: 0.1
+                },
+                {
+                    speaker: 'Lily',
+                    text: "That's wonderful that you're in a position to invest. What types of investments are you considering?",
+                    timestamp: new Date(Date.now() - 150000).toISOString(),
+                    sentiment: 0.4
+                },
+                {
+                    speaker: 'Caller',
+                    text: 'Should I invest in property right now? The market seems volatile.',
+                    timestamp: new Date(Date.now() - 130000).toISOString(),
+                    sentiment: -0.1
+                },
+                {
+                    speaker: 'Lily',
+                    text: "I'm seeing some caution around property investments at this moment. There may be better timing in the near future, perhaps in about 3-4 months. I'm sensing that waiting may yield better opportunities.",
+                    timestamp: new Date(Date.now() - 100000).toISOString(),
+                    sentiment: 0.2
+                },
+                {
+                    speaker: 'Caller',
+                    text: "That's helpful. I'll consider waiting a bit longer then.",
+                    timestamp: new Date(Date.now() - 70000).toISOString(),
+                    sentiment: 0.3
+                },
+                {
+                    speaker: 'Lily',
+                    text: "Trust your intuition on this. I sense you're a thoughtful investor. The energy suggests that your patience will be rewarded.",
+                    timestamp: new Date(Date.now() - 40000).toISOString(),
+                    sentiment: 0.5
+                }
+            ]
+        };
+        
+        // Hide loading state
+        document.getElementById('modal-loading').classList.add('d-none');
+        
+        // Update UI with demo data - ensure full ID is displayed
+        document.getElementById('modal-conversation-id').textContent = conversationId;
+        document.getElementById('modal-date').textContent = new Date(propertyInvestmentDemo.start_time).toLocaleString();
+        
+        const minutes = Math.floor(propertyInvestmentDemo.duration / 60);
+        const seconds = Math.floor(propertyInvestmentDemo.duration % 60);
+        document.getElementById('modal-duration').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        document.getElementById('modal-turn-count').textContent = propertyInvestmentDemo.transcript.length;
+        
+        // Update the full view link with quote parameter if provided
+        let fullViewUrl = `/data-selection?conversation_id=${conversationId}`;
+        if (quote) {
+            fullViewUrl += `&quote=${encodeURIComponent(quote)}`;
+        }
+        document.getElementById('modal-full-page-link').href = fullViewUrl;
+        
+        // Calculate sentiment
+        const sentimentSum = propertyInvestmentDemo.transcript.reduce((sum, turn) => sum + (turn.sentiment || 0), 0);
+        const avgSentiment = sentimentSum / propertyInvestmentDemo.transcript.length;
+        const sentimentBadge = document.createElement('span');
+        sentimentBadge.className = `badge ${getSentimentBadgeClass(avgSentiment)}`;
+        sentimentBadge.textContent = getSentimentText(avgSentiment);
+        document.getElementById('modal-sentiment').innerHTML = '';
+        document.getElementById('modal-sentiment').appendChild(sentimentBadge);
+        
+        // Build transcript with quote highlighting
+        buildTranscript(propertyInvestmentDemo.transcript, quote);
+        
+        // Show content
+        document.getElementById('modal-content').classList.remove('d-none');
+    }
+    
+    // Handler for job offer demo conversation
+    function handleJobOfferDemo(conversationId, quote) {
+        console.log("Loading job offer demo with ID:", conversationId, "Quote:", quote);
+        const jobOfferDemo = {
+            conversation_id: conversationId,
+            start_time: new Date().toISOString(),
+            end_time: new Date(Date.now() + 240000).toISOString(),
+            duration: 240,
+            status: 'completed',
+            channel: 'voice',
+            transcript: [
+                {
+                    speaker: 'Caller',
+                    text: 'I was offered a new job position. Should I accept it?',
+                    timestamp: new Date(Date.now() - 230000).toISOString(),
+                    sentiment: 0.1
+                },
+                {
+                    speaker: 'Lily',
+                    text: "I sense some hesitation in your energy. Could you tell me what aspects of the job offer are making you uncertain?",
+                    timestamp: new Date(Date.now() - 200000).toISOString(),
+                    sentiment: 0.2
+                },
+                {
+                    speaker: 'Caller',
+                    text: 'The pay is better, but it would mean relocating to a different city away from my family.',
+                    timestamp: new Date(Date.now() - 180000).toISOString(),
+                    sentiment: -0.2
+                },
+                {
+                    speaker: 'Lily',
+                    text: "Thank you for sharing that. I'm sensing that your family connections are very important to you. When I look at the energies surrounding this decision, I'm seeing both opportunity and hesitation.",
+                    timestamp: new Date(Date.now() - 150000).toISOString(),
+                    sentiment: 0.3
+                },
+                {
+                    speaker: 'Caller',
+                    text: "Should I accept the new job offer? I'm really torn about this decision.",
+                    timestamp: new Date(Date.now() - 120000).toISOString(),
+                    sentiment: -0.1
+                },
+                {
+                    speaker: 'Lily',
+                    text: "I'm sensing that while this job offers financial growth, your spiritual and emotional well-being may be affected by the distance from your support system. The cards suggest that if you do take this position, you'll need to be intentional about maintaining those connections. Have you considered if there's any flexibility for remote work or regular visits home?",
+                    timestamp: new Date(Date.now() - 90000).toISOString(),
+                    sentiment: 0.2
+                },
+                {
+                    speaker: 'Caller',
+                    text: "That's a good point. I could ask about working remotely for part of the month.",
+                    timestamp: new Date(Date.now() - 60000).toISOString(),
+                    sentiment: 0.4
+                },
+                {
+                    speaker: 'Lily',
+                    text: "The energy shifts positively when you consider that compromise. I sense this could be a path forward that honors both your career ambitions and your need for family connection. Trust your intuition on this - when you imagine proposing this solution, notice how your energy feels lighter.",
+                    timestamp: new Date(Date.now() - 30000).toISOString(),
+                    sentiment: 0.6
+                }
+            ]
+        };
+        
+        // Hide loading state
+        document.getElementById('modal-loading').classList.add('d-none');
+        
+        // Update UI with demo data - ensure full ID is displayed
+        document.getElementById('modal-conversation-id').textContent = conversationId;
+        document.getElementById('modal-date').textContent = new Date(jobOfferDemo.start_time).toLocaleString();
+        
+        const minutes = Math.floor(jobOfferDemo.duration / 60);
+        const seconds = Math.floor(jobOfferDemo.duration % 60);
+        document.getElementById('modal-duration').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        document.getElementById('modal-turn-count').textContent = jobOfferDemo.transcript.length;
+        
+        // Update the full view link with quote parameter if provided
+        let fullViewUrl = `/data-selection?conversation_id=${conversationId}`;
+        if (quote) {
+            fullViewUrl += `&quote=${encodeURIComponent(quote)}`;
+        }
+        document.getElementById('modal-full-page-link').href = fullViewUrl;
+        
+        // Calculate sentiment
+        const sentimentSum = jobOfferDemo.transcript.reduce((sum, turn) => sum + (turn.sentiment || 0), 0);
+        const avgSentiment = sentimentSum / jobOfferDemo.transcript.length;
+        const sentimentBadge = document.createElement('span');
+        sentimentBadge.className = `badge ${getSentimentBadgeClass(avgSentiment)}`;
+        sentimentBadge.textContent = getSentimentText(avgSentiment);
+        document.getElementById('modal-sentiment').innerHTML = '';
+        document.getElementById('modal-sentiment').appendChild(sentimentBadge);
+        
+        // Build transcript with quote highlighting
+        buildTranscript(jobOfferDemo.transcript, quote);
+        
+        // Show content
+        document.getElementById('modal-content').classList.remove('d-none');
+    }
+    
+    // Helper functions for conversation modal
+    function getSentimentBadgeClass(sentiment) {
+        if (sentiment > 0.5) return 'bg-success';
+        if (sentiment > 0.1) return 'bg-info';
+        if (sentiment > -0.1) return 'bg-secondary';
+        if (sentiment > -0.5) return 'bg-warning';
+        return 'bg-danger';
+    }
+    
+    function getSentimentText(sentiment) {
+        if (sentiment > 0.5) return 'Very Positive';
+        if (sentiment > 0.1) return 'Positive';
+        if (sentiment > -0.1) return 'Neutral';
+        if (sentiment > -0.5) return 'Negative';
+        return 'Very Negative';
+    }
+    
+    function formatTurnTime(timestamp, index) {
+        if (timestamp) {
+            return new Date(timestamp).toLocaleTimeString();
+        }
+        // Fallback if no timestamp available
+        return `Turn ${index + 1}`;
+    }
+    
+    // Function to load data from the API
+    function loadData(timeframe) {
+        // Show loading state
+        toggleLoadingState(true);
+        
+        // Check if super safe mode is enabled
+        const superSafe = document.getElementById('superSafeMode').checked;
+        const superSafeParam = superSafe ? '&super_safe=true' : '';
+        
+        // Fetch data from API
+        fetch(`/api/themes-sentiment/data?timeframe=${timeframe}${superSafeParam}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading state
+                toggleLoadingState(false);
+                
+                // Update the UI with the data
+                updateDashboard(data);
+            })
+            .catch(error => {
+                // Hide loading state and show error
+                toggleLoadingState(false);
+                showError(error.message);
+            });
+    }
+    
+    // Toggle loading state
+    function toggleLoadingState(isLoading) {
+        const loadingContainer = document.getElementById('loading-container');
+        const contentContainer = document.getElementById('content-container');
+        const errorContainer = document.getElementById('error-container');
+        
+        if (isLoading) {
+            loadingContainer.classList.remove('d-none');
+            contentContainer.classList.add('d-none');
+            errorContainer.classList.add('d-none');
+        } else {
+            loadingContainer.classList.add('d-none');
+            contentContainer.classList.remove('d-none');
+        }
+    }
+    
+    // Show error message
+    function showError(message) {
+        const errorContainer = document.getElementById('error-container');
+        const errorMessage = document.getElementById('error-message');
+        const contentContainer = document.getElementById('content-container');
+        
+        errorMessage.textContent = message;
+        errorContainer.classList.remove('d-none');
+        contentContainer.classList.add('d-none');
+    }
+    
+    // Update the dashboard with data
+    function updateDashboard(data) {
+        // Update conversation count
+        document.getElementById('conversation-count').textContent = data.conversation_count;
+        
+        // Update sentiment overview
+        updateSentimentOverview(data.sentiment_overview);
+        
+        // Update themes
+        updateThemes(data.top_themes);
+        
+        // Update sentiment trends
+        updateSentimentTrends(data.sentiment_over_time);
+        
+        // Update theme-sentiment correlation
+        updateThemeSentimentCorrelation(data.theme_sentiment_correlation);
+        
+        // Update common questions
+        updateCommonQuestions(data.common_questions);
+        
+        // Update concerns and skepticism
+        updateConcernsAndSkepticism(data.concerns_and_skepticism);
+        
+        // Update positive interactions
+        updatePositiveInteractions(data.positive_interactions);
+    }
+    
+    // Update sentiment overview section
+    function updateSentimentOverview(sentimentData) {
+        // Set overall sentiment value
+        const overallSentiment = sentimentData.overall_score;
+        const normalizedSentiment = ((overallSentiment + 1) / 2) * 100; // Convert from [-1,1] to [0,100]
+        
+        // Update progress bar
+        const sentimentBar = document.getElementById('sentiment-overall-bar');
+        sentimentBar.style.width = `${normalizedSentiment}%`;
+        
+        // Set color based on sentiment
+        if (overallSentiment > 0.3) {
+            sentimentBar.className = 'progress-bar bg-success';
+        } else if (overallSentiment > 0) {
+            sentimentBar.className = 'progress-bar bg-info';
+        } else if (overallSentiment > -0.3) {
+            sentimentBar.className = 'progress-bar bg-warning';
+        } else {
+            sentimentBar.className = 'progress-bar bg-danger';
+        }
+        
+        // Set emoji based on sentiment
+        const emojiElement = document.getElementById('sentiment-emoji');
+        if (overallSentiment > 0.5) {
+            emojiElement.textContent = '😄'; // Very positive
+        } else if (overallSentiment > 0.2) {
+            emojiElement.textContent = '🙂'; // Positive
+        } else if (overallSentiment > -0.2) {
+            emojiElement.textContent = '😐'; // Neutral
+        } else if (overallSentiment > -0.5) {
+            emojiElement.textContent = '🙁'; // Negative
+        } else {
+            emojiElement.textContent = '😞'; // Very negative
+        }
+        
+        // Update user and agent sentiment values
+        document.getElementById('user-sentiment-value').textContent = 
+            sentimentData.user_sentiment.toFixed(2);
+        document.getElementById('agent-sentiment-value').textContent = 
+            sentimentData.agent_sentiment.toFixed(2);
+        
+        // Update sentiment distribution chart
+        updateSentimentDistributionChart(sentimentData.sentiment_distribution);
+    }
+    
+    // Update sentiment distribution chart
+    function updateSentimentDistributionChart(distributionData) {
+        const ctx = document.getElementById('sentiment-distribution-chart').getContext('2d');
+        
+        // Destroy previous chart if it exists
+        if (sentimentDistributionChart) {
+            sentimentDistributionChart.destroy();
+        }
+        
+        // Create new chart
+        sentimentDistributionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                datasets: [{
+                    data: [
+                        distributionData.positive * 100,
+                        distributionData.neutral * 100,
+                        distributionData.negative * 100
+                    ],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.7)', // green
+                        'rgba(108, 117, 125, 0.7)', // gray
+                        'rgba(220, 53, 69, 0.7)'  // red
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(108, 117, 125, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.label}: ${context.raw.toFixed(1)}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Update themes section
+    function updateThemes(themesData) {
+        // Create sorted array of themes by count
+        const sortedThemes = [...themesData].sort((a, b) => b.count - a.count);
+        const topThemes = sortedThemes.slice(0, 10); // Get top 10 for chart
+        
+        // Update themes chart
+        updateThemesChart(topThemes);
+        
+        // Update themes list
+        const themesList = document.getElementById('themes-list');
+        themesList.innerHTML = '';
+        
+        sortedThemes.slice(0, 10).forEach(theme => {
+            const themeItem = document.createElement('div');
+            themeItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            
+            // Determine theme category and assign appropriate color
+            let categoryBadge, categoryClass;
+            const topic = theme.topic.toLowerCase();
+            
+            if (topic.includes('love') || topic.includes('relationship') || topic.includes('partner') || 
+                topic.includes('marriage') || topic.includes('soulmate') || topic.includes('dating')) {
+                categoryBadge = 'Relationships';
+                categoryClass = 'bg-danger'; // Red for love/relationships
+            }
+            else if (topic.includes('career') || topic.includes('job') || topic.includes('work') || 
+                    topic.includes('business') || topic.includes('professional')) {
+                categoryBadge = 'Career';
+                categoryClass = 'bg-primary'; // Blue for career
+            }
+            else if (topic.includes('spirit') || topic.includes('energy') || topic.includes('psychic') || 
+                    topic.includes('intuition') || topic.includes('soul')) {
+                categoryBadge = 'Spiritual';
+                categoryClass = 'bg-purple'; // Purple for spiritual themes
+            }
+            else if (topic.includes('money') || topic.includes('finance') || topic.includes('financial') ||
+                    topic.includes('invest')) {
+                categoryBadge = 'Financial';
+                categoryClass = 'bg-success'; // Green for money
+            }
+            else if (topic.includes('life') || topic.includes('future') || topic.includes('path') ||
+                    topic.includes('decision') || topic.includes('purpose')) {
+                categoryBadge = 'Life Path';
+                categoryClass = 'bg-info'; // Light blue for life purpose
+            }
+            else if (topic.includes('family') || topic.includes('child') || topic.includes('parent') ||
+                    topic.includes('mother') || topic.includes('father')) {
+                categoryBadge = 'Family';
+                categoryClass = 'bg-warning'; // Yellow/orange for family
+            }
+            else if (topic.includes('health') || topic.includes('wellness') || topic.includes('healing')) {
+                categoryBadge = 'Health';
+                categoryClass = 'bg-teal'; // Teal for health
+            }
+            else {
+                categoryBadge = theme.type || 'Topic';
+                categoryClass = 'bg-secondary'; // Gray for miscellaneous
+            }
+            
+            themeItem.innerHTML = `
+                <div>
+                    <span class="fw-bold">${theme.topic}</span>
+                    <span class="badge ${categoryClass} rounded-pill ms-2">${categoryBadge}</span>
+                </div>
+                <span class="badge bg-dark rounded-pill">${theme.count}</span>
+            `;
+            
+            themesList.appendChild(themeItem);
+        });
+    }
+    
+    // Update themes chart
+    function updateThemesChart(themesData) {
+        const ctx = document.getElementById('themes-chart').getContext('2d');
+        
+        // Prepare data for chart
+        const labels = themesData.map(theme => theme.topic);
+        const counts = themesData.map(theme => theme.count);
+        
+        // Create psychic-specific color palette
+        const generateColorForTheme = (theme) => {
+            const topic = theme.topic.toLowerCase();
+            
+            // Color scheme for different theme categories
+            if (topic.includes('love') || topic.includes('relationship') || topic.includes('partner') || 
+                topic.includes('marriage') || topic.includes('soulmate')) {
+                return ['rgba(220, 53, 69, 0.7)', 'rgba(220, 53, 69, 1)']; // Red for love/relationships
+            }
+            else if (topic.includes('career') || topic.includes('job') || topic.includes('work') || 
+                    topic.includes('business')) {
+                return ['rgba(0, 123, 255, 0.7)', 'rgba(0, 123, 255, 1)']; // Blue for career
+            }
+            else if (topic.includes('spirit') || topic.includes('energy') || topic.includes('psychic') || 
+                    topic.includes('intuition')) {
+                return ['rgba(111, 66, 193, 0.7)', 'rgba(111, 66, 193, 1)']; // Purple for spiritual themes
+            }
+            else if (topic.includes('money') || topic.includes('finance') || topic.includes('financial')) {
+                return ['rgba(40, 167, 69, 0.7)', 'rgba(40, 167, 69, 1)']; // Green for money
+            }
+            else if (topic.includes('life') || topic.includes('future') || topic.includes('path') ||
+                    topic.includes('decision')) {
+                return ['rgba(23, 162, 184, 0.7)', 'rgba(23, 162, 184, 1)']; // Light blue for life purpose
+            }
+            else if (topic.includes('family') || topic.includes('child') || topic.includes('parent')) {
+                return ['rgba(255, 193, 7, 0.7)', 'rgba(255, 193, 7, 1)']; // Yellow/orange for family
+            }
+            else if (topic.includes('health') || topic.includes('wellness') || topic.includes('healing')) {
+                return ['rgba(32, 201, 151, 0.7)', 'rgba(32, 201, 151, 1)']; // Teal for health
+            }
+            else {
+                return ['rgba(108, 117, 125, 0.7)', 'rgba(108, 117, 125, 1)']; // Gray for miscellaneous
+            }
+        };
+        
+        // Generate colors based on theme content
+        const backgroundColors = themesData.map(theme => generateColorForTheme(theme)[0]);
+        const borderColors = themesData.map(theme => generateColorForTheme(theme)[1]);
+        
+        // Destroy previous chart if it exists
+        if (themesChart) {
+            themesChart.destroy();
+        }
+        
+        // Create new chart with enhanced aesthetics
+        themesChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Mentions',
+                    data: counts,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.8
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.raw} mentions`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: {
+                            display: true,
+                            drawBorder: true,
+                            drawOnChartArea: true,
+                            drawTicks: true,
+                        },
+                        title: {
+                            display: true,
+                            text: 'Mention Count',
+                            font: {
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    y: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Update sentiment trends
+    function updateSentimentTrends(trendData) {
+        // Update trend indicator badge
+        const trendIndicator = document.getElementById('trend-indicator');
+        const trend = trendData.trend;
+        
+        if (trend > 0.1) {
+            trendIndicator.className = 'badge bg-success';
+            trendIndicator.innerHTML = '<i class="fas fa-arrow-up me-1"></i> Improving Trend';
+        } else if (trend < -0.1) {
+            trendIndicator.className = 'badge bg-danger';
+            trendIndicator.innerHTML = '<i class="fas fa-arrow-down me-1"></i> Declining Trend';
+        } else {
+            trendIndicator.className = 'badge bg-secondary';
+            trendIndicator.innerHTML = '<i class="fas fa-equals me-1"></i> Neutral Trend';
+        }
+        
+        // Update sentiment trend chart
+        updateSentimentTrendChart(trendData.daily_sentiment);
+    }
+    
+    // Update sentiment trend chart
+    function updateSentimentTrendChart(dailySentimentData) {
+        const ctx = document.getElementById('sentiment-trend-chart').getContext('2d');
+        
+        // Prepare data for chart
+        const dates = dailySentimentData.map(item => item.date);
+        const sentiments = dailySentimentData.map(item => item.sentiment);
+        
+        // Destroy previous chart if it exists
+        if (sentimentTrendChart) {
+            sentimentTrendChart.destroy();
+        }
+        
+        // Create gradient for line
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(0, 123, 255, 0.5)');
+        gradient.addColorStop(1, 'rgba(0, 123, 255, 0.1)');
+        
+        // Create new chart
+        sentimentTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Average Sentiment',
+                    data: sentiments,
+                    borderColor: 'rgba(0, 123, 255, 1)',
+                    backgroundColor: gradient,
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const sentiment = context.raw;
+                                let label = 'Sentiment: ' + sentiment.toFixed(2);
+                                
+                                // Add description based on value
+                                if (sentiment > 0.5) label += ' (Very Positive)';
+                                else if (sentiment > 0.1) label += ' (Positive)';
+                                else if (sentiment > -0.1) label += ' (Neutral)';
+                                else if (sentiment > -0.5) label += ' (Negative)';
+                                else label += ' (Very Negative)';
+                                
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: -1,
+                        max: 1,
+                        ticks: {
+                            callback: function(value) {
+                                if (value === 1) return 'Very Positive';
+                                if (value === 0.5) return 'Positive';
+                                if (value === 0) return 'Neutral';
+                                if (value === -0.5) return 'Negative';
+                                if (value === -1) return 'Very Negative';
+                                return '';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Update theme-sentiment correlation
+    function updateThemeSentimentCorrelation(correlationData) {
+        const tableBody = document.querySelector('#theme-sentiment-table tbody');
+        tableBody.innerHTML = '';
+        
+        correlationData.forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Set row color based on sentiment
+            if (item.avg_sentiment > 0.2) {
+                row.className = 'table-success';
+            } else if (item.avg_sentiment < -0.2) {
+                row.className = 'table-danger';
+            }
+            
+            // Create sentiment badge
+            let badgeClass = 'bg-secondary';
+            let sentimentText = 'Neutral';
+            
+            if (item.avg_sentiment > 0.3) {
+                badgeClass = 'bg-success';
+                sentimentText = 'Positive';
+            } else if (item.avg_sentiment > 0) {
+                badgeClass = 'bg-info';
+                sentimentText = 'Slightly Positive';
+            } else if (item.avg_sentiment > -0.3) {
+                badgeClass = 'bg-warning';
+                sentimentText = 'Slightly Negative';
+            } else {
+                badgeClass = 'bg-danger';
+                sentimentText = 'Negative';
+            }
+            
+            row.innerHTML = `
+                <td><strong>${item.theme}</strong></td>
+                <td>${item.mention_count}</td>
+                <td>
+                    <span class="badge ${badgeClass}">${sentimentText}</span>
+                    <small class="text-muted ms-1">(${item.avg_sentiment.toFixed(2)})</small>
+                </td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+    
+    // Update common questions section
+    function updateCommonQuestions(questionsData) {
+        const container = document.getElementById('questions-container');
+        container.innerHTML = '';
+        
+        if (!questionsData || questionsData.length === 0) {
+            container.innerHTML = '<div class="alert alert-info">No questions found in the selected timeframe.</div>';
+            return;
+        }
+        
+        // Sort by count (most frequent first)
+        const sortedQuestions = [...questionsData].sort((a, b) => b.count - a.count);
+        
+        // Create question categories
+        sortedQuestions.forEach(category => {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'mb-3';
+            
+            // Format category name for display
+            const displayName = category.category.replace(/_/g, ' ');
+            
+            // Create HTML for examples with clickable conversation IDs
+            const examplesHTML = category.examples.map(ex => {
+                // Get the conversation ID without the ellipsis if present
+                const conversationId = ex.conversation_id.replace('...', '');
+                
+                return `
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <span class="text-primary">"${ex.text}"</span>
+                            <span class="text-muted">
+                                <a href="javascript:void(0)" onclick="showConversationModal('${conversationId}', '${ex.text}')" class="text-secondary">
+                                    <i class="fas fa-external-link-alt fa-xs me-1"></i>${ex.conversation_id}
+                                </a>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            categoryDiv.innerHTML = `
+                <h6>
+                    <span class="badge bg-primary me-2">${category.count}</span>
+                    ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}
+                </h6>
+                <div class="list-group list-group-flush small">
+                    ${examplesHTML}
+                </div>
+            `;
+            
+            container.appendChild(categoryDiv);
+        });
+    }
+    
+    // Update concerns and skepticism section
+    function updateConcernsAndSkepticism(concernsData) {
+        const container = document.getElementById('concerns-container');
+        container.innerHTML = '';
+        
+        if (!concernsData || concernsData.length === 0) {
+            container.innerHTML = '<div class="alert alert-info">No concerns or skepticism found in the selected timeframe.</div>';
+            return;
+        }
+        
+        // Sort by count (most frequent first)
+        const sortedConcerns = [...concernsData].sort((a, b) => b.count - a.count);
+        
+        // Create accordion for concerns
+        const accordion = document.createElement('div');
+        accordion.className = 'accordion';
+        accordion.id = 'concernsAccordion';
+        
+        // Add each concern as an accordion item
+        sortedConcerns.forEach((concern, index) => {
+            const itemId = `concern-${index}`;
+            const item = document.createElement('div');
+            item.className = 'accordion-item';
+            
+            // Format concern type for display
+            const displayType = concern.type.replace(/_/g, ' ');
+            
+            // Create HTML for examples with clickable conversation IDs
+            const examplesHTML = concern.examples.map(ex => {
+                // Get the conversation ID without the ellipsis if present
+                const conversationId = ex.conversation_id.replace('...', '');
+                
+                return `
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <span class="text-primary">"${ex.text}"</span>
+                            <span class="text-muted">
+                                <a href="javascript:void(0)" onclick="showConversationModal('${conversationId}', '${ex.text}')" class="text-secondary">
+                                    <i class="fas fa-external-link-alt fa-xs me-1"></i>${ex.conversation_id}
+                                </a>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            item.innerHTML = `
+                <h2 class="accordion-header" id="heading-${itemId}">
+                    <button class="accordion-button ${index > 0 ? 'collapsed' : ''}" type="button" 
+                        data-bs-toggle="collapse" data-bs-target="#collapse-${itemId}" 
+                        aria-expanded="${index === 0 ? 'true' : 'false'}" aria-controls="collapse-${itemId}">
+                        <span class="badge bg-primary me-2">${concern.count}</span>
+                        <strong>${displayType.charAt(0).toUpperCase() + displayType.slice(1)}</strong>
+                    </button>
+                </h2>
+                <div id="collapse-${itemId}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" 
+                    aria-labelledby="heading-${itemId}" data-bs-parent="#concernsAccordion">
+                    <div class="accordion-body">
+                        <div class="list-group list-group-flush small">
+                            ${examplesHTML}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            accordion.appendChild(item);
+        });
+        
+        container.appendChild(accordion);
+    }
+    
+    // Update positive interactions section
+    function updatePositiveInteractions(interactionsData) {
+        const container = document.getElementById('positive-interactions-container');
+        container.innerHTML = '';
+        
+        if (!interactionsData || interactionsData.length === 0) {
+            container.innerHTML = '<div class="alert alert-info">No highly positive interactions found in the selected timeframe.</div>';
+            return;
+        }
+        
+        // Create card for each positive interaction
+        interactionsData.forEach(interaction => {
+            const card = document.createElement('div');
+            card.className = 'card mb-3 border-success';
+            
+            // Get the conversation ID without the ellipsis if present
+            const conversationId = interaction.conversation_id.replace('...', '');
+            
+            card.innerHTML = `
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-1 text-center">
+                            <h1 class="text-success">😄</h1>
+                            <span class="badge bg-success">${interaction.sentiment_score.toFixed(2)}</span>
+                        </div>
+                        <div class="col-md-11">
+                            <div class="mb-2">
+                                <strong class="text-primary">Lily:</strong>
+                                <p class="mb-1">${interaction.lily_prompt}</p>
+                            </div>
+                            <div>
+                                <strong class="text-success">Caller Response:</strong>
+                                <p class="mb-1">"${interaction.caller_response}"</p>
+                                <div class="text-end">
+                                    <small class="text-muted">Conversation: 
+                                        <a href="javascript:void(0)" onclick="showConversationModal('${conversationId}', '${interaction.caller_response}')" class="text-primary">
+                                            <i class="fas fa-external-link-alt fa-xs me-1"></i>${interaction.conversation_id}
+                                        </a>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(card);
+        });
+    }
+</script>
+{% endblock %} 

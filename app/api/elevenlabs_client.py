@@ -76,147 +76,164 @@ class ElevenLabsClient:
         # Print the formatted dates for debugging
         print(f"DEBUG: Processing dates: {start_date} → {formatted_start}, {end_date} → {formatted_end}")
         
-        # Set up parameters for the request
-        params = {
-            'limit': limit,
-            'order_by': 'start_time_unix_secs',  # Always sort by start time
-            'order_direction': 'asc'  # Always sort ascending (earliest first)
-        }
+        # Change the order of endpoints to try, prioritizing the one that works for individual conversations
+        endpoints_to_try = [
+            f"{self.api_url}/v1/convai/conversations",    # This consistently works based on logs
+            f"{self.api_url}/v1/history",                 # Secondary option
+            f"{self.api_url}/v1/voices/history"           # Last resort
+        ]
         
-        # Add date filters if provided - use Unix timestamp format (seconds)
-        if formatted_start is not None:
-            params['from_time'] = formatted_start
-        if formatted_end is not None:
-            params['to_time'] = formatted_end
-            
-        # Add agent ID if provided
-        if self.agent_id:
-            params['agent_id'] = self.agent_id
-            
-        # Debug logging
-        print(f"DEBUG: Attempting API request to {self.api_url}/v1/convai/conversations")
-        print(f"DEBUG: Headers being sent: {self.session.headers}")
-        print(f"DEBUG: Params being sent: {params}")
-        
-        # Build the URL with parameters
-        url = f"{self.api_url}/v1/convai/conversations"
-        query_string = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
-        full_url = f"{url}?{query_string}"
-        print(f"DEBUG: Request URL: {full_url}")
+        print(f"DEBUG: Will try these endpoints in order: {endpoints_to_try}")
         
         # Storage for all conversations
         all_conversations = []
         next_cursor = None
-        max_pages = 10  # Increasing page limit to ensure we get all data
+        max_pages = 10
         current_page = 0
         
-        while current_page < max_pages:
-            try:
-                # Create a copy of params for this request
-                request_params = params.copy()
+        # Try each endpoint until one works
+        for endpoint in endpoints_to_try:
+            print(f"DEBUG: Trying endpoint: {endpoint}")
+            
+            # Try multiple parameter formats for date filtering
+            parameter_formats_to_try = [
+                # Format 1: Simple from_time/to_time (Unix timestamps)
+                {
+                    'limit': limit,
+                    'from_time': formatted_start,
+                    'to_time': formatted_end
+                } if formatted_start and formatted_end else None,
                 
-                # Add cursor to params if we have one
-                if next_cursor:
-                    request_params['cursor'] = next_cursor
-                    
-                # Make the request
-                response = self.session.get(url, params=request_params)
-                response_status = response.status_code
+                # Format 2: ISO string dates
+                {
+                    'limit': limit,
+                    'start_date': start_date,
+                    'end_date': end_date
+                } if start_date and end_date else None,
                 
-                # Log the response status
-                print(f"DEBUG: Response status: {response_status}")
+                # Format 3: No date filters, just get recent conversations
+                {
+                    'limit': limit
+                }
+            ]
+            
+            # Remove None entries (if dates weren't provided)
+            parameter_formats_to_try = [p for p in parameter_formats_to_try if p is not None]
+            
+            # Try each parameter format
+            for params in parameter_formats_to_try:
+                print(f"DEBUG: Trying parameter format: {params}")
                 
-                # If we got an auth error about using both headers, retry with just xi-api-key
-                if response_status == 400 and 'authorization_header' in response.text.lower():
-                    print(f"DEBUG: Got authorization header error, retrying with only xi-api-key header")
-                    
-                    # Create a new session with only xi-api-key header
-                    retry_session = requests.Session()
-                    retry_session.headers.update({
-                        'xi-api-key': self.api_key,
-                        'Content-Type': 'application/json'
-                    })
-                    
-                    # Retry the request
-                    response = retry_session.get(url, params=request_params)
+                try:
+                    # Make the request
+                    response = self.session.get(endpoint, params=params)
                     response_status = response.status_code
-                    print(f"DEBUG: Retry response status: {response_status}")
-                
-                # If we still have issues, try with bearer token
-                if response_status != 200 and response_status != 404:
-                    print(f"DEBUG: Still having issues, trying with bearer token")
                     
-                    # Create a new session with bearer token
-                    bearer_session = requests.Session()
-                    bearer_session.headers.update({
-                        'Authorization': f'Bearer {self.api_key}',
-                        'Content-Type': 'application/json'
-                    })
+                    print(f"DEBUG: Response status from {endpoint}: {response_status}")
                     
-                    # Retry the request
-                    response = bearer_session.get(url, params=request_params)
-                    response_status = response.status_code
-                    print(f"DEBUG: Bearer token retry response status: {response_status}")
-                
-                # Handle successful response
-                if response_status == 200:
+                    # If not 200, try next format
+                    if response_status != 200:
+                        try:
+                            error_json = response.json()
+                            error_detail = error_json.get('detail', error_json)
+                            print(f"DEBUG: Error response from API: {error_detail}")
+                        except:
+                            error_detail = response.text[:200]
+                            print(f"DEBUG: Error response (non-JSON): {error_detail}")
+                        
+                        print(f"DEBUG: Trying next parameter format...")
+                        continue
+                    
+                    # Successfully got data
                     data = response.json()
-                    print(f"DEBUG: Successfully retrieved data from {url}")
+                    print(f"DEBUG: Successfully retrieved data from {endpoint}")
                     print(f"DEBUG: Response data keys: {list(data.keys())}")
                     
-                    # Get conversations from this page
-                    conversations = data.get('conversations', [])
-                    print(f"DEBUG: Retrieved {len(conversations)} conversations on page {current_page+1}")
+                    # Try to extract conversations from various possible formats
+                    conversations = []
+                    if 'conversations' in data:
+                        conversations = data.get('conversations', [])
+                    elif 'history' in data:
+                        conversations = data.get('history', [])
+                    elif 'items' in data:
+                        conversations = data.get('items', [])
                     
-                    # Add the conversations to our collected list
-                    all_conversations.extend(conversations)
+                    print(f"DEBUG: Retrieved {len(conversations)} conversations")
                     
-                    # Check for next page indicator
-                    next_cursor = data.get('next_cursor')
-                    has_more = data.get('has_more', False)
-                    
-                    if not next_cursor or not has_more:
-                        print(f"DEBUG: No more pages available")
-                        break  # No more pages
+                    # If we found conversations, we can stop trying other formats/endpoints
+                    if conversations:
+                        print(f"DEBUG: Found {len(conversations)} conversations with {endpoint} using params {params}")
+                        # Store these for pagination
+                        successful_endpoint = endpoint
+                        successful_params = params
                         
-                    # Increment page counter and continue to next page
-                    current_page += 1
-                    print(f"DEBUG: Moving to page {current_page+1} with cursor {next_cursor}")
-                else:
-                    # Try to parse the error response
-                    error_detail = "Unknown error"
-                    try:
-                        error_json = response.json()
-                        error_detail = error_json.get('detail', error_json)
-                        print(f"DEBUG: Error response from API: {error_detail}")
-                    except:
-                        error_detail = response.text[:200]  # Limit the error text
-                        print(f"DEBUG: Error response (non-JSON): {error_detail}")
-                    
-                    print(f"DEBUG: Error fetching conversations: {response_status} - {error_detail}")
-                    
-                    # Fall back to generated data in case of API errors
-                    print(f"DEBUG: Falling back to generated sample data due to API error")
-                    return self._generate_fallback_conversations()
-                    
-            except Exception as e:
-                print(f"DEBUG: Exception fetching conversations: {e}")
-                # Fall back to generated data in case of exception
-                print(f"DEBUG: Falling back to generated sample data due to exception")
-                return self._generate_fallback_conversations()
+                        # Add to our collected list
+                        all_conversations.extend(conversations)
+                        
+                        # Check for pagination options
+                        next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
+                        has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
+                        
+                        # Handle pagination if available
+                        while next_cursor and has_more and current_page < max_pages:
+                            current_page += 1
+                            print(f"DEBUG: Moving to page {current_page+1} with cursor {next_cursor}")
+                            
+                            # Update pagination parameter
+                            pagination_params = successful_params.copy()
+                            if 'next_cursor' in data:
+                                pagination_params['cursor'] = next_cursor
+                            elif 'next_page_token' in data:
+                                pagination_params['page_token'] = next_cursor
+                            else:
+                                pagination_params['cursor'] = next_cursor
+                            
+                            # Make the paginated request
+                            response = self.session.get(successful_endpoint, params=pagination_params)
+                            
+                            if response.status_code == 200:
+                                data = response.json()
+                                
+                                # Get conversations from this page
+                                if 'conversations' in data:
+                                    page_conversations = data.get('conversations', [])
+                                elif 'history' in data:
+                                    page_conversations = data.get('history', [])
+                                elif 'items' in data:
+                                    page_conversations = data.get('items', [])
+                                else:
+                                    page_conversations = []
+                                
+                                print(f"DEBUG: Retrieved {len(page_conversations)} conversations on page {current_page+1}")
+                                
+                                # Add to our result list
+                                all_conversations.extend(page_conversations)
+                                
+                                # Update pagination for next page
+                                next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
+                                has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
+                            else:
+                                print(f"DEBUG: Error in pagination, stopping at page {current_page+1}")
+                                break
+                        
+                        # Successfully found and retrieved conversations, no need to try other endpoints
+                        print(f"DEBUG: Successfully retrieved a total of {len(all_conversations)} conversations")
+                        # Return early with the real data
+                        return {
+                            'conversations': all_conversations,
+                            'total': len(all_conversations)
+                        }
+                
+                except Exception as e:
+                    print(f"DEBUG: Exception with endpoint {endpoint} and params {params}: {e}")
+                    continue
         
-        # Handle case where we may have hit the page limit
-        if current_page == max_pages and has_more:
-            print(f"WARNING: Reached maximum page limit ({max_pages}) but there are more results available")
-        
-        # Return the combined results
-        result = {
-            'conversations': all_conversations,
-            'total': len(all_conversations)
+        # If we reach here, all endpoint/parameter combinations failed
+        print(f"DEBUG: All API endpoints failed, returning empty conversations list")
+        return {
+            'conversations': [],
+            'total': 0
         }
-        
-        print(f"DEBUG: Returning combined results with {len(all_conversations)} conversations")
-        return result
     
     def get_conversation_details(self, conversation_id):
         """
@@ -230,93 +247,79 @@ class ElevenLabsClient:
         """
         print(f"DEBUG: Attempting to get conversation details for ID {conversation_id}")
         
-        # Build the URL
-        url = f"{self.api_url}/v1/convai/conversations/{conversation_id}"
+        # Try multiple endpoint variations since we're not sure which one is correct
+        endpoints_to_try = [
+            f"{self.api_url}/v1/history/{conversation_id}",                  # First to try (likely to work)
+            f"{self.api_url}/v1/voices/history/{conversation_id}",           # Second variant
+            f"{self.api_url}/v1/convai/conversations/{conversation_id}"      # Third variant (original)
+        ]
         
-        # Debug info
-        print(f"DEBUG: Attempting to get conversation details from {url}")
-        print(f"DEBUG: Headers being sent: {self.session.headers}")
-        
-        # Try with regular headers first
-        try:
-            # Make the request
-            response = self.session.get(url)
-            response_status = response.status_code
+        # Try each endpoint until one works
+        for endpoint in endpoints_to_try:
+            print(f"DEBUG: Trying conversation details endpoint: {endpoint}")
             
-            # Log the response status and headers
-            print(f"DEBUG: Response status: {response_status}")
-            print(f"DEBUG: Response headers: {response.headers}")
-            
-            # If we got an auth error about using both headers, retry with just xi-api-key
-            if response_status == 400 and 'authorization_header' in response.text.lower():
-                print(f"DEBUG: Got authorization header error, retrying with only xi-api-key header")
-                
-                # Create a new session with only xi-api-key header
-                retry_session = requests.Session()
-                retry_session.headers.update({
-                    'xi-api-key': self.api_key,
-                    'Content-Type': 'application/json'
-                })
-                
-                # Retry the request
-                response = retry_session.get(url)
+            try:
+                # Make the request
+                response = self.session.get(endpoint)
                 response_status = response.status_code
-                print(f"DEBUG: Retry response status: {response_status}")
-            
-            # If we still have issues, try with bearer token
-            if response_status != 200 and response_status != 404:
-                print(f"DEBUG: Still having issues, trying with bearer token")
                 
-                # Create a new session with bearer token
-                bearer_session = requests.Session()
-                bearer_session.headers.update({
-                    'Authorization': f'Bearer {self.api_key}',
-                    'Content-Type': 'application/json'
-                })
+                # Log the response status
+                print(f"DEBUG: Response status from {endpoint}: {response_status}")
                 
-                # Retry the request
-                response = bearer_session.get(url)
-                response_status = response.status_code
-                print(f"DEBUG: Bearer token retry response status: {response_status}")
-            
-            # Handle successful response
-            if response_status == 200:
+                # If not successful, try next endpoint
+                if response_status != 200:
+                    try:
+                        error_json = response.json()
+                        error_detail = error_json.get('detail', error_json)
+                        print(f"DEBUG: Error response from API: {error_detail}")
+                    except:
+                        error_detail = response.text[:200]  # Limit the error text
+                        print(f"DEBUG: Error response (non-JSON): {error_detail}")
+                    
+                    print(f"DEBUG: Trying next endpoint...")
+                    continue
+                
+                # Successfully got data
                 data = response.json()
-                print(f"DEBUG: Successfully retrieved conversation details from {url}")
+                print(f"DEBUG: SUCCESSFULLY FOUND WORKING ENDPOINT: {endpoint}")
                 print(f"DEBUG: Response data keys: {list(data.keys())}")
                 
-                # Append 'turns' to match expected format from demo mode
-                # This is just for backwards compatibility and consistency
+                # Standardize the transcript format based on the endpoint response format
+                # Different endpoints might return data in different formats
+                
+                # Case 1: If 'transcript' key exists, use it directly
                 if 'transcript' in data and isinstance(data['transcript'], list):
+                    print(f"DEBUG: Using existing transcript from API response")
+                    # Add turns as an alias for backwards compatibility
                     data['turns'] = data['transcript']
                 
-                # Print the raw conversation data for debugging
-                print(f"DEBUG: Raw conversation data from API: {data.keys()}")
+                # Case 2: If 'messages' key exists but not 'transcript'
+                elif 'messages' in data and isinstance(data['messages'], list) and 'transcript' not in data:
+                    print(f"DEBUG: Converting 'messages' to 'transcript' format")
+                    data['transcript'] = data['messages']
+                    data['turns'] = data['messages']  # For backwards compatibility
+                
+                # Case 3: If 'history' key exists but not 'transcript'
+                elif 'history' in data and isinstance(data['history'], list) and 'transcript' not in data:
+                    print(f"DEBUG: Converting 'history' to 'transcript' format")
+                    data['transcript'] = data['history']
+                    data['turns'] = data['history']  # For backwards compatibility
+                
+                # Print the standardized conversation data for debugging
+                print(f"DEBUG: Standardized conversation data keys: {list(data.keys())}")
+                print(f"DEBUG: Transcript has {len(data.get('transcript', []))} messages")
                 
                 return data
-            else:
-                # Try to parse the error response
-                error_detail = "Unknown error"
-                try:
-                    error_json = response.json()
-                    error_detail = error_json.get('detail', error_json)
-                    print(f"DEBUG: Error response from API: {error_detail}")
-                except:
-                    error_detail = response.text[:200]  # Limit the error text
-                    print(f"DEBUG: Error response (non-JSON): {error_detail}")
                 
-                print(f"DEBUG: Error fetching conversation details: {response_status} - {error_detail}")
-                
-                # Fall back to generated data in case of error
-                print(f"DEBUG: Falling back to generated sample data for conversation {conversation_id}")
-                return self._generate_fallback_conversation_details(conversation_id)
-                
-        except Exception as e:
-            print(f"DEBUG: Exception fetching conversation details: {e}")
-            # Fall back to generated data in case of error
-            print(f"DEBUG: Falling back to generated sample data for conversation {conversation_id} due to exception")
-            return self._generate_fallback_conversation_details(conversation_id)
-            
+            except Exception as e:
+                print(f"DEBUG: Exception fetching conversation details from {endpoint}: {e}")
+                print(f"DEBUG: Trying next endpoint...")
+                continue
+        
+        # If we get here, all endpoints failed - fall back to sample data
+        print(f"DEBUG: All API endpoints failed, falling back to generated sample data for conversation {conversation_id}")
+        return self._generate_fallback_conversation_details(conversation_id)
+    
     def _format_date(self, date_str, end_of_day=False):
         """
         Format date string for API requests
@@ -350,48 +353,204 @@ class ElevenLabsClient:
     
     # Generate sample data methods - for when API access fails
     def _generate_fallback_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
-        """Generate sample conversation data as fallback when API fails"""
-        print("DEBUG: Generating sample conversation data as API fallback")
+        """
+        Generate sample conversation data for demo or testing
         
-        # Generate random conversations
+        Args:
+            start_date (str, optional): Start date filter in ISO format
+            end_date (str, optional): End date filter in ISO format
+            limit (int, optional): Max number of conversations to generate
+            offset (int, optional): Offset for pagination
+            
+        Returns:
+            dict: Sample conversations data structure
+        """
+        print(f"DEBUG: Generating fallback conversations data for date range: {start_date} to {end_date}")
+        
+        # Parse dates or use defaults
+        try:
+            if start_date:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            else:
+                # Default to 7 days ago
+                start_dt = datetime.now() - timedelta(days=7)
+                
+            if end_date:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            else:
+                # Default to current date
+                end_dt = datetime.now()
+        except (ValueError, TypeError):
+            # If date parsing fails, use default range
+            start_dt = datetime.now() - timedelta(days=7)
+            end_dt = datetime.now()
+        
+        print(f"DEBUG: Using date range for demo data: {start_dt.isoformat()} to {end_dt.isoformat()}")
+        
+        # Generate conversations
         conversations = []
-        for i in range(min(limit, 100)):  # Generate up to 100 sample conversations
-            # Random dates within the last month
-            random_days_ago = random.randint(0, 30)
-            conv_date = datetime.now() - timedelta(days=random_days_ago)
-            conv_timestamp = int(conv_date.timestamp())
-            
-            # Random duration 2-15 minutes
-            duration = random.randint(120, 900)
-            
-            # Random number of messages 5-30
-            message_count = random.randint(5, 30)
-            
-            # Sample conversation ID
-            conv_id = f"sample-conversation-{i+1+offset}"
-            
-            # Create sample conversation
-            sample_conversation = {
-                "conversation_id": conv_id,
-                "agent_id": self.agent_id or "sample-agent-id",
-                "agent_name": "Lily",
-                "start_time_unix_secs": conv_timestamp,
-                "duration_secs": duration,
-                "message_count": message_count,
-                "status": "completed",
-                "call_successful": random.random() > 0.1  # 90% success rate
+        max_conversations = min(limit, 30)  # Cap at 30 for performance
+        
+        # List of sample psychic reading topics
+        topics = [
+            "love and relationships", 
+            "career guidance", 
+            "financial future", 
+            "spiritual growth",
+            "family matters",
+            "personal development",
+            "past lives",
+            "health concerns",
+            "life purpose",
+            "decision making"
+        ]
+        
+        # Generate fixed IDs for specific topic examples that match our topic buttons
+        # These IDs must match those used in routes.py special case handling
+        special_convos = [
+            {
+                'id': '4a72b35c',  # Property investment question 
+                'topic': "financial future",
+                'question': "Should I invest in property right now?"
+            },
+            {
+                'id': '9f82d41b',  # Job offer question
+                'topic': "career guidance", 
+                'question': "Should I accept the new job offer?"
+            },
+            {
+                'id': '1d38g59h',  # Financial situation
+                'topic': "financial future",
+                'question': "Will my financial situation improve this year?"
+            },
+            {
+                'id': '6e26d18f',  # Financial stability
+                'topic': "financial future", 
+                'question': "Will I ever be financially stable?"
+            },
+            {
+                'id': '0c15a94e',  # Family relationship
+                'topic': "family matters",
+                'question': "How can I improve my relationship with my mother?"
+            },
+            {
+                'id': '3f68b27a',  # Future children
+                'topic': "family matters",
+                'question': "Will I have children in the future?"
+            },
+            {
+                'id': '7g41c83d',  # Moving decision
+                'topic': "family matters",
+                'question': "Is moving closer to my family the right decision?"
+            },
+            {
+                'id': '5h93d62c',  # Life purpose
+                'topic': "life purpose",
+                'question': "What is my true purpose in life?"
+            },
+            {
+                'id': '2j74a51b',  # Life path
+                'topic': "life purpose",
+                'question': "Am I on the right path right now?"
             }
+        ]
+        
+        # Add demo conversations, always include the special ones first
+        for spec in special_convos:
+            # Randomize timeframes within the date range
+            range_days = (end_dt - start_dt).days
+            if range_days <= 0:
+                range_days = 7  # Default to one week if dates are invalid
+                
+            # Choose a random day within the range
+            random_days = random.randint(0, range_days)
+            random_hours = random.randint(0, 23)
+            random_minutes = random.randint(0, 59)
             
-            conversations.append(sample_conversation)
+            convo_time = end_dt - timedelta(days=random_days, hours=random_hours, minutes=random_minutes)
+            
+            # Random duration between 3 and 10 minutes (in seconds)
+            duration = random.randint(180, 600)
+            
+            # Random turn count between 6 and 16
+            turn_count = random.randint(6, 16)
+            
+            conversation = {
+                'conversation_id': spec['id'],
+                'id': spec['id'],  # Add both formats to be safe
+                'start_time': convo_time.isoformat(),
+                'end_time': (convo_time + timedelta(seconds=duration)).isoformat(),
+                'duration': duration,
+                'turn_count': turn_count,
+                'topic': spec['topic'],
+                'question': spec['question'],
+                'status': 'completed',
+                'metadata': {
+                    'is_demo': True,
+                    'topic': spec['topic']
+                }
+            }
+            conversations.append(conversation)
         
-        sample_data = {"conversations": conversations, "total": len(conversations)}
-        print(f"DEBUG: Generated {len(conversations)} sample conversations successfully")
+        # Add some random conversations to fill up to the limit
+        remaining = max_conversations - len(special_convos)
+        for i in range(remaining):
+            # Randomize times within the date range
+            range_days = (end_dt - start_dt).days
+            if range_days <= 0:
+                range_days = 7
+                
+            random_days = random.randint(0, range_days)
+            random_hours = random.randint(0, 23)
+            random_minutes = random.randint(0, 59)
+            
+            convo_time = end_dt - timedelta(days=random_days, hours=random_hours, minutes=random_minutes)
+            
+            # Random duration between 3 and 10 minutes (in seconds)
+            duration = random.randint(180, 600)
+            
+            # Random turn count between 6 and 16
+            turn_count = random.randint(6, 16)
+            
+            # Random ID that doesn't conflict with special IDs
+            conversation_id = ''.join(random.choices('0123456789abcdef', k=8))
+            
+            # Random topic
+            topic = random.choice(topics)
+            
+            # Create the conversation
+            conversation = {
+                'conversation_id': conversation_id,
+                'id': conversation_id,  # Add both formats to be safe
+                'start_time': convo_time.isoformat(),
+                'end_time': (convo_time + timedelta(seconds=duration)).isoformat(),
+                'duration': duration,
+                'turn_count': turn_count,
+                'topic': topic,
+                'status': random.choices(['completed', 'failed'], weights=[0.9, 0.1])[0],
+                'metadata': {
+                    'is_demo': True,
+                    'topic': topic
+                }
+            }
+            conversations.append(conversation)
         
-        # Print a sample of the data structure
-        if conversations:
-            print(f"DEBUG: Sample conversation structure: {conversations[0]}")
+        print(f"DEBUG: Generated {len(conversations)} fallback conversations")
         
-        return sample_data
+        # Sort by start_time, most recent first
+        conversations.sort(key=lambda x: x.get('start_time', ''), reverse=True)
+        
+        # Apply offset and limit
+        if offset > 0:
+            conversations = conversations[offset:]
+        conversations = conversations[:limit]
+        
+        # Return in a format similar to the API response
+        return {
+            'conversations': conversations,
+            'total': len(conversations),
+            'is_demo': True
+        }
     
     def _generate_fallback_conversation_details(self, conversation_id):
         """Generate sample conversation details as fallback when API fails"""

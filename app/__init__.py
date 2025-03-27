@@ -1,69 +1,83 @@
-from flask import Flask
-from flask_cors import CORS
-import datetime
-from flask_wtf import CSRFProtect
-from app.utils import configure_logging
 import sys
 import os
+from flask import Flask
+from flask_cors import CORS
+import logging
+from dotenv import load_dotenv
+from app.api.elevenlabs_client import ElevenLabsClient
+import datetime
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import the ElevenLabsClient after adjusting the path
-from app.api.elevenlabs_client import ElevenLabsClient
-
-def create_app():
-    # Create the app with explicit template_folder
-    template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
-    static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'static'))
-    app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
+def create_app(test_config=None):
+    # Load environment variables from .env file
+    load_dotenv()
     
-    print(f"DEBUG: Template directory: {template_dir}")
-    print(f"DEBUG: Template files: {[f for f in os.listdir(template_dir) if f.endswith('.html')]}")
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     
-    # Configure application
-    app.config.from_pyfile('config.py')
+    # Create app instance
+    app = Flask(__name__, instance_relative_config=True)
     
     # Configure CORS to allow all origins
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     
-    # Set up CSRF protection
-    csrf = CSRFProtect(app)
+    # Load configuration
+    if test_config is None:
+        # Load configuration from environment variables or config.py
+        app.config.from_pyfile('config.py', silent=True)
+        
+        # Load additional configuration from the project config
+        try:
+            from config import Config
+            app.config.from_object(Config)
+        except ImportError:
+            logging.warning("Could not import main config.py, using only environment variables")
+    else:
+        # Load test config if provided
+        app.config.from_mapping(test_config)
     
-    # Configure logging
-    configure_logging()
+    # Log the API key (just first few chars for security)
+    api_key = os.getenv('ELEVENLABS_API_KEY')
+    if api_key:
+        logging.info(f"Loaded ElevenLabs API key: {api_key[:5]}...")
+    else:
+        logging.warning("No ElevenLabs API key found")
+        
+    # Log if OpenAI key is available
+    openai_key = os.getenv('OPENAI_API_KEY')
+    if openai_key:
+        logging.info(f"Loaded OpenAI API key: {openai_key[:5]}...")
+    else:
+        logging.warning("No OpenAI API key found, analysis features will use fallbacks")
+    
+    # Ensure instance folder exists
+    try:
+        os.makedirs(app.instance_path, exist_ok=True)
+    except OSError:
+        pass
     
     # Add current date to context for templates
     @app.context_processor
     def inject_now():
         return {'now': datetime.datetime.now()}
     
-    # Initialize the ElevenLabs client
-    api_key = app.config.get('ELEVENLABS_API_KEY')
-    agent_id = app.config.get('ELEVENLABS_AGENT_ID')
-    api_url = app.config.get('ELEVENLABS_API_URL', 'https://api.elevenlabs.io')
-    
-    print(f"DEBUG: About to initialize ElevenLabsClient with: api_key={api_key[:5] if api_key else 'None'}..., agent_id={agent_id}")
-    
-    # Initialize the client with the updated constructor
-    elevenlabs_client = ElevenLabsClient(
-        api_key=api_key,
-        agent_id=agent_id,
-        api_url=api_url
+    # Create and attach ElevenLabs client
+    app.elevenlabs_client = ElevenLabsClient(
+        api_key=os.getenv('ELEVENLABS_API_KEY', ''),
+        agent_id=os.getenv('ELEVENLABS_AGENT_ID', '')
     )
-    
-    # Test the connection
-    elevenlabs_client.test_connection()
     
     # Register blueprints
     from app.routes import main_bp
     app.register_blueprint(main_bp)
     
-    # Register API routes
-    from app.api.routes import api as api_blueprint
-    app.register_blueprint(api_blueprint, url_prefix='/api')
-    
-    # Make client available to routes
-    app.elevenlabs_client = elevenlabs_client
+    # Register API blueprint
+    from app.api.routes import api
+    app.register_blueprint(api, url_prefix='/api')
     
     return app 

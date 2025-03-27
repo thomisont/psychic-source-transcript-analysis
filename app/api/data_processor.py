@@ -18,12 +18,29 @@ class DataProcessor:
             logging.warning("Received empty conversations_data")
             return pd.DataFrame()
             
-        if 'conversations' not in conversations_data:
-            logging.warning("No 'conversations' key in data, raw data keys: " + str(conversations_data.keys()))
-            return pd.DataFrame()
-            
-        conversations = conversations_data['conversations']
+        # Handle different possible formats returned by the API
+        conversations = None
         
+        # Check all possible keys where conversations might be stored
+        if 'conversations' in conversations_data:
+            conversations = conversations_data['conversations']
+            logging.info("Using 'conversations' key from API response")
+        elif 'history' in conversations_data:
+            conversations = conversations_data['history']
+            logging.info("Using 'history' key from API response")
+        elif 'items' in conversations_data:
+            conversations = conversations_data['items']
+            logging.info("Using 'items' key from API response")
+        else:
+            # If no recognized structure, log the available keys
+            logging.warning("No recognized conversation data structure, raw data keys: " + str(conversations_data.keys()))
+            # Try using the data directly if it's a list
+            if isinstance(conversations_data, list):
+                conversations = conversations_data
+                logging.info("Using list data directly from API response")
+            else:
+                return pd.DataFrame()
+            
         if not conversations:
             logging.warning("Empty conversations list received")
             return pd.DataFrame()
@@ -39,33 +56,99 @@ class DataProcessor:
             # Handle both id and conversation_id fields
             conv_id = conv.get('conversation_id', conv.get('id', ''))
             
+            # Try alternate field names if neither standard field exists
+            if not conv_id:
+                # Try additional possible fields for ID
+                conv_id = conv.get('history_item_id', conv.get('call_id', conv.get('session_id', '')))
+            
             # Ensure we have a valid ID before processing
             if not conv_id:
                 continue
             
-            # Extract Unix timestamp for start time
-            unix_start_time = conv.get('start_time_unix_secs')
-            if unix_start_time is None:
-                # Look for timestamp in metadata as fallback
-                metadata = conv.get('metadata', {})
-                unix_start_time = metadata.get('start_time_unix_secs')
-            
-            # Convert Unix timestamp to datetime
+            # Extract timestamp for start time - try multiple possible fields
             start_time = None
-            if unix_start_time:
-                try:
-                    start_time = datetime.fromtimestamp(unix_start_time)
-                    logging.info(f"Converted start_time_unix_secs {unix_start_time} to {start_time}")
-                except (ValueError, TypeError) as e:
-                    logging.warning(f"Failed to convert timestamp {unix_start_time}: {e}")
-                    start_time = None
             
-            # Get duration and calculate end time
-            duration_seconds = conv.get('call_duration_secs', 0)
-            if duration_seconds is None:
-                # Look in metadata as fallback
+            # Handle start_time_unix_secs which appears in the actual API response
+            if 'start_time_unix_secs' in conv and conv['start_time_unix_secs']:
+                try:
+                    unix_time = int(conv['start_time_unix_secs'])
+                    start_time = datetime.fromtimestamp(unix_time)
+                    logging.info(f"Converted start_time_unix_secs {unix_time} to {start_time}")
+                except (ValueError, TypeError) as e:
+                    logging.warning(f"Failed to convert start_time_unix_secs: {e}")
+            
+            # Try direct timestamp fields if start_time_unix_secs didn't work
+            if start_time is None and 'start_time' in conv and conv['start_time']:
+                try:
+                    # Handle both string timestamps and objects
+                    if isinstance(conv['start_time'], str):
+                        start_time = pd.to_datetime(conv['start_time'])
+                    else:
+                        start_time = conv['start_time']
+                    logging.info(f"Used explicit start_time field: {start_time}")
+                except Exception as e:
+                    logging.warning(f"Failed to parse explicit start_time: {e}")
+            
+            # Try Unix timestamp fields if no direct timestamp
+            if start_time is None:
+                # Try multiple possible unix timestamp field names
+                unix_fields = ['timestamp', 'created_at_unix', 'start_unix']
+                
+                for field in unix_fields:
+                    unix_time = conv.get(field)
+                    if unix_time is not None:
+                        try:
+                            start_time = datetime.fromtimestamp(int(unix_time))
+                            logging.info(f"Converted {field} {unix_time} to {start_time}")
+                            break
+                        except (ValueError, TypeError) as e:
+                            logging.warning(f"Failed to convert timestamp {unix_time} from {field}: {e}")
+            
+            # Look in metadata as a last resort
+            if start_time is None:
                 metadata = conv.get('metadata', {})
-                duration_seconds = metadata.get('call_duration_secs', 0)
+                for field in unix_fields:
+                    unix_time = metadata.get(field)
+                    if unix_time is not None:
+                        try:
+                            start_time = datetime.fromtimestamp(int(unix_time))
+                            logging.info(f"Converted metadata.{field} {unix_time} to {start_time}")
+                            break
+                        except (ValueError, TypeError) as e:
+                            logging.warning(f"Failed to convert metadata timestamp {unix_time} from {field}: {e}")
+            
+            # Get duration and calculate end time - try multiple possible fields
+            duration_seconds = None
+            
+            # First, try call_duration_secs from actual API response
+            if 'call_duration_secs' in conv:
+                duration_seconds = conv['call_duration_secs']
+            else:
+                # Fall back to other field names
+                duration_fields = ['duration', 'duration_seconds', 'call_duration']
+                
+                for field in duration_fields:
+                    if field in conv and conv[field] is not None:
+                        duration_seconds = conv[field]
+                        break
+                
+                # If no duration in main fields, check metadata
+                if duration_seconds is None:
+                    metadata = conv.get('metadata', {})
+                    for field in duration_fields:
+                        if field in metadata and metadata[field] is not None:
+                            duration_seconds = metadata[field]
+                            break
+            
+            # Convert string durations if needed
+            if isinstance(duration_seconds, str):
+                try:
+                    duration_seconds = int(duration_seconds)
+                except (ValueError, TypeError):
+                    duration_seconds = 0
+            
+            # Ensure we have a numeric value
+            duration_seconds = int(duration_seconds) if duration_seconds is not None else 0
             
             # Calculate end time based on start time and duration
             end_time = None
@@ -73,11 +156,76 @@ class DataProcessor:
                 end_time = start_time + timedelta(seconds=duration_seconds)
             
             # Count messages or turns if available
-            message_count = conv.get('message_count', 0)
-            turn_count = conv.get('turn_count', message_count)
+            message_count = 0
             
-            # Get status, converting API-specific status values if needed
-            status = conv.get('status', 'unknown')
+            # Try message_count from actual API response first
+            if 'message_count' in conv and conv['message_count'] is not None:
+                try:
+                    message_count = int(conv['message_count'])
+                except (ValueError, TypeError):
+                    message_count = 0
+            else:
+                # Fall back to other field names
+                message_fields = ['turn_count', 'messages_count', 'num_messages']
+                
+                for field in message_fields:
+                    if field in conv and conv[field] is not None:
+                        try:
+                            message_count = int(conv[field])
+                            break
+                        except (ValueError, TypeError):
+                            continue
+                
+                # Try to count messages directly if available
+                if message_count == 0 and 'messages' in conv and isinstance(conv['messages'], list):
+                    message_count = len(conv['messages'])
+                elif message_count == 0 and 'transcript' in conv and isinstance(conv['transcript'], list):
+                    message_count = len(conv['transcript'])
+            
+            # Get status, try call_successful from actual API response first
+            status = None
+            
+            if 'call_successful' in conv:
+                status = 'done' if conv['call_successful'] else 'failed'
+            elif 'status' in conv:
+                status = conv['status']
+            else:
+                # Fall back to other status fields
+                status_fields = ['call_status', 'state']
+                
+                for field in status_fields:
+                    if field in conv and conv[field] is not None:
+                        status = conv[field]
+                        break
+            
+            # Default status if none found
+            status = status or 'unknown'
+            
+            # Try to normalize status values to a standard set
+            status = status.lower() if isinstance(status, str) else str(status)
+            
+            # Map various status values to standard ones
+            status_map = {
+                'completed': 'done',
+                'complete': 'done',
+                'finished': 'done',
+                'success': 'done',
+                'successful': 'done',
+                'done': 'done',
+                'true': 'done',  # For call_successful=true
+                'in_progress': 'in_progress',
+                'ongoing': 'in_progress',
+                'running': 'in_progress',
+                'active': 'in_progress',
+                'failed': 'failed',
+                'error': 'failed',
+                'terminated': 'failed',
+                'cancelled': 'failed',
+                'aborted': 'failed',
+                'false': 'failed'  # For call_successful=false
+            }
+            
+            status = status_map.get(status, status)
             
             # Create a standardized record
             processed_conv = {
@@ -85,8 +233,11 @@ class DataProcessor:
                 'start_time': start_time,
                 'end_time': end_time,
                 'duration': duration_seconds,
-                'turn_count': turn_count,
+                'turn_count': message_count,
                 'status': status,
+                # Include additional fields from the actual API response if available
+                'agent_id': conv.get('agent_id'),
+                'agent_name': conv.get('agent_name')
             }
             processed_data.append(processed_conv)
             
@@ -96,9 +247,9 @@ class DataProcessor:
         # Remove any rows with missing start_time
         df = df.dropna(subset=['start_time'])
         
-        # Sort by start_time in ascending order
+        # Sort by start_time in descending order (most recent first)
         if 'start_time' in df.columns and not df.empty:
-            df = df.sort_values(by='start_time', ascending=True)
+            df = df.sort_values(by='start_time', ascending=False)
         
         logging.info(f"Processed {len(df)} conversations successfully")
         
