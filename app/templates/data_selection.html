@@ -961,7 +961,7 @@ function loadConversationById(conversationId, quote, callback) {
             console.log("Conversation data received:", data);
             
             // Show conversation details
-            showConversationDetails(data, quote);
+            createTranscriptContent(data, quote);
             
             // Call the callback if provided
             if (typeof callback === 'function') {
@@ -1006,31 +1006,15 @@ function loadConversationById(conversationId, quote, callback) {
         });
 }
 
-// Function to display conversation details
-function showConversationDetails(data, quote) {
-    console.log("Showing conversation details for:", data, "Quote to highlight:", quote);
-    
-    // If the quote comes from URL parameter and is URL encoded, decode it
-    if (quote && typeof quote === 'string' && quote.includes('%')) {
-        try {
-            quote = decodeURIComponent(quote);
-            console.log("Decoded quote:", quote);
-        } catch (e) {
-            console.error("Error decoding quote:", e);
-        }
-    }
-    
-    // Store the current conversation ID
-    currentConversationId = data.conversation_id;
-    
-    // Format the start and end times - handle null values
+// Create transcript for the conversation modal
+function createTranscriptContent(data, quote = null) {
+    // OVERVIEW TAB - Display basic info
+    const overviewContent = document.getElementById('overview-content');
     const startTime = data.start_time ? new Date(data.start_time).toLocaleString() : 'Unknown';
     const endTime = data.end_time ? new Date(data.end_time).toLocaleString() : 'Unknown';
-    const duration = data.duration !== null ? data.duration : 'Unknown';
-    const cost = data.cost !== undefined ? data.cost : 'Unknown';
+    const duration = data.duration || 0;
+    const cost = data.cost !== undefined ? `$${data.cost.toFixed(2)}` : 'N/A';
     
-    // OVERVIEW TAB
-    const overviewContent = document.getElementById('overview-content');
     overviewContent.innerHTML = `
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
@@ -1071,10 +1055,10 @@ function showConversationDetails(data, quote) {
         `;
     }
     
-    // TRANSCRIPTION TAB - Basic Bootstrap implementation
+    // TRANSCRIPTION TAB - Modern message bubble implementation
     const transcriptionContent = document.getElementById('transcription-content');
     
-    // Create a simple container
+    // Create a container with the modern styling
     let transcriptHtml = `
         <div class="card">
             <div class="card-header bg-primary text-white">
@@ -1083,51 +1067,71 @@ function showConversationDetails(data, quote) {
                 </h5>
             </div>
             <div class="card-body p-3">
-                <div class="bg-light p-3" style="max-height: 60vh; overflow-y: auto; border-radius: 6px;">
-    `;
-    
-    // Create a simple message display
-    if (data.transcript && data.transcript.length > 0) {
-        data.transcript.forEach((message, index) => {
-            const isAgent = message.is_agent || (message.speaker === 'Agent' || message.speaker === 'agent');
-            const speaker = message.speaker || (isAgent ? 'Lily' : 'Curious Caller');
-            const highlightClass = quote && message.text && message.text.includes(quote) ? 'border border-warning bg-warning bg-opacity-10' : '';
-            
-            // Format timestamp
-            let timeString = '';
-            if (message.timestamp) {
-                const messageTime = new Date(message.timestamp);
-                timeString = messageTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            }
-            
-            // Create a bootstrap card for each message
-            const bgColor = isAgent ? 'bg-light text-dark' : 'bg-primary text-white';
-            const alignment = isAgent ? 'text-start me-auto' : 'text-end ms-auto';
-            const maxWidth = '75%';
-            
-            transcriptHtml += `
-                <div class="mb-3 ${alignment}" style="max-width: ${maxWidth};">
-                    <div class="small mb-1 fw-bold ${isAgent ? '' : 'text-end'}">${speaker}</div>
-                    <div class="card ${bgColor} ${highlightClass}" style="border-radius: 15px;">
-                        <div class="card-body py-2 px-3">
-                            <p class="card-text mb-0" style="white-space: pre-wrap;">${message.text}</p>
-                        </div>
-                    </div>
-                    <div class="small text-muted mt-1 ${isAgent ? '' : 'text-end'}">${timeString}</div>
-                </div>
-            `;
-        });
-    } else {
-        transcriptHtml += `<div class="alert alert-warning">No messages in this transcript.</div>`;
-    }
-    
-    transcriptHtml += `
+                <div id="transcript-display" style="max-height: 60vh; overflow-y: auto; border-radius: 6px;">
                 </div>
             </div>
         </div>
     `;
     
     transcriptionContent.innerHTML = transcriptHtml;
+    
+    // Create and append transcript messages using the same approach as themes_sentiment
+    const transcriptDisplay = document.getElementById('transcript-display');
+    
+    if (data.transcript && data.transcript.length > 0) {
+        data.transcript.forEach((message, index) => {
+            const messageDiv = document.createElement('div');
+            const isAgent = message.is_agent || message.speaker === 'Lily' || message.speaker === 'Agent';
+            const speaker = message.speaker || (isAgent ? 'Lily' : 'Curious Caller');
+            
+            messageDiv.className = `message mb-3 ${isAgent ? 'message-agent' : 'message-user'}`;
+            
+            // Format timestamp
+            let timeDisplay = '';
+            if (message.timestamp) {
+                const messageTime = new Date(message.timestamp);
+                if (!isNaN(messageTime.getTime())) {
+                    timeDisplay = messageTime.toLocaleTimeString();
+                } else {
+                    timeDisplay = `Turn ${index + 1}`;
+                }
+            } else {
+                timeDisplay = `Turn ${index + 1}`;
+            }
+            
+            // Check if this message contains the quote we're looking for
+            let messageText = message.text || '';
+            let messageClass = '';
+            
+            if (quote && messageText.includes(quote)) {
+                // This is the message with our quote, highlight it
+                messageClass = 'highlighted-message';
+                // Wrap the quote in a highlight span
+                const safeQuote = quote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape regex special chars
+                const regex = new RegExp(`(${safeQuote})`, 'gi');
+                messageText = messageText.replace(regex, '<span class="highlighted-text">$1</span>');
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="d-flex">
+                    <div class="message-avatar">
+                        ${isAgent ? '<i class="fas fa-gem"></i>' : '<i class="fas fa-user"></i>'}
+                    </div>
+                    <div class="message-content ${messageClass}">
+                        <div class="message-header d-flex justify-content-between">
+                            <span class="message-sender">${isAgent ? 'Lily' : 'Curious Caller'}</span>
+                            <span class="message-time text-muted small">${timeDisplay}</span>
+                        </div>
+                        <div class="message-text">${messageText}</div>
+                    </div>
+                </div>
+            `;
+            
+            transcriptDisplay.appendChild(messageDiv);
+        });
+    } else {
+        transcriptDisplay.innerHTML = `<div class="alert alert-warning">No messages in this transcript.</div>`;
+    }
     
     // CLIENT DATA TAB
     let clientDataHtml = `
@@ -1172,7 +1176,7 @@ function showConversationDetails(data, quote) {
     // If there's a quoted text to highlight, scroll to it
     if (quote) {
         setTimeout(() => {
-            const highlightedElement = document.querySelector('.border-warning');
+            const highlightedElement = document.querySelector('.highlighted-message');
             if (highlightedElement) {
                 highlightedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }

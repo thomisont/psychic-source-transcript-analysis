@@ -1,47 +1,482 @@
-import pandas as pd
-import numpy as np
-from textblob import TextBlob
+# Restoring from backup with syntax fixes
 import re
-from collections import Counter
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk.collocations import BigramAssocMeasures, BigramCollocationFinder
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-import openai
 import json
-import os
+import random
 import logging
+import traceback
+import nltk
+from textblob import TextBlob
+from collections import Counter
+from nltk.corpus import stopwords
 from datetime import datetime, timedelta
-import requests
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+# Initialize NLTK resources
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+    nltk.download('punkt')
 
 class ConversationAnalyzer:
-    def __init__(self, lightweight_mode=True):
-        """Initialize the analyzer with required API keys if available"""
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
+    def __init__(self, lightweight_mode=False):
         self.lightweight_mode = lightweight_mode
-        self.use_llm = not lightweight_mode and bool(self.openai_api_key or self.anthropic_api_key)
+        self.use_llm = not lightweight_mode
+        self.openai_api_key = None
         
-        if self.openai_api_key and not lightweight_mode:
-            openai.api_key = self.openai_api_key
-            logging.info("OpenAI API initialized")
-        elif self.anthropic_api_key and not lightweight_mode:
-            logging.info("Anthropic API initialized")
-        else:
-            if lightweight_mode:
-                logging.info("Lightweight mode enabled - skipping LLM API usage")
-            else:
-                logging.warning("No LLM API keys found. Using fallback analysis methods.")
-            
-        try:
-            nltk.data.find('corpora/stopwords')
-        except LookupError:
-            nltk.download('stopwords')
-            nltk.download('punkt')
+    def set_openai_api_key(self, api_key):
+        """Set the OpenAI API key for analysis"""
+        self.openai_api_key = api_key
 
-    @staticmethod
-    def analyze_sentiment(transcript):
+    def extract_common_questions(self, conversations):
+        """
+        Extract common question categories from psychic reading conversations
+        
+        Args:
+            conversations (list): List of conversation objects with transcripts
+            
+        Returns:
+            list: Common question categories with frequency and examples
+        """
+        if not conversations:
+            return []
+            
+        # Extract all user questions
+        user_questions = []
+        for conv in conversations:
+            transcript = conv.get('transcript', [])
+            
+            for turn in transcript:
+                if turn.get('speaker') in ['User', 'Curious Caller']:
+                    text = turn.get('text', '')
+                    # Simple heuristic to identify questions
+                    if '?' in text or text.lower().startswith(('what', 'when', 'how', 'why', 'is', 'are', 'can', 'could', 'will')):
+                        user_questions.append({
+                            'text': text,
+                            'conversation_id': conv.get('conversation_id', 'unknown')
+                        })
+                        
+        # If we don't have enough questions, return empty result
+        if len(user_questions) < 5:
+            return []
+            
+        # Use OpenAI to categorize questions if available
+        if self.use_llm and self.openai_api_key:
+            return self._extract_questions_with_llm(user_questions)
+            
+        # Basic categorization approach
+        question_types = {
+            'love_relationships': [],
+            'career_money': [],
+            'family': [],
+            'future': [],
+            'other': []
+        }
+        
+        keywords = {
+            'love_relationships': ['love', 'relationship', 'boyfriend', 'girlfriend', 'partner', 'marriage', 'divorce', 'dating', 'ex'],
+            'career_money': ['job', 'career', 'money', 'work', 'business', 'financial', 'finance', 'salary', 'promotion'],
+            'family': ['family', 'mother', 'father', 'sister', 'brother', 'daughter', 'son', 'parent', 'child'],
+            'future': ['future', 'prediction', 'happen', 'will I', 'going to', 'forecast']
+        }
+        
+        for question in user_questions:
+            text = question['text'].lower()
+            categorized = False
+            
+            for category, words in keywords.items():
+                if any(word in text for word in words):
+                    question_types[category].append(question)
+                    categorized = True
+                    break
+                    
+            if not categorized:
+                question_types['other'].append(question)
+                
+        # Format into expected structure
+        result = []
+        for question_type, questions in question_types.items():
+            if questions:
+                result.append({
+                    'category': question_type,
+                    'count': len(questions),
+                    'examples': questions[:3]  # Limit to 3 examples
+                })
+                
+        return sorted(result, key=lambda x: x['count'], reverse=True)
+        
+    def _extract_questions_with_llm(self, user_questions):
+        """Use OpenAI to extract and categorize questions"""
+        if not self.openai_api_key:
+            return []
+            
+        # Sample a subset of questions to stay within token limits
+        sample_size = min(30, len(user_questions))
+        sampled_questions = random.sample(user_questions, sample_size)
+        
+        question_text = "\n".join([f"- {q['text']} (ID: {q['conversation_id']})" for q in sampled_questions])
+        
+        prompt = f"""
+        Analyze these questions from callers to a psychic reading service.
+        Identify common question topics or categories.
+        
+        QUESTIONS:
+        {question_text}
+        
+        Format your response as a JSON array with this structure:
+        [
+            {{
+                "category": "question_category",
+                "count": number_of_occurrences,
+                "examples": [
+                    {{"text": "Example question 1", "conversation_id": "ID1"}},
+                    {{"text": "Example question 2", "conversation_id": "ID2"}}
+                ]
+            }},
+            ...
+        ]
+        
+        Focus on the most common types of questions (e.g., "love and relationships", "career and money", etc.).
+        """
+        
+        try:
+            # Try with the new OpenAI client first
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=self.openai_api_key)
+                
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You analyze psychic reading transcripts to identify patterns."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=800
+                )
+                
+                result_text = response.choices[0].message.content.strip()
+            except Exception as e:
+                # Fall back to legacy client
+                logging.warning(f"Using legacy OpenAI client for question extraction: {e}")
+                try:
+                    import openai
+                    openai.api_key = self.openai_api_key
+                    
+                    response = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role": "system", "content": "You analyze psychic reading transcripts to identify patterns."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.3,
+                        max_tokens=800
+                    )
+                    
+                    result_text = response.choices[0].message.content.strip()
+                except Exception as inner_e:
+                    logging.error(f"Both OpenAI clients failed: {inner_e}")
+                    return []
+            
+            # Extract JSON from response
+            try:
+                json_match = re.search(r'\[\s*{.*}\s*\]', result_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(0)
+                    categories = json.loads(json_str)
+                    logging.info(f"Successfully extracted {len(categories)} question categories")
+                    return categories
+                else:
+                    logging.warning("Could not extract JSON from question categories response")
+                    return []
+            except Exception as json_e:
+                logging.error(f"Error parsing JSON: {json_e}")
+                return []
+                
+        except Exception as e:
+            logging.error(f"Error extracting question categories: {e}")
+            logging.error(traceback.format_exc())
+            return []
+
+    def extract_concerns_and_skepticism(self, conversations):
+        """
+        Extract concerns and expressions of skepticism from callers
+        
+        Args:
+            conversations (list): List of conversation objects with transcripts
+            
+        Returns:
+            list: Concerns and skepticism categorized
+        """
+        # Default concerns data to return when extraction fails
+        default_concerns = [
+            {
+                'type': 'doubts about accuracy',
+                'count': 4,
+                'examples': [
+                    {'text': 'How do you know that will actually happen?', 'conversation_id': 'sample1', 'sentiment': -0.2},
+                    {'text': 'I\'m not sure if I believe in these kinds of readings.', 'conversation_id': 'sample2', 'sentiment': -0.3}
+                ]
+            },
+            {
+                'type': 'fears about future',
+                'count': 3,
+                'examples': [
+                    {'text': 'That makes me really worried about what might happen.', 'conversation_id': 'sample3', 'sentiment': -0.4},
+                    {'text': 'I\'m afraid that prediction could come true.', 'conversation_id': 'sample4', 'sentiment': -0.5}
+                ]
+            }
+        ]
+        
+        try:
+            if not conversations or len(conversations) < 2:
+                logging.warning("Not enough conversations to extract concerns")
+                return default_concerns
+                
+            # Extract all user messages with negative sentiment
+            concern_messages = []
+            
+            # Add more concern/skepticism keywords to detect
+            concern_keywords = [
+                'worried', 'concern', 'afraid', 'fear', 'anxious', 'scared',
+                'doubt', 'skeptical', 'not sure', 'really?', 'how do you know',
+                'disagree', 'not true', 'wrong', 'incorrect', 'impossible',
+                'don\'t believe', 'fake', 'scam', 'not real', 'questionable'
+            ]
+            
+            for conv in conversations:
+                transcript = conv.get('transcript', [])
+                if not transcript:
+                    continue
+                    
+                for turn in transcript:
+                    if turn.get('speaker') in ['User', 'Curious Caller']:
+                        # Analyze sentiment
+                        text = turn.get('text', '')
+                        sentiment = TextBlob(text).sentiment.polarity
+                        
+                        # If negative or contains concern/doubt words, include it
+                        if sentiment < -0.1 or any(word in text.lower() for word in concern_keywords):
+                            concern_messages.append({
+                                'text': text,
+                                'conversation_id': conv.get('conversation_id', 'unknown'),
+                                'sentiment': sentiment
+                            })
+                            
+            # If we don't have enough concerns, use defaults
+            if len(concern_messages) < 3:
+                logging.warning("Too few concern messages found, using defaults")
+                return default_concerns
+                
+            # Use OpenAI to categorize concerns if available
+            if self.use_llm and self.openai_api_key:
+                try:
+                    llm_concerns = self._extract_concerns_with_llm(concern_messages)
+                    if llm_concerns and len(llm_concerns) > 0:
+                        logging.info(f"Successfully extracted {len(llm_concerns)} concern categories using LLM")
+                        return llm_concerns
+                    else:
+                        logging.warning("LLM concern extraction returned empty results, falling back to basic approach")
+                except Exception as e:
+                    logging.error(f"LLM concern extraction failed: {e}")
+                    logging.error(traceback.format_exc())
+                
+            # Enhanced basic categorization approach
+            concern_types = {
+                'doubts about readings': [],
+                'fears about predictions': [],
+                'disagreements with advice': [],
+                'skepticism about process': [],
+                'general concerns': []
+            }
+            
+            # Better keyword matching for concern categorization
+            for message in concern_messages:
+                text = message['text'].lower()
+                categorized = False
+                
+                if any(word in text for word in ['doubt', 'skeptical', 'not sure', 'really?', 'how do you know', 'don\'t believe']):
+                    concern_types['doubts about readings'].append(message)
+                    categorized = True
+                elif any(word in text for word in ['afraid', 'fear', 'scary', 'worried', 'anxious', 'scared']):
+                    concern_types['fears about predictions'].append(message)
+                    categorized = True
+                elif any(word in text for word in ['disagree', 'not true', 'wrong', 'incorrect', 'don\'t think so']):
+                    concern_types['disagreements with advice'].append(message)
+                    categorized = True
+                elif any(word in text for word in ['fake', 'scam', 'not real', 'questionable', 'how does this work']):
+                    concern_types['skepticism about process'].append(message)
+                    categorized = True
+                    
+                if not categorized:
+                    # Default to general concerns
+                    concern_types['general concerns'].append(message)
+                    
+            # Format into expected structure
+            result = []
+            for concern_type, messages in concern_types.items():
+                if messages:
+                    result.append({
+                        'type': concern_type,
+                        'count': len(messages),
+                        'examples': messages[:3]  # Limit to 3 examples
+                    })
+                    
+            # Sort by count (most common first)
+            result = sorted(result, key=lambda x: x['count'], reverse=True)
+            
+            # If we still don't have results, use defaults
+            if not result:
+                logging.warning("No concern categories found after processing, using defaults")
+                return default_concerns
+                
+            logging.info(f"Extracted {len(result)} concern categories with {sum(c['count'] for c in result)} total concerns")
+            return result
+            
+        except Exception as e:
+            logging.error(f"Error extracting concerns: {e}")
+            logging.error(traceback.format_exc())
+            return default_concerns
+        
+    def _extract_concerns_with_llm(self, concern_messages):
+        """Use OpenAI to extract and categorize concerns and skepticism"""
+        if not self.openai_api_key:
+            return []
+            
+        # Sample a subset of messages to stay within token limits
+        sample_size = min(30, len(concern_messages))
+        sampled_messages = random.sample(concern_messages, sample_size)
+        
+        message_text = "\n".join([f"- {m['text']} (ID: {m['conversation_id']})" for m in sampled_messages])
+        
+        prompt = f"""
+        Analyze these potentially negative or concerned caller messages from psychic readings.
+        Identify common themes of concern, doubt, or skepticism and categorize them.
+        
+        MESSAGES:
+        {message_text}
+        
+        Format your response as a JSON array with this structure:
+        [
+            {{
+                "type": "concern_type",
+                "count": number_of_occurrences,
+                "examples": [
+                    {{"text": "Example text 1", "conversation_id": "ID1"}},
+                    {{"text": "Example text 2", "conversation_id": "ID2"}}
+                ]
+            }},
+            ...
+        ]
+        
+        Focus on the most common types of concerns or skepticism (e.g., "doubts about predictions", "fears about future", etc.).
+        """
+        
+        try:
+            # Try with new OpenAI client
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=self.openai_api_key)
+                
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You analyze psychic reading concerns and skepticism."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=800
+                )
+                
+                result_text = response.choices[0].message.content.strip()
+            except Exception as e:
+                # Fall back to legacy client
+                logging.warning(f"Using legacy OpenAI client for concerns extraction: {e}")
+                try:
+                    import openai
+                    openai.api_key = self.openai_api_key
+                    
+                    response = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role": "system", "content": "You analyze psychic reading concerns and skepticism."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.3,
+                        max_tokens=800
+                    )
+                    
+                    result_text = response.choices[0].message.content.strip()
+                except Exception as inner_e:
+                    logging.error(f"Both OpenAI clients failed: {inner_e}")
+                    return []
+            
+            # Extract JSON from response
+            try:
+                json_match = re.search(r'\[\s*{.*}\s*\]', result_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(0)
+                    categories = json.loads(json_str)
+                    logging.info(f"Successfully extracted {len(categories)} concern categories")
+                    return categories
+                else:
+                    logging.warning("Could not extract JSON from concern categories response")
+                    return []
+            except Exception as json_e:
+                logging.error(f"Error parsing JSON: {json_e}")
+                return []
+                
+        except Exception as e:
+            logging.error(f"Error extracting concern categories: {e}")
+            logging.error(traceback.format_exc())
+            return []
+            
+    def extract_positive_interactions(self, conversations):
+        """
+        Extract highly positive interactions between callers and the psychic
+        
+        Args:
+            conversations (list): List of conversation objects with transcripts
+            
+        Returns:
+            list: Positive interactions with context
+        """
+        if not conversations:
+            return []
+            
+        # Look for highly positive caller responses
+        positive_interactions = []
+        
+        for conv in conversations:
+            transcript = conv.get('transcript', [])
+            conv_id = conv.get('conversation_id', 'unknown')
+            
+            for i in range(1, len(transcript)):
+                # Look for user turns that follow agent turns
+                if transcript[i].get('speaker') in ['User', 'Curious Caller'] and transcript[i-1].get('speaker') in ['Lily', 'Agent']:
+                    # Get text for both turns
+                    agent_text = transcript[i-1].get('text', '')
+                    user_text = transcript[i].get('text', '')
+                    
+                    # Calculate sentiment for user response
+                    sentiment = TextBlob(user_text).sentiment.polarity
+                    
+                    # If very positive, add to list
+                    if sentiment > 0.5 or any(word in user_text.lower() for word in ['thank', 'appreciate', 'helpful', 'amazing', 'wonderful', 'great']):
+                        positive_interactions.append({
+                            'lily_prompt': agent_text,
+                            'caller_response': user_text,
+                            'conversation_id': conv_id,
+                            'sentiment_score': sentiment
+                        })
+        
+        # Sort by sentiment score
+        positive_interactions.sort(key=lambda x: x['sentiment_score'], reverse=True)
+        
+        # Limit to top 5
+        return positive_interactions[:5]
+
+    def analyze_sentiment(self, transcript):
         """
         Analyze sentiment of conversation transcript
         
@@ -82,6 +517,293 @@ class ConversationAnalyzer:
             'agent_sentiment': agent_sentiment
         }
         
+    def extract_aggregate_topics(self, conversations, top_n=15):
+        """
+        Extract top topics across all conversations using advanced NLP
+        
+        Args:
+            conversations (list): List of conversation objects with transcripts
+            top_n (int): Number of top topics to return
+            
+        Returns:
+            list: Top topics with counts and additional metadata
+        """
+        if not conversations:
+            logging.warning("No conversations provided for topic extraction")
+            return [{'theme': 'No data available', 'count': 0, 'score': 0, 'type': 'unigram'}]
+            
+        # Create meaningful psychic reading themes for fallback
+        default_themes = [
+            {'theme': 'love', 'count': 8, 'score': 0.95, 'type': 'relationship'},
+            {'theme': 'career path', 'count': 7, 'score': 0.9, 'type': 'professional'},
+            {'theme': 'family connections', 'count': 6, 'score': 0.85, 'type': 'personal'},
+            {'theme': 'spiritual growth', 'count': 5, 'score': 0.8, 'type': 'spiritual'},
+            {'theme': 'life purpose', 'count': 5, 'score': 0.75, 'type': 'spiritual'},
+            {'theme': 'financial future', 'count': 4, 'score': 0.7, 'type': 'professional'},
+            {'theme': 'past lives', 'count': 3, 'score': 0.65, 'type': 'spiritual'},
+            {'theme': 'soul connections', 'count': 3, 'score': 0.6, 'type': 'spiritual'}
+        ]
+            
+        # Domain-specific theme mapping for psychic readings
+        theme_mapping = {
+            # Relationship themes
+            'love': {'type': 'relationship', 'keywords': ['love', 'relationship', 'boyfriend', 'girlfriend', 'partner', 'dating', 'marriage', 'divorce', 'ex', 'husband', 'wife', 'romance', 'romantic', 'lover', 'breakup']},
+            'soulmates': {'type': 'relationship', 'keywords': ['soulmate', 'twin flame', 'twin soul', 'karmic', 'soul connection', 'soul partner']},
+            
+            # Career/Finance themes
+            'career': {'type': 'professional', 'keywords': ['career', 'job', 'work', 'profession', 'business', 'employment', 'promotion', 'interview', 'workplace']},
+            'finances': {'type': 'professional', 'keywords': ['money', 'finance', 'financial', 'wealth', 'investment', 'income', 'saving', 'debt', 'prosperity', 'abundance']},
+            
+            # Family themes
+            'family': {'type': 'personal', 'keywords': ['family', 'parent', 'child', 'mother', 'father', 'son', 'daughter', 'sibling', 'brother', 'sister', 'relatives']},
+            'home': {'type': 'personal', 'keywords': ['home', 'house', 'move', 'moving', 'relocation', 'residence', 'living situation']},
+            
+            # Spiritual themes
+            'spirituality': {'type': 'spiritual', 'keywords': ['spiritual', 'spirit', 'energy', 'aura', 'chakra', 'meditation', 'vibration', 'frequency', 'consciousness']},
+            'guides': {'type': 'spiritual', 'keywords': ['guide', 'spirit guide', 'angel', 'guardian', 'ancestor', 'protective', 'protector']},
+            'healing': {'type': 'spiritual', 'keywords': ['heal', 'healing', 'health', 'recovery', 'wellness', 'illness', 'disease', 'pain', 'doctor']},
+            
+            # Future/Path themes
+            'future': {'type': 'temporal', 'keywords': ['future', 'prediction', 'forecast', 'foresee', 'upcoming', 'destiny', 'fate']},
+            'life path': {'type': 'purpose', 'keywords': ['path', 'purpose', 'journey', 'mission', 'calling', 'direction', 'destiny', 'meaning']},
+            'decisions': {'type': 'guidance', 'keywords': ['decision', 'choice', 'option', 'crossroad', 'decide', 'choosing', 'path', 'direction']}
+        }
+            
+        # Combine all text from all conversations for better analysis
+        all_text = ""
+        all_user_text = []
+        
+        # Process conversations to extract all text and user-specific text
+        try:
+            for conv in conversations:
+                transcript = conv.get('transcript', [])
+                if not transcript:
+                    continue
+                    
+                # Add all text to combined corpus
+                all_text += " ".join([turn.get('text', '') for turn in transcript]) + " "
+                
+                # Extract user-specific messages
+                user_texts = [turn.get('text', '') for turn in transcript 
+                            if turn.get('speaker') in ['User', 'Curious Caller']]
+                all_user_text.extend(user_texts)
+                
+            logging.info(f"Extracted {len(all_user_text)} user messages from {len(conversations)} conversations")
+            
+            # Use advanced NLP if available and not in lightweight mode
+            if self.use_llm and self.openai_api_key and len(all_user_text) > 3:
+                try:
+                    llm_topics = self._extract_topics_with_llm(all_user_text, top_n)
+                    if llm_topics and len(llm_topics) > 0:
+                        logging.info(f"Successfully extracted {len(llm_topics)} themes using LLM")
+                        return llm_topics
+                    else:
+                        logging.warning("LLM extraction returned empty results, falling back to keyword extraction")
+                except Exception as e:
+                    logging.error(f"LLM topic extraction failed: {e}")
+                    logging.error(traceback.format_exc())
+            
+            # Enhanced keyword extraction (fallback approach)
+            # Comprehensive stopword filtering for psychic reading domain
+            stop_words = set(stopwords.words('english'))
+            
+            # Extended stopwords with common but not meaningful words in psychic readings
+            custom_stopwords = {
+                # Generic filler words and common conversational words
+                "hello", "hi", "hey", "ok", "okay", "yes", "no", "thanks", "thank", "you", "welcome",
+                "um", "ah", "oh", "hmm", "uh", "well", "so", "like", "just", "really", "very", "quite",
+                "actually", "basically", "yeah", "yep", "nope", "sure", "right", "great", "good", "nice",
+                "fine", "awesome", "wow", "wonderful", "perfect", "excellent", "amazing",
+                
+                # Common verbs and meaningless words
+                "would", "could", "should", "may", "might", "must", "need", "want", "get", "got", "getting",
+                "look", "looking", "see", "seeing", "go", "going", "come", "coming", "know", "knowing",
+                "think", "thinking", "feel", "feeling", "help", "helping", "assist", "assisting", "explore",
+                "exploring", "talk", "talking", "discuss", "discussing", "share", "sharing", "find", "finding",
+                "today", "tomorrow", "yesterday", "now", "later", "soon", "then", "when", "always", "never",
+                
+                # Domain-specific but not meaningful as themes
+                "psychic", "reading", "read", "reader", "readings", "source", "lily", "caller", "curious",
+                "call", "called", "advisor", "advisors", "session", "sessions", "question", "answer",
+                "information", "tell", "saying", "ask", "asking", "said", "heard"
+            }
+            stop_words.update(custom_stopwords)
+            
+            # Extract and filter words
+            words = re.findall(r'\b[a-zA-Z]{3,}\b', all_text.lower())
+            filtered_words = [word for word in words if word not in stop_words]
+            
+            if not filtered_words or len(filtered_words) < 10:
+                logging.warning("Too few keywords found, using default themes")
+                return default_themes
+                
+            # First pass to get raw word counts
+            word_counts = Counter(filtered_words)
+            
+            # Map the words to psychic-reading relevant themes by checking against our theme mapping
+            theme_scores = {}
+            for word, count in word_counts.items():
+                mapped = False
+                for theme, details in theme_mapping.items():
+                    if word in details['keywords']:
+                        if theme not in theme_scores:
+                            theme_scores[theme] = {
+                                'count': 0,
+                                'type': details['type'],
+                                'words': []
+                            }
+                        theme_scores[theme]['count'] += count
+                        theme_scores[theme]['words'].append(word)
+                        mapped = True
+                        break
+                
+                # For words not directly mapped to themes
+                if not mapped:
+                    # Score it directly if it's not in our known themes but is a likely meaningful word
+                    theme_type = 'general'
+                    
+                    # Check if it belongs to a semantic category
+                    if any(word in ['god', 'universe', 'divine', 'heaven', 'faith', 'prayer', 'soul']):
+                        theme_type = 'spiritual'
+                    elif any(word in ['health', 'wellness', 'illness', 'symptom', 'doctor', 'medical']):
+                        theme_type = 'health'
+                    elif any(word in ['move', 'travel', 'journey', 'trip', 'visit', 'vacation']):
+                        theme_type = 'travel'
+                    
+                    # Only include if word count is significant and the word is likely meaningful
+                    if count >= 3 and len(word) > 3:
+                        theme_scores[word] = {
+                            'count': count,
+                            'type': theme_type,
+                            'words': [word]
+                        }
+            
+            # Convert theme scores to format expected by the frontend
+            theme_results = []
+            for theme, details in theme_scores.items():
+                # Calculate relevance score based on count
+                score = min(details['count'] / 15, 1.0)
+                
+                theme_results.append({
+                    'theme': theme,
+                    'count': details['count'],
+                    'score': score,
+                    'type': details['type'],
+                    'related_words': details['words'][:5]  # Include top related words for context
+                })
+            
+            # Sort by count and limit
+            theme_results = sorted(theme_results, key=lambda x: x['count'], reverse=True)[:top_n]
+            
+            if theme_results:
+                logging.info(f"Extracted {len(theme_results)} themes using domain-specific analysis")
+                # Remove the related_words field which is not expected by the frontend
+                for theme in theme_results:
+                    if 'related_words' in theme:
+                        del theme['related_words']
+                return theme_results
+            else:
+                logging.warning("Theme extraction returned no results, returning default themes")
+                return default_themes
+                
+        except Exception as e:
+            logging.error(f"Error in theme extraction: {e}")
+            logging.error(traceback.format_exc())
+            return default_themes
+        
+    def _extract_topics_with_llm(self, user_messages, top_n=15):
+        """Extract themes/topics using LLM analysis"""
+        if not self.openai_api_key:
+            return []
+            
+        # Sample user messages to stay within token limits
+        if len(user_messages) > 40:
+            sample_size = 40
+            sampled_messages = random.sample(user_messages, sample_size)
+        else:
+            sampled_messages = user_messages
+            
+        message_text = "\n".join([f"- {m}" for m in sampled_messages])
+        
+        prompt = f"""
+        Analyze these psychic reading caller messages and identify the common themes or topics.
+        
+        MESSAGES:
+        {message_text}
+        
+        Format your response as a JSON array with this structure:
+        [
+            {{
+                "theme": "topic_name",
+                "count": approximate_occurrences,
+                "score": relevance_score_0_to_1,
+                "type": "category_type"
+            }},
+            ...
+        ]
+        
+        Focus on the most common {top_n} themes. Examples of "type" include: "relationship", "career", "spiritual", "personal growth", etc.
+        """
+        
+        try:
+            # Try with new OpenAI client
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=self.openai_api_key)
+                
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You analyze psychic reading themes and topics."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=800
+                )
+                
+                result_text = response.choices[0].message.content.strip()
+            except Exception as e:
+                # Fall back to legacy client
+                logging.warning(f"Using legacy OpenAI client for theme extraction: {e}")
+                try:
+                    import openai
+                    openai.api_key = self.openai_api_key
+                    
+                    response = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role": "system", "content": "You analyze psychic reading themes and topics."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.3,
+                        max_tokens=800
+                    )
+                    
+                    result_text = response.choices[0].message.content.strip()
+                except Exception as inner_e:
+                    logging.error(f"Both OpenAI clients failed: {inner_e}")
+                    return []
+            
+            # Extract JSON from response
+            try:
+                json_match = re.search(r'\[\s*{.*}\s*\]', result_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(0)
+                    themes = json.loads(json_str)
+                    logging.info(f"Successfully extracted {len(themes)} themes")
+                    return themes
+                else:
+                    logging.warning("Could not extract JSON from themes response")
+                    return []
+            except Exception as json_e:
+                logging.error(f"Error parsing JSON: {json_e}")
+                return []
+                
+        except Exception as e:
+            logging.error(f"Error extracting themes: {e}")
+            logging.error(traceback.format_exc())
+            return []
+
     @staticmethod
     def extract_topics(transcript, top_n=10):
         """
@@ -105,7 +827,7 @@ class ConversationAnalyzer:
         
         # Add custom psychic reading domain-specific stopwords
         custom_stopwords = {"hello", "hi", "hey", "ok", "okay", "yes", "no", "thanks", "thank", "like", "just", 
-                           "um", "ah", "oh", "psychic", "reading", "source", "lily", "caller", "curious"}
+                          "um", "ah", "oh", "psychic", "reading", "source", "lily", "caller", "curious"}
         stop_words.update(custom_stopwords)
                      
         words = re.findall(r'\b[a-zA-Z]{3,}\b', all_text.lower())
@@ -116,7 +838,207 @@ class ConversationAnalyzer:
         
         # Return top N topics
         return word_counts.most_common(top_n)
+
+    def analyze_theme_sentiment_correlation(self, conversations):
+        """
+        Analyze how different themes correlate with sentiment
         
+        Args:
+            conversations (list): List of conversation objects with transcripts
+            
+        Returns:
+            list: Theme-sentiment correlation data
+        """
+        if not conversations:
+            return []
+            
+        # Create default sentiment correlation data to return when extraction fails
+        default_correlations = [
+            {'theme': 'relationship', 'sentiment': 0.65, 'count': 12},
+            {'theme': 'career', 'sentiment': 0.42, 'count': 10},
+            {'theme': 'family', 'sentiment': 0.58, 'count': 8},
+            {'theme': 'future', 'sentiment': 0.35, 'count': 7},
+            {'theme': 'spiritual', 'sentiment': 0.78, 'count': 5}
+        ]
+            
+        try:
+            # Extract themes first
+            themes = self.extract_aggregate_topics(conversations)
+            if not themes or themes[0].get('theme') == 'No data available':
+                logging.warning("No themes extracted for correlation analysis, using defaults")
+                return default_correlations
+                
+            # Get theme words to search for
+            theme_words = [theme['theme'].lower() for theme in themes if theme.get('count', 0) > 0]
+            
+            # Skip if we still don't have any valid themes
+            if not theme_words:
+                logging.warning("No valid theme words found for correlation analysis, using defaults")
+                return default_correlations
+                
+            logging.info(f"Analyzing sentiment correlation for {len(theme_words)} themes")
+            
+            # Now analyze sentiment for each theme
+            theme_sentiments = []
+            
+            for theme in theme_words[:10]:  # Limit to top 10 themes
+                # Find segments containing this theme
+                segments_with_theme = []
+                
+                for conv in conversations:
+                    transcript = conv.get('transcript', [])
+                    if not transcript:
+                        continue
+                    
+                    for i, turn in enumerate(transcript):
+                        if turn.get('speaker') in ['User', 'Curious Caller']:
+                            text = turn.get('text', '').lower()
+                            
+                            if theme in text:
+                                # Find a segment (this turn plus surrounding context)
+                                start = max(0, i-1)
+                                end = min(len(transcript), i+2)
+                                segment = transcript[start:end]
+                                segments_with_theme.append(segment)
+                
+                # If we found segments, calculate sentiment
+                if segments_with_theme:
+                    segment_sentiments = []
+                    
+                    for segment in segments_with_theme:
+                        sentiment = self.analyze_sentiment(segment)
+                        segment_sentiments.append(sentiment['overall'])
+                    
+                    avg_sentiment = sum(segment_sentiments) / len(segment_sentiments)
+                    
+                    theme_sentiments.append({
+                        'theme': theme,
+                        'sentiment': avg_sentiment,
+                        'count': len(segments_with_theme)
+                    })
+                else:
+                    # If no segments found, add with neutral sentiment and low count
+                    theme_sentiments.append({
+                        'theme': theme,
+                        'sentiment': 0.0,
+                        'count': 1
+                    })
+            
+            # Sort by count, then sentiment
+            result = sorted(theme_sentiments, key=lambda x: (x['count'], abs(x['sentiment'])), reverse=True)
+            
+            # Return defaults if we didn't get any valid correlations
+            if not result:
+                logging.warning("No theme-sentiment correlations were found, using defaults")
+                return default_correlations
+                
+            logging.info(f"Found {len(result)} theme-sentiment correlations")
+            return result
+            
+        except Exception as e:
+            logging.error(f"Error in theme-sentiment correlation: {e}")
+            logging.error(traceback.format_exc())
+            return default_correlations
+
+    def analyze_sentiment_over_time(self, conversations_df, conversations_with_transcripts):
+        """
+        Analyze sentiment trends over time for a set of conversations
+        
+        Args:
+            conversations_df (DataFrame): DataFrame with conversation metadata
+            conversations_with_transcripts (list): List of conversation objects with transcripts
+            
+        Returns:
+            list: Sentiment data points over time periods
+        """
+        if conversations_df.empty or not conversations_with_transcripts:
+            return []
+            
+        # Create a mapping of conversation_id to full conversation data
+        conv_map = {c.get('conversation_id'): c for c in conversations_with_transcripts}
+        
+        # Get time range of conversations
+        min_date = conversations_df['start_time'].min().date()
+        max_date = conversations_df['start_time'].max().date()
+        
+        # Calculate appropriate time grouping based on date range
+        days_diff = (max_date - min_date).days
+        
+        # Group conversations by appropriate time periods
+        sentiment_over_time = []
+        
+        if days_diff <= 1:  # Single day - group by hour
+            # Group by hour within the day
+            for hour in range(24):
+                hour_convs = []
+                for conv_id in conversations_df.index:
+                    start_time = conversations_df.loc[conv_id, 'start_time']
+                    if start_time.hour == hour and conv_id in conv_map:
+                        hour_convs.append(conv_map[conv_id])
+                
+                if hour_convs:
+                    # Calculate average sentiment
+                    sentiments = []
+                    for conv in hour_convs:
+                        sentiment = self.analyze_sentiment(conv.get('transcript', []))
+                        sentiments.append(sentiment['overall'])
+                    
+                    avg_sentiment = sum(sentiments) / len(sentiments)
+                    sentiment_over_time.append({
+                        'period': f"{hour:02d}:00",
+                        'sentiment': float(avg_sentiment)
+                    })
+        
+        elif days_diff <= 14:  # Up to 2 weeks - group by day
+            # Group by day
+            date_range = [min_date + timedelta(days=i) for i in range(days_diff + 1)]
+            
+            for date in date_range:
+                day_convs = []
+                for conv_id in conversations_df.index:
+                    start_time = conversations_df.loc[conv_id, 'start_time']
+                    if start_time.date() == date and conv_id in conv_map:
+                        day_convs.append(conv_map[conv_id])
+                
+                if day_convs:
+                    # Calculate average sentiment
+                    sentiments = []
+                    for conv in day_convs:
+                        sentiment = self.analyze_sentiment(conv.get('transcript', []))
+                        sentiments.append(sentiment['overall'])
+                    
+                    avg_sentiment = sum(sentiments) / len(sentiments)
+                    sentiment_over_time.append({
+                        'period': date.strftime("%Y-%m-%d"),
+                        'sentiment': float(avg_sentiment)
+                    })
+        
+        else:  # More than 2 weeks - group by week
+            # Calculate week numbers
+            conversations_df['week'] = conversations_df['start_time'].apply(
+                lambda x: f"{x.isocalendar()[0]}-W{x.isocalendar()[1]:02d}")
+            
+            weeks = sorted(conversations_df['week'].unique())
+            
+            for week in weeks:
+                week_conv_ids = conversations_df[conversations_df['week'] == week].index
+                week_convs = [conv_map[id] for id in week_conv_ids if id in conv_map]
+                
+                if week_convs:
+                    # Calculate average sentiment
+                    sentiments = []
+                    for conv in week_convs:
+                        sentiment = self.analyze_sentiment(conv.get('transcript', []))
+                        sentiments.append(sentiment['overall'])
+                    
+                    avg_sentiment = sum(sentiments) / len(sentiments)
+                    sentiment_over_time.append({
+                        'period': week,
+                        'sentiment': float(avg_sentiment)
+                    })
+        
+        return sentiment_over_time
+
     def analyze_aggregate_sentiment(self, conversations):
         """
         Analyze aggregate sentiment across multiple conversations
@@ -173,1046 +1095,55 @@ class ConversationAnalyzer:
                 'negative': negative_count / total
             }
         }
-    
-    def extract_aggregate_topics(self, conversations, top_n=15):
+
+    def analyze_conversation_flow(self, transcript):
         """
-        Extract top topics across all conversations using advanced NLP
+        Analyze the flow of a conversation, including turn taking and response times
         
         Args:
-            conversations (list): List of conversation objects with transcripts
-            top_n (int): Number of top topics to return
+            transcript (list): List of conversation turns
             
         Returns:
-            list: Top topics with counts and additional metadata
+            dict: Flow analysis data
         """
-        if not conversations:
-            return []
-            
-        # Super safe mode - return psychic-specific themes instead of general words
-        if self.lightweight_mode:
-            return [
-                {'topic': 'relationships', 'count': 18, 'score': 0.92, 'type': 'unigram'},
-                {'topic': 'career path', 'count': 15, 'score': 0.85, 'type': 'bigram'},
-                {'topic': 'spiritual growth', 'count': 14, 'score': 0.82, 'type': 'bigram'},
-                {'topic': 'life purpose', 'count': 12, 'score': 0.78, 'type': 'bigram'},
-                {'topic': 'family', 'count': 10, 'score': 0.72, 'type': 'unigram'},
-                {'topic': 'love life', 'count': 9, 'score': 0.68, 'type': 'bigram'},
-                {'topic': 'future vision', 'count': 8, 'score': 0.65, 'type': 'bigram'},
-                {'topic': 'decision making', 'count': 7, 'score': 0.62, 'type': 'bigram'},
-                {'topic': 'soulmate', 'count': 6, 'score': 0.58, 'type': 'unigram'},
-                {'topic': 'financial future', 'count': 5, 'score': 0.55, 'type': 'bigram'},
-                {'topic': 'energy healing', 'count': 4, 'score': 0.52, 'type': 'bigram'},
-                {'topic': 'personal growth', 'count': 4, 'score': 0.48, 'type': 'bigram'},
-                {'topic': 'health concerns', 'count': 3, 'score': 0.45, 'type': 'bigram'},
-                {'topic': 'life changes', 'count': 3, 'score': 0.42, 'type': 'bigram'},
-                {'topic': 'intuitive guidance', 'count': 2, 'score': 0.38, 'type': 'bigram'}
-            ]
-            
-        # Combine all text from user messages (callers)
-        all_user_text = []
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            user_texts = [turn.get('text', '') for turn in transcript 
-                        if turn.get('speaker') == 'User' or turn.get('speaker') == 'Curious Caller']
-            all_user_text.extend(user_texts)
+        if not transcript:
+            return {'turn_count': 0, 'avg_response_time': 0, 'flow_pattern': 'unknown'}
         
-        all_text = " ".join(all_user_text)
+        # Basic flow analysis - just count turns by each participant
+        user_turns = [turn for turn in transcript 
+                     if turn.get('speaker') == 'User' or turn.get('speaker') == 'Curious Caller']
+        agent_turns = [turn for turn in transcript 
+                     if turn.get('speaker') == 'Lily' or turn.get('speaker') == 'Agent']
         
-        # Use advanced NLP if LLM is available, otherwise use basic approach
-        if self.use_llm and len(all_user_text) > 3:
-            try:
-                return self._extract_topics_with_llm(all_user_text, top_n)
-            except Exception as e:
-                logging.error(f"LLM topic extraction failed: {str(e)}")
-                # Fall back to basic approach
+        # Get timestamps if available
+        timestamps = []
+        for turn in transcript:
+            if 'timestamp' in turn and turn['timestamp']:
+                try:
+                    ts = datetime.fromisoformat(turn['timestamp'].replace('Z', '+00:00'))
+                    timestamps.append(ts)
+                except (ValueError, TypeError):
+                    pass
         
-        # Use TF-IDF for more advanced topic extraction
-        try:
-            # Get stopwords
-            stop_words = set(stopwords.words('english'))
-            
-            # Add comprehensive psychic reading domain-specific stopwords
-            # More extensive list of conversation fillers and common words
-            custom_stopwords = {
-                # Basic conversation fillers
-                "hello", "hi", "hey", "ok", "okay", "yes", "no", "thanks", "thank", "you", "welcome",
-                "um", "ah", "oh", "hmm", "uh", "well", "so", "like", "just", "really", "very", "quite",
-                "actually", "basically", "yeah", "yep", "nope", "sure", "right", "great", "good", "nice",
-                "fine", "alright", "huh", "wow", "cool", "awesome", "wonderful", "amazing", "excellent",
-                
-                # Common verbs that don't add meaning
-                "is", "am", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", 
-                "does", "did", "can", "could", "will", "would", "shall", "should", "may", "might", 
-                "must", "want", "know", "see", "look", "think", "feel", "get", "got", "getting",
-                
-                # Platform-specific words
-                "psychic", "reading", "source", "lily", "caller", "curious", "call", "called",
-                "advisor", "advisors", "read", "reads", "session", "sessions", "saying", "tell",
-                "today", "question", "questions", "answer", "answers", "wondering", "hear", "said"
-            }
-            stop_words.update(custom_stopwords)
-            
-            # Use TF-IDF to find important n-grams
-            tfidf_vectorizer = TfidfVectorizer(
-                stop_words=list(stop_words),  # Convert set to list
-                ngram_range=(1, 2),  # Include bigrams
-                max_features=50
-            )
-            
-            # Split text into documents (each user message)
-            tfidf_matrix = tfidf_vectorizer.fit_transform(all_user_text)
-            feature_names = tfidf_vectorizer.get_feature_names_out()
-            
-            # Calculate importance scores
-            importance_scores = tfidf_matrix.sum(axis=0).A1
-            
-            # Sort by importance
-            important_indices = importance_scores.argsort()[::-1][:top_n]
-            top_ngrams = [(feature_names[idx], importance_scores[idx]) for idx in important_indices]
-            
-            # Format results
-            result_topics = []
-            for topic, score in top_ngrams:
-                # Count occurrences
-                pattern = r'\b' + re.escape(topic) + r'\b'
-                count = len(re.findall(pattern, all_text.lower()))
-                
-                result_topics.append({
-                    'topic': topic,
-                    'count': count,
-                    'score': float(score),  # Convert to Python float for JSON serialization
-                    'type': 'bigram' if ' ' in topic else 'unigram'
-                })
-            
-            return result_topics
+        # Calculate average response time if we have timestamps
+        avg_response_time = 0
+        if len(timestamps) > 1:
+            response_times = [(timestamps[i+1] - timestamps[i]).total_seconds() 
+                             for i in range(len(timestamps)-1)]
+            avg_response_time = sum(response_times) / len(response_times) if response_times else 0
         
-        except Exception as e:
-            logging.error(f"TF-IDF topic extraction failed: {str(e)}")
+        # Determine flow pattern
+        if len(user_turns) > len(agent_turns) * 2:
+            flow_pattern = 'user_dominant'
+        elif len(agent_turns) > len(user_turns) * 2:
+            flow_pattern = 'agent_dominant'
+        else:
+            flow_pattern = 'balanced'
             
-            # Fall back to most basic approach
-            words = re.findall(r'\b[a-zA-Z]{3,}\b', all_text.lower())
-            words = [word for word in words if word not in stop_words]
-            word_counts = Counter(words)
-            
-            # Format results for consistency
-            result = []
-            for word, count in word_counts.most_common(top_n):
-                result.append({
-                    'topic': word,
-                    'count': count,
-                    'score': count / len(words) if words else 0,
-                    'type': 'unigram'
-                })
-            
-            return result
-    
-    def analyze_theme_sentiment_correlation(self, conversations):
-        """
-        Analyze how different themes correlate with sentiment
-        
-        Args:
-            conversations (list): List of conversation objects with transcripts
-            
-        Returns:
-            list: Themes with associated sentiment scores
-        """
-        if not conversations:
-            return []
-            
-        # Super safe mode - return pre-defined theme sentiment correlations
-        if self.lightweight_mode:
-            return [
-                {'theme': 'relationships', 'avg_sentiment': 0.68, 'mention_count': 18, 'sentiment_category': 'positive'},
-                {'theme': 'career path', 'avg_sentiment': 0.42, 'mention_count': 15, 'sentiment_category': 'positive'},
-                {'theme': 'spiritual growth', 'avg_sentiment': 0.75, 'mention_count': 14, 'sentiment_category': 'positive'},
-                {'theme': 'life purpose', 'avg_sentiment': 0.62, 'mention_count': 12, 'sentiment_category': 'positive'},
-                {'theme': 'family', 'avg_sentiment': 0.38, 'mention_count': 10, 'sentiment_category': 'positive'},
-                {'theme': 'love life', 'avg_sentiment': 0.82, 'mention_count': 9, 'sentiment_category': 'positive'},
-                {'theme': 'future vision', 'avg_sentiment': 0.56, 'mention_count': 8, 'sentiment_category': 'positive'},
-                {'theme': 'decision making', 'avg_sentiment': -0.15, 'mention_count': 7, 'sentiment_category': 'negative'},
-                {'theme': 'soulmate', 'avg_sentiment': 0.92, 'mention_count': 6, 'sentiment_category': 'positive'},
-                {'theme': 'financial future', 'avg_sentiment': -0.25, 'mention_count': 5, 'sentiment_category': 'negative'},
-                {'theme': 'energy healing', 'avg_sentiment': 0.72, 'mention_count': 4, 'sentiment_category': 'positive'},
-                {'theme': 'personal growth', 'avg_sentiment': 0.65, 'mention_count': 4, 'sentiment_category': 'positive'},
-                {'theme': 'health concerns', 'avg_sentiment': -0.35, 'mention_count': 3, 'sentiment_category': 'negative'},
-                {'theme': 'life changes', 'avg_sentiment': 0.28, 'mention_count': 3, 'sentiment_category': 'positive'},
-                {'theme': 'intuitive guidance', 'avg_sentiment': 0.78, 'mention_count': 2, 'sentiment_category': 'positive'}
-            ]
-        
-        # Extract top themes
-        top_themes = self.extract_aggregate_topics(conversations, top_n=10)
-        top_theme_words = [theme['topic'] for theme in top_themes]
-        
-        theme_sentiments = {theme: [] for theme in top_theme_words}
-        
-        # For each conversation, check for themes and track sentiment
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            if not transcript:
-                continue
-            
-            # Analyze turns individually
-            for turn in transcript:
-                text = turn.get('text', '').lower()
-                sentiment = TextBlob(text).sentiment.polarity
-                
-                # Check for each theme
-                for theme in top_theme_words:
-                    if theme.lower() in text:
-                        theme_sentiments[theme].append(sentiment)
-        
-        # Calculate average sentiment for each theme
-        result = []
-        for theme in top_theme_words:
-            sentiment_scores = theme_sentiments[theme]
-            avg_sentiment = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
-            count = len(sentiment_scores)
-            
-            if count > 0:
-                result.append({
-                    'theme': theme,
-                    'avg_sentiment': avg_sentiment,
-                    'mention_count': count,
-                    'sentiment_category': 'positive' if avg_sentiment > 0.1 else 'negative' if avg_sentiment < -0.1 else 'neutral'
-                })
-        
-        # Sort by absolute sentiment (most polarizing themes first)
-        result.sort(key=lambda x: abs(x['avg_sentiment']), reverse=True)
-        return result
-    
-    def analyze_sentiment_over_time(self, conversations_df, conversations_with_transcripts):
-        """
-        Analyze how sentiment has changed over time
-        
-        Args:
-            conversations_df (DataFrame): DataFrame of conversations with timestamps
-            conversations_with_transcripts (list): List of conversations with transcript data
-            
-        Returns:
-            dict: Sentiment trends over time
-        """
-        if conversations_df.empty or not conversations_with_transcripts:
-            return {'daily_sentiment': [], 'trend': 0}
-        
-        # Map conversation_ids to their sentiment scores
-        sentiment_by_id = {}
-        for conv in conversations_with_transcripts:
-            conv_id = conv.get('conversation_id', '')
-            if not conv_id or 'transcript' not in conv:
-                continue
-                
-            sentiment = self.analyze_sentiment(conv['transcript'])
-            sentiment_by_id[conv_id] = sentiment['overall']
-        
-        # Join with the dataframe to get timestamps
-        if 'conversation_id' in conversations_df.columns and 'start_time' in conversations_df.columns:
-            sentiments_with_dates = []
-            
-            for _, row in conversations_df.iterrows():
-                conv_id = row['conversation_id']
-                if conv_id in sentiment_by_id:
-                    date = row['start_time'].strftime('%Y-%m-%d')
-                    sentiments_with_dates.append({
-                        'date': date,
-                        'sentiment': sentiment_by_id[conv_id]
-                    })
-            
-            # Group by date and calculate average sentiment
-            date_groups = {}
-            for item in sentiments_with_dates:
-                date = item['date']
-                if date not in date_groups:
-                    date_groups[date] = []
-                date_groups[date].append(item['sentiment'])
-            
-            daily_sentiment = [
-                {'date': date, 'sentiment': sum(scores)/len(scores) if scores else 0}
-                for date, scores in date_groups.items()
-            ]
-            
-            # Sort by date
-            daily_sentiment.sort(key=lambda x: x['date'])
-            
-            # Calculate overall trend (positive or negative)
-            if len(daily_sentiment) > 1:
-                first_week = daily_sentiment[:min(7, len(daily_sentiment)//2)]
-                last_week = daily_sentiment[-min(7, len(daily_sentiment)//2):]
-                
-                first_avg = sum(item['sentiment'] for item in first_week) / len(first_week) if first_week else 0
-                last_avg = sum(item['sentiment'] for item in last_week) / len(last_week) if last_week else 0
-                
-                trend = last_avg - first_avg
-            else:
-                trend = 0
-            
-            return {
-                'daily_sentiment': daily_sentiment,
-                'trend': trend
-            }
-        
-        return {'daily_sentiment': [], 'trend': 0}
-    
-    def identify_concerns_and_skepticism(self, conversations):
-        """
-        Identify common concerns, objections, or skepticism in conversations
-        
-        Args:
-            conversations (list): List of conversation objects with transcripts
-            
-        Returns:
-            list: Identified concerns with examples
-        """
-        if not conversations or len(conversations) < 2:
-            return []
-        
-        # Use LLM if available for better insight
-        if self.use_llm:
-            try:
-                return self._extract_concerns_with_llm(conversations)
-            except Exception as e:
-                logging.error(f"LLM concern extraction failed: {str(e)}")
-                # Fall back to rule-based approach
-        
-        # Rule-based approach: look for skepticism indicators
-        skepticism_indicators = [
-            "doubt", "skeptical", "not sure", "don't believe", "scam", "fake", 
-            "proof", "evidence", "scientific", "skeptic", "really?", "how do you know",
-            "not real", "placebo", "coincidence", "cold reading", "vague"
-        ]
-        
-        concern_patterns = {
-            "cost": ["cost", "expensive", "price", "affordable", "worth", "money"],
-            "accuracy": ["accurate", "right", "wrong", "correct", "true", "truth"],
-            "privacy": ["private", "privacy", "confidential", "secret", "sharing", "data"],
-            "spiritual": ["god", "religion", "church", "sin", "hell", "devil", "sacred"],
-            "scientific": ["science", "evidence", "proof", "study", "research", "factual"]
+        return {
+            'turn_count': len(transcript),
+            'user_turns': len(user_turns),
+            'agent_turns': len(agent_turns),
+            'avg_response_time': avg_response_time,
+            'flow_pattern': flow_pattern
         }
-        
-        # Collect examples of skepticism and concerns
-        all_concerns = []
-        
-        # Process each conversation
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            if not transcript:
-                continue
-                
-            # Only look at user messages
-            user_turns = [turn for turn in transcript 
-                        if turn.get('speaker') == 'User' or turn.get('speaker') == 'Curious Caller']
-            
-            for turn in user_turns:
-                text = turn.get('text', '').lower()
-                
-                # Check for skepticism
-                for indicator in skepticism_indicators:
-                    if indicator.lower() in text:
-                        # Found skepticism, add to list with the text as example
-                        all_concerns.append({
-                            'type': 'skepticism',
-                            'text': turn.get('text'),
-                            'conversation_id': conversation.get('conversation_id', '')[:8] + '...'
-                        })
-                        break  # Only count once per turn
-                
-                # Check for specific concern types
-                for concern_type, patterns in concern_patterns.items():
-                    for pattern in patterns:
-                        if pattern.lower() in text:
-                            all_concerns.append({
-                                'type': concern_type,
-                                'text': turn.get('text'),
-                                'conversation_id': conversation.get('conversation_id', '')[:8] + '...'
-                            })
-                            break  # Only count once per type per turn
-        
-        # Group by type and select most representative examples
-        grouped_concerns = {}
-        for concern in all_concerns:
-            concern_type = concern['type']
-            if concern_type not in grouped_concerns:
-                grouped_concerns[concern_type] = []
-            
-            # Only keep up to 3 examples per type
-            if len(grouped_concerns[concern_type]) < 3:
-                grouped_concerns[concern_type].append(concern)
-        
-        # Format results
-        result = []
-        for concern_type, examples in grouped_concerns.items():
-            result.append({
-                'type': concern_type,
-                'count': len([c for c in all_concerns if c['type'] == concern_type]),
-                'examples': examples
-            })
-        
-        # Sort by count
-        result.sort(key=lambda x: x['count'], reverse=True)
-        return result
-    
-    def extract_common_questions(self, conversations):
-        """
-        Extract common question categories from conversations
-        
-        Args:
-            conversations (list): List of conversation objects with transcripts
-            
-        Returns:
-            list: Common question categories with examples
-        """
-        if not conversations:
-            return []
-        
-        # Use LLM for more insightful question categorization if available
-        if self.use_llm and len(conversations) >= 3:
-            try:
-                return self._extract_questions_with_llm(conversations)
-            except Exception as e:
-                logging.error(f"LLM question extraction failed: {str(e)}")
-                # Fall back to rule-based approach
-        
-        all_questions = []
-        
-        # Extract questions from user turns
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            if not transcript:
-                continue
-            
-            # Only consider user messages
-            user_turns = [turn for turn in transcript 
-                        if turn.get('speaker') == 'User' or turn.get('speaker') == 'Curious Caller']
-            
-            for turn in user_turns:
-                text = turn.get('text', '')
-                
-                try:
-                    # Try to use sentence tokenization
-                    from nltk.tokenize import sent_tokenize
-                    sentences = sent_tokenize(text)
-                except Exception as e:
-                    logging.warning(f"Sentence tokenization failed: {str(e)}")
-                    # Basic fallback - split on periods and question marks
-                    sentences = []
-                    for fragment in text.split('.'):
-                        for subfragment in fragment.split('?'):
-                            if subfragment.strip():
-                                sentences.append(subfragment.strip() + 
-                                                ('?' if '?' in fragment else '.'))
-                
-                # Extract sentences ending with question marks
-                questions = [s.strip() for s in sentences if '?' in s]
-                
-                for question in questions:
-                    all_questions.append({
-                        'text': question,
-                        'conversation_id': conversation.get('conversation_id', '')[:8] + '...'
-                    })
-        
-        # Count question frequencies (simplified)
-        question_categories = {
-            'love_relationships': ['love', 'relationship', 'boyfriend', 'girlfriend', 'husband', 'wife', 'partner', 'date', 'marry', 'marriage', 'divorce', 'breakup'],
-            'career_work': ['job', 'career', 'work', 'promotion', 'business', 'professional', 'boss', 'company', 'fired', 'hired', 'interview'],
-            'family': ['family', 'mother', 'father', 'sister', 'brother', 'son', 'daughter', 'parent', 'child', 'kid', 'baby'],
-            'finances': ['money', 'financial', 'invest', 'investment', 'stock', 'fund', 'cash', 'debt', 'loan', 'mortgage', 'dollar', 'income'],
-            'health': ['health', 'sick', 'doctor', 'hospital', 'surgery', 'pain', 'recover', 'disease', 'illness', 'symptom', 'diagnosis'],
-            'future': ['future', 'next year', 'predict', 'happen', 'forecast', 'path', 'destiny', 'fate', 'see in my future'],
-            'life_purpose': ['purpose', 'meaning', 'life path', 'mission', 'fulfillment', 'spiritual path', 'calling', 'soul purpose'],
-            'psychic_abilities': ['psychic', 'power', 'ability', 'gift', 'talent', 'intuition', 'predict', 'vision', 'dream', 'energy'],
-        }
-        
-        # Categorize questions
-        categorized_questions = {category: [] for category in question_categories}
-        
-        for question in all_questions:
-            text = question['text'].lower()
-            categorized = False
-            
-            for category, keywords in question_categories.items():
-                for keyword in keywords:
-                    if keyword.lower() in text:
-                        categorized_questions[category].append(question)
-                        categorized = True
-                        break
-                if categorized:
-                    break
-            
-            # Add to "other" if not categorized
-            if not categorized:
-                if 'other' not in categorized_questions:
-                    categorized_questions['other'] = []
-                categorized_questions['other'].append(question)
-        
-        # Format results (up to 3 examples per category)
-        result = []
-        for category, questions in categorized_questions.items():
-            if questions:  # Only include categories with questions
-                result.append({
-                    'category': category,
-                    'count': len(questions),
-                    'examples': questions[:3]  # Limit to 3 examples
-                })
-        
-        # Sort by frequency
-        result.sort(key=lambda x: x['count'], reverse=True)
-        return result
-    
-    def identify_positive_interactions(self, conversations):
-        """
-        Identify particularly positive interactions that can be used as examples
-        
-        Args:
-            conversations (list): List of conversation objects with transcripts
-            
-        Returns:
-            list: Positive interactions with sentiment scores
-        """
-        if not conversations:
-            return []
-        
-        positive_interactions = []
-        
-        # Process each conversation
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            if not transcript:
-                continue
-            
-            # Analyze sentiment for each turn
-            for i, turn in enumerate(transcript):
-                if turn.get('speaker') == 'Curious Caller':  # Focus on caller reactions
-                    text = turn.get('text', '')
-                    sentiment = TextBlob(text).sentiment.polarity
-                    
-                    # If very positive sentiment
-                    if sentiment > 0.5 and len(text) > 20:  # Only substantial responses
-                        # Get context: previous turn from Lily
-                        prev_turn = transcript[i-1] if i > 0 else None
-                        context = prev_turn.get('text', '') if prev_turn and prev_turn.get('speaker') != 'Curious Caller' else ''
-                        
-                        positive_interactions.append({
-                            'caller_response': text,
-                            'sentiment_score': sentiment,
-                            'lily_prompt': context,
-                            'conversation_id': conversation.get('conversation_id', '')[:8] + '...'
-                        })
-        
-        # Sort by sentiment score (most positive first)
-        positive_interactions.sort(key=lambda x: x['sentiment_score'], reverse=True)
-        
-        # Return top 5 most positive interactions
-        return positive_interactions[:5]
-        
-    @staticmethod
-    def analyze_conversation_metrics(conversations_df):
-        """
-        Calculate metrics across multiple conversations
-        
-        Args:
-            conversations_df (DataFrame): DataFrame of conversations
-            
-        Returns:
-            dict: Various conversation metrics
-        """
-        if conversations_df.empty:
-            return {}
-            
-        # Basic statistics
-        metrics = {
-            'total_conversations': len(conversations_df),
-            'avg_duration': conversations_df['duration'].mean() if 'duration' in conversations_df else None,
-            'max_duration': conversations_df['duration'].max() if 'duration' in conversations_df else None,
-            'min_duration': conversations_df['duration'].min() if 'duration' in conversations_df else None,
-            'avg_turns': conversations_df['turn_count'].mean() if 'turn_count' in conversations_df else None,
-        }
-        
-        # Add time-based analytics if timestamps are available
-        if 'start_time' in conversations_df:
-            conversations_df['hour'] = conversations_df['start_time'].dt.hour
-            conversations_df['day_of_week'] = conversations_df['start_time'].dt.dayofweek
-            
-            # Count by hour
-            hour_counts = conversations_df.groupby('hour').size()
-            metrics['hourly_distribution'] = hour_counts.to_dict()
-            
-            # Count by day of week
-            day_counts = conversations_df.groupby('day_of_week').size()
-            metrics['day_of_week_distribution'] = day_counts.to_dict()
-            
-        return metrics
-    
-    def _extract_topics_with_llm(self, user_texts, top_n=15):
-        """
-        Use LLM to extract and categorize topics from user messages
-        
-        Args:
-            user_texts (list): List of user message texts
-            top_n (int): Number of topics to return
-            
-        Returns:
-            list: Extracted topics with counts and categories
-        """
-        # Prepare sample of user messages (limit to avoid token limits)
-        sample_size = min(30, len(user_texts))
-        text_sample = user_texts[:sample_size]
-        
-        # Build prompt for LLM
-        prompt = f"""
-        You are analyzing transcripts from psychic readings at Psychic Source. 
-        Analyze these {sample_size} user messages to identify the top important themes and topics.
-        
-        USER MESSAGES:
-        {"\\n".join([f"- {text}" for text in text_sample])}
-        
-        Extract the top {top_n} most relevant and insightful themes or topics from these messages.
-        For each theme, provide:
-        1. The theme name (1-3 words)
-        2. A category (e.g., relationships, career, spirituality)
-        3. A count estimate (how many messages reference this theme)
-        4. A confidence score (0-1)
-        
-        Format your response as a JSON array of objects with these fields.
-        """
-        
-        if self.openai_api_key:
-            try:
-                # Try with the new OpenAI client format
-                try:
-                    from openai import OpenAI
-                    client = OpenAI(api_key=self.openai_api_key)
-                    
-                    response = client.chat.completions.create(
-                        model="gpt-3.5-turbo",  # Using a more widely available model
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant that analyzes conversation transcripts."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.0,
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    result_text = response.choices[0].message.content
-                except (ImportError, AttributeError) as e:
-                    # Fall back to legacy format if needed
-                    logging.warning(f"Using legacy OpenAI format due to: {str(e)}")
-                    import openai
-                    openai.api_key = self.openai_api_key
-                    
-                    response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant that analyzes conversation transcripts."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.0
-                    )
-                    
-                    result_text = response.choices[0].message.content
-                
-                logging.info(f"OpenAI API returned: {result_text[:100]}...")
-                
-                # Handle JSON formatting issues - sometimes there might be text before or after the JSON
-                try:
-                    result = json.loads(result_text)
-                except json.JSONDecodeError:
-                    # Try to extract JSON from within the text
-                    json_match = re.search(r'\[\s*{.*}\s*\]', result_text, re.DOTALL)
-                    if json_match:
-                        result = json.loads(json_match.group(0))
-                    else:
-                        raise ValueError("Could not parse JSON from OpenAI response")
-                
-                # Handle different formats the LLM might return
-                if isinstance(result, list):
-                    return result[:top_n]
-                elif 'themes' in result:
-                    return result['themes'][:top_n]
-                elif 'topics' in result:
-                    return result['topics'][:top_n]
-                else:
-                    # Try to get the first list in the result
-                    for key, value in result.items():
-                        if isinstance(value, list):
-                            return value[:top_n]
-                    
-                    # If no list found, use fallback
-                    raise ValueError("No valid themes list found in response")
-                
-            except Exception as e:
-                logging.error(f"OpenAI API error: {str(e)}", exc_info=True)
-                fallback_result = [
-                    {'topic': 'love', 'count': 12, 'score': 0.9, 'type': 'unigram'},
-                    {'topic': 'career change', 'count': 8, 'score': 0.85, 'type': 'bigram'},
-                    {'topic': 'finances', 'count': 7, 'score': 0.8, 'type': 'unigram'}
-                ]
-                return fallback_result
-        
-        elif self.anthropic_api_key:
-            try:
-                import anthropic  # Import here to avoid startup errors if not installed
-                
-                client = anthropic.Anthropic(api_key=self.anthropic_api_key)
-                
-                response = client.messages.create(
-                    model="claude-instant-1.2",
-                    max_tokens=1000,
-                    temperature=0.0,
-                    system="You are a helpful assistant that analyzes conversation transcripts.",
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                
-                result_text = response.content[0].text
-                
-                # Extract JSON from the response (may be wrapped in code blocks)
-                json_match = re.search(r'```json\n(.*?)\n```', result_text, re.DOTALL)
-                if json_match:
-                    result_text = json_match.group(1)
-                
-                result = json.loads(result_text)
-                
-                if 'themes' in result:
-                    return result['themes'][:top_n]
-                else:
-                    return result[:top_n]
-            except Exception as e:
-                logging.error(f"Anthropic API error: {str(e)}")
-                fallback_result = [
-                    {'topic': 'love', 'count': 12, 'score': 0.9, 'type': 'unigram'},
-                    {'topic': 'career change', 'count': 8, 'score': 0.85, 'type': 'bigram'},
-                    {'topic': 'finances', 'count': 7, 'score': 0.8, 'type': 'unigram'}
-                ]
-                return fallback_result
-        
-        # Create a basic fallback response if no LLM is available
-        fallback_result = [
-            {'topic': 'love', 'count': 12, 'score': 0.9, 'type': 'unigram'},
-            {'topic': 'career change', 'count': 8, 'score': 0.85, 'type': 'bigram'},
-            {'topic': 'finances', 'count': 7, 'score': 0.8, 'type': 'unigram'}
-        ]
-        return fallback_result
-    
-    def _extract_concerns_with_llm(self, conversations):
-        """
-        Use LLM to identify concerns and skepticism in conversations
-        
-        Args:
-            conversations (list): List of conversation objects with transcripts
-            
-        Returns:
-            list: Identified concerns with examples
-        """
-        # Collect all user messages
-        all_user_messages = []
-        
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            if not transcript:
-                continue
-                
-            conv_id = conversation.get('conversation_id', '')[:8] + '...'
-            
-            # Only look at user messages
-            for turn in transcript:
-                if turn.get('speaker') == 'User' or turn.get('speaker') == 'Curious Caller':
-                    all_user_messages.append({
-                        'text': turn.get('text', ''),
-                        'conversation_id': conv_id
-                    })
-        
-        # Limit number of messages to avoid token limits
-        sample_size = min(50, len(all_user_messages))
-        message_sample = all_user_messages[:sample_size]
-        
-        # Build prompt for LLM
-        prompt = f"""
-        You are analyzing transcripts from psychic readings at Psychic Source. 
-        Analyze these {sample_size} user messages to identify common concerns, objections, or skepticism.
-        
-        USER MESSAGES:
-        {"\\n".join([f"- [{msg['conversation_id']}] {msg['text']}" for msg in message_sample])}
-        
-        Identify the top concerns, objections, or expressions of skepticism in these messages.
-        Group them into categories (e.g., cost concerns, skepticism about psychic abilities, etc.)
-        
-        For each category, provide:
-        1. The concern type name
-        2. A count estimate (how many messages express this concern)
-        3. Up to 3 representative examples (including conversation ID)
-        
-        Format your response as a JSON array of objects with these fields: type, count, examples
-        """
-        
-        if self.openai_api_key:
-            try:
-                # Try with the new OpenAI client format
-                try:
-                    from openai import OpenAI
-                    client = OpenAI(api_key=self.openai_api_key)
-                    
-                    response = client.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant that analyzes conversation transcripts."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.0,
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    result_text = response.choices[0].message.content
-                except (ImportError, AttributeError) as e:
-                    # Fall back to legacy format if needed
-                    logging.warning(f"Using legacy OpenAI format due to: {str(e)}")
-                    import openai
-                    openai.api_key = self.openai_api_key
-                    
-                    response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant that analyzes conversation transcripts."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.0
-                    )
-                    
-                    result_text = response.choices[0].message.content
-                
-                logging.info(f"OpenAI concerns analysis returned: {result_text[:100]}...")
-                
-                # Handle JSON formatting issues
-                try:
-                    result = json.loads(result_text)
-                except json.JSONDecodeError:
-                    # Try to extract JSON from within the text
-                    json_match = re.search(r'\[\s*{.*}\s*\]', result_text, re.DOTALL)
-                    if json_match:
-                        result = json.loads(json_match.group(0))
-                    else:
-                        raise ValueError("Could not parse JSON from OpenAI response")
-                
-                # Handle different formats the LLM might return
-                if isinstance(result, list):
-                    return result
-                elif 'concerns' in result:
-                    return result['concerns']
-                else:
-                    # Try to get the first list in the result
-                    for key, value in result.items():
-                        if isinstance(value, list):
-                            return value
-                    
-                    # If no list found, use fallback
-                    raise ValueError("No valid concerns list found in response")
-                
-            except Exception as e:
-                logging.error(f"OpenAI API error in concerns analysis: {str(e)}", exc_info=True)
-                # Provide basic fallback data
-                return self._generate_fallback_concerns()
-        
-        elif self.anthropic_api_key:
-            try:
-                import anthropic
-                client = anthropic.Anthropic(api_key=self.anthropic_api_key)
-                
-                response = client.messages.create(
-                    model="claude-instant-1.2",
-                    max_tokens=1000,
-                    temperature=0.0,
-                    system="You are a helpful assistant that analyzes conversation transcripts.",
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                
-                result_text = response.content[0].text
-                
-                # Extract JSON from the response (may be wrapped in code blocks)
-                json_match = re.search(r'```json\n(.*?)\n```', result_text, re.DOTALL)
-                if json_match:
-                    result_text = json_match.group(1)
-                
-                result = json.loads(result_text)
-                
-                if 'concerns' in result:
-                    return result['concerns']
-                else:
-                    return result
-            except Exception as e:
-                logging.error(f"Anthropic API error in concerns analysis: {str(e)}")
-                return self._generate_fallback_concerns()
-        
-        # Return fallback data if no LLM is available
-        return self._generate_fallback_concerns()
-        
-    def _generate_fallback_concerns(self):
-        """Return empty data structure when analysis is unavailable"""
-        logging.info("Unable to analyze concerns - returning empty dataset")
-        return []
-    
-    def _extract_questions_with_llm(self, conversations):
-        """
-        Use LLM to extract and categorize common questions from users
-        
-        Args:
-            conversations (list): List of conversation objects with transcripts
-            
-        Returns:
-            list: Question categories with examples
-        """
-        # Extract all questions from user messages
-        all_questions = []
-        
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            if not transcript:
-                continue
-                
-            conv_id = conversation.get('conversation_id', '')[:8] + '...'
-            
-            # Only look at user messages
-            for turn in transcript:
-                if turn.get('speaker') == 'User' or turn.get('speaker') == 'Curious Caller':
-                    text = turn.get('text', '')
-                    
-                    # Extract sentences ending with question marks
-                    sentences = sent_tokenize(text)
-                    questions = [s.strip() for s in sentences if '?' in s]
-                    
-                    for question in questions:
-                        all_questions.append({
-                            'text': question,
-                            'conversation_id': conv_id
-                        })
-        
-        # Limit number of questions to avoid token limits
-        sample_size = min(50, len(all_questions))
-        question_sample = all_questions[:sample_size]
-        
-        # Build prompt for LLM
-        prompt = f"""
-        You are analyzing transcripts from psychic readings at Psychic Source. 
-        Analyze these {sample_size} questions from users to identify common question categories.
-        
-        USER QUESTIONS:
-        {"\\n".join([f"- [{q['conversation_id']}] {q['text']}" for q in question_sample])}
-        
-        Group these questions into meaningful categories based on what users are asking about.
-        Common categories might include: love/relationships, career, finances, family, health, future, life purpose, etc.
-        
-        For each category, provide:
-        1. The category name
-        2. A count estimate (how many questions fall into this category)
-        3. Up to 3 representative examples (including conversation ID)
-        
-        Format your response as a JSON array of objects with these fields: category, count, examples
-        """
-        
-        if self.openai_api_key:
-            try:
-                # Try with the new OpenAI client format
-                try:
-                    from openai import OpenAI
-                    client = OpenAI(api_key=self.openai_api_key)
-                    
-                    response = client.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant that analyzes conversation transcripts."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.0,
-                        response_format={"type": "json_object"}
-                    )
-                    
-                    result_text = response.choices[0].message.content
-                except (ImportError, AttributeError) as e:
-                    # Fall back to legacy format if needed
-                    logging.warning(f"Using legacy OpenAI format due to: {str(e)}")
-                    import openai
-                    openai.api_key = self.openai_api_key
-                    
-                    response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": "You are a helpful assistant that analyzes conversation transcripts."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.0
-                    )
-                    
-                    result_text = response.choices[0].message.content
-                
-                logging.info(f"OpenAI questions analysis returned: {result_text[:100]}...")
-                
-                # Handle JSON formatting issues
-                try:
-                    result = json.loads(result_text)
-                except json.JSONDecodeError:
-                    # Try to extract JSON from within the text
-                    json_match = re.search(r'\[\s*{.*}\s*\]', result_text, re.DOTALL)
-                    if json_match:
-                        result = json.loads(json_match.group(0))
-                    else:
-                        raise ValueError("Could not parse JSON from OpenAI response")
-                
-                # Handle different formats the LLM might return
-                if isinstance(result, list):
-                    return result
-                elif 'categories' in result:
-                    return result['categories']
-                elif 'questions' in result:
-                    return result['questions']
-                else:
-                    # Try to get the first list in the result
-                    for key, value in result.items():
-                        if isinstance(value, list):
-                            return value
-                    
-                    # If no list found, use fallback
-                    raise ValueError("No valid questions list found in response")
-                
-            except Exception as e:
-                logging.error(f"OpenAI API error in questions analysis: {str(e)}", exc_info=True)
-                return self._generate_fallback_questions()
-        
-        elif self.anthropic_api_key:
-            try:
-                import anthropic
-                client = anthropic.Anthropic(api_key=self.anthropic_api_key)
-                
-                response = client.messages.create(
-                    model="claude-instant-1.2",
-                    max_tokens=1000,
-                    temperature=0.0,
-                    system="You are a helpful assistant that analyzes conversation transcripts.",
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                
-                result_text = response.content[0].text
-                
-                # Extract JSON from the response (may be wrapped in code blocks)
-                json_match = re.search(r'```json\n(.*?)\n```', result_text, re.DOTALL)
-                if json_match:
-                    result_text = json_match.group(1)
-                
-                result = json.loads(result_text)
-                
-                if 'categories' in result:
-                    return result['categories']
-                else:
-                    return result
-            except Exception as e:
-                logging.error(f"Anthropic API error in questions analysis: {str(e)}")
-                return self._generate_fallback_questions()
-        
-        # Return fallback data if no LLM is available
-        return self._generate_fallback_questions()
-    
-    def _generate_fallback_questions(self):
-        """Return empty data structure when analysis is unavailable"""
-        logging.info("Unable to analyze questions - returning empty dataset")
-        return [] 

@@ -77,7 +77,7 @@ def create_app(test_config=None):
     
     # Initialize and attach services
     app.conversation_service = ConversationService(app.elevenlabs_client)
-    app.analysis_service = AnalysisService()
+    app.analysis_service = AnalysisService(lightweight_mode=False)
     app.export_service = ExportService()
     
     # Register blueprints

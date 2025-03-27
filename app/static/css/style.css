@@ -11,6 +11,10 @@
     --danger-color: #dc3545;
     --light-color: #f8f9fa;
     --dark-color: #343a40;
+    --lily-color: #9370db;
+    --caller-color: #f9a825;
+    --lily-gradient: linear-gradient(135deg, #8a65df 0%, #6a5acd 100%);
+    --caller-gradient: linear-gradient(135deg, #ffb74d 0%, #f9a825 100%);
 }
 
 body {
@@ -63,15 +67,159 @@ body {
 }
 
 .message {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    position: relative;
 }
 
-.message .bg-light {
-    background-color: #e9ecef !important;
+.message-agent {
+    padding-right: 25%;
 }
 
-.message .bg-primary.bg-opacity-10 {
-    background-color: rgba(106, 90, 205, 0.1) !important;
+.message-user {
+    padding-left: 25%;
+    display: flex;
+    flex-direction: row-reverse;
+}
+
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+    margin-right: 12px;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message-agent .message-avatar {
+    background: var(--lily-gradient);
+}
+
+.message-user .message-avatar {
+    background: var(--caller-gradient);
+    margin-right: 0;
+    margin-left: 12px;
+}
+
+.message-content {
+    flex: 1;
+    background-color: #fff;
+    border-radius: 18px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.message-agent .message-content {
+    border-top-left-radius: 4px;
+    background-color: #f0ebff;
+    border-left: 4px solid var(--lily-color);
+}
+
+.message-user .message-content {
+    border-top-right-radius: 4px;
+    background-color: #fff9ed;
+    border-right: 4px solid var(--caller-color);
+}
+
+.message-header {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.message-agent .message-header {
+    color: var(--lily-color);
+}
+
+.message-user .message-header {
+    color: var(--caller-color);
+}
+
+.message-sender {
+    font-weight: 600;
+}
+
+.message-time {
+    opacity: 0.7;
+}
+
+.message-text {
+    font-size: 1rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.highlighted-message .message-content {
+    animation: highlight-pulse 2s infinite;
+    border: 2px solid var(--warning-color);
+}
+
+.highlighted-text {
+    background-color: rgba(255, 193, 7, 0.3);
+    padding: 2px 0;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+@keyframes highlight-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+}
+
+/* Custom scrollbar for transcript container */
+#transcript-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+#transcript-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#transcript-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+#transcript-container::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+/* Message with agent/caller icons */
+.message .message-avatar.bg-primary {
+    position: relative;
+    overflow: hidden;
+}
+
+.message-avatar::after {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.message-agent .message-avatar::after {
+    content: "\f4fc"; /* Using FontAwesome psychic crystal ball icon */
+    font-family: "Font Awesome 5 Free";
+    font-size: 1.2rem;
+}
+
+.message-user .message-avatar::after {
+    content: "\f007"; /* Using FontAwesome user icon */
+    font-family: "Font Awesome 5 Free";
+    font-size: 1.2rem;
 }
 
 /* Analysis results */
@@ -117,6 +265,16 @@ body {
     
     .conversation-transcript {
         max-height: 50vh;
+    }
+    
+    .message-agent, .message-user {
+        padding-right: 10%;
+        padding-left: 0;
+    }
+    
+    .message-user {
+        padding-right: 0;
+        padding-left: 10%;
     }
 }
 

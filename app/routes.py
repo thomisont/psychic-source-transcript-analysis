@@ -867,6 +867,24 @@ def themes_sentiment_data():
         
         logging.info(f"Themes-sentiment data requested for timeframe: {timeframe}, date range: {start_date} to {end_date}")
         
+        # Apply preset timeframes if requested - match the pattern from visualization_data
+        if timeframe:
+            logging.info(f"Using timeframe: {timeframe}")
+            end_date = datetime.now().strftime('%Y-%m-%d')
+            if timeframe == 'last_7_days':
+                start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+                logging.info(f"Setting start_date to 7 days ago: {start_date}")
+            elif timeframe == 'last_30_days':
+                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                logging.info(f"Setting start_date to 30 days ago: {start_date}")
+            elif timeframe == 'last_90_days':
+                start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+                logging.info(f"Setting start_date to 90 days ago: {start_date}")
+            elif timeframe == 'all':
+                # Set to beginning of 2025 for "all time"
+                start_date = '2025-01-01'
+                logging.info(f"Setting start_date to all time: {start_date}")
+        
         # Get conversations using the conversation service
         result = current_app.conversation_service.get_conversations(
             start_date=start_date,
@@ -878,99 +896,28 @@ def themes_sentiment_data():
         conversations = result.get('conversations', [])
         logging.info(f"Received {len(conversations)} conversations for themes-sentiment analysis")
         
-        # If empty conversations, provide fixed sample data
-        if not conversations:
-            logging.warning("No conversations returned, using fixed sample data for themes-sentiment analysis")
-            
-            # Return sample sentiment over time data
-            current_date = datetime.now().date()
-            dates = [(current_date - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(15)]
-            sentiment_values = [round(random.uniform(-0.2, 0.8), 2) for _ in range(15)]
-            
-            # Generate sample themes
-            themes = [
-                {'theme': 'Relationships', 'importance': round(random.uniform(0.6, 0.9), 2)},
-                {'theme': 'Career', 'importance': round(random.uniform(0.5, 0.8), 2)},
-                {'theme': 'Finances', 'importance': round(random.uniform(0.4, 0.7), 2)},
-                {'theme': 'Spiritual Growth', 'importance': round(random.uniform(0.3, 0.6), 2)},
-                {'theme': 'Family', 'importance': round(random.uniform(0.2, 0.5), 2)}
-            ]
-            
-            # Generate sentiment by theme
-            sentiment_by_theme = [
-                {'theme': 'Relationships', 'sentiment': round(random.uniform(0.3, 0.8), 2)},
-                {'theme': 'Career', 'sentiment': round(random.uniform(-0.2, 0.5), 2)},
-                {'theme': 'Finances', 'sentiment': round(random.uniform(-0.4, 0.2), 2)},
-                {'theme': 'Spiritual Growth', 'sentiment': round(random.uniform(0.4, 0.9), 2)},
-                {'theme': 'Family', 'sentiment': round(random.uniform(0.1, 0.6), 2)}
-            ]
-            
-            sentiment_over_time = [
-                {'period': date, 'sentiment': sentiment} 
-                for date, sentiment in zip(dates, sentiment_values)
-            ]
-            
-            return jsonify({
-                'status': 'success',
-                'data': {
-                    'sentiment_over_time': sentiment_over_time,
-                    'top_themes': themes,
-                    'sentiment_by_theme': sentiment_by_theme
-                },
-                'metadata': {
-                    'start_date': start_date,
-                    'end_date': end_date,
-                    'timeframe': timeframe,
-                    'conversation_count': 0,
-                    'note': 'Sample data generated'
-                }
-            })
-        
         # Use the analysis service to analyze the conversations
         analysis_result = current_app.analysis_service.analyze_conversations_over_time(
             conversations=conversations, 
             timeframe=timeframe
         )
         
-        # Ensure we have complete data
+        # Get data from analysis result (may be empty if no data available)
         sentiment_over_time = analysis_result.get('sentiment_over_time', [])
         top_themes = analysis_result.get('top_themes', [])
         sentiment_by_theme = analysis_result.get('sentiment_by_theme', [])
+        common_questions = analysis_result.get('common_questions', [])
+        concerns_skepticism = analysis_result.get('concerns_skepticism', [])
+        positive_interactions = analysis_result.get('positive_interactions', [])
         
-        # If any component is missing or empty, use sample data
-        if not sentiment_over_time:
-            logging.warning("Missing sentiment_over_time, generating sample data")
-            current_date = datetime.now().date()
-            dates = [(current_date - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(15)]
-            sentiment_values = [round(random.uniform(-0.2, 0.8), 2) for _ in range(15)]
-            sentiment_over_time = [
-                {'period': date, 'sentiment': sentiment} 
-                for date, sentiment in zip(dates, sentiment_values)
-            ]
-        
-        if not top_themes:
-            logging.warning("Missing top_themes, generating sample data")
-            top_themes = [
-                {'theme': 'Relationships', 'importance': round(random.uniform(0.6, 0.9), 2)},
-                {'theme': 'Career', 'importance': round(random.uniform(0.5, 0.8), 2)},
-                {'theme': 'Finances', 'importance': round(random.uniform(0.4, 0.7), 2)},
-                {'theme': 'Spiritual Growth', 'importance': round(random.uniform(0.3, 0.6), 2)},
-                {'theme': 'Family', 'importance': round(random.uniform(0.2, 0.5), 2)}
-            ]
-        
-        if not sentiment_by_theme:
-            logging.warning("Missing sentiment_by_theme, generating sample data")
-            themes = [item['theme'] for item in top_themes[:5]]
-            sentiment_by_theme = [
-                {'theme': theme, 'sentiment': round(random.uniform(-0.4, 0.9), 2)}
-                for theme in themes
-            ]
-        
-        # Complete analysis result
+        # Complete analysis result with actual data (may be empty arrays)
         complete_analysis = {
             'sentiment_over_time': sentiment_over_time,
             'top_themes': top_themes,
-            'sentiment_by_theme': sentiment_by_theme
+            'sentiment_by_theme': sentiment_by_theme,
+            'common_questions': common_questions,
+            'concerns_skepticism': concerns_skepticism,
+            'positive_interactions': positive_interactions
         }
         
         logging.info("Successfully generated themes-sentiment analysis data")
@@ -988,38 +935,17 @@ def themes_sentiment_data():
         logging.error(f"Error generating themes-sentiment data: {e}")
         logging.error(traceback.format_exc())
         
-        # Generate sample data on error
-        current_date = datetime.now().date()
-        dates = [(current_date - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(15)]
-        sentiment_values = [round(random.uniform(-0.2, 0.8), 2) for _ in range(15)]
-        
-        sentiment_over_time = [
-            {'period': date, 'sentiment': sentiment} 
-            for date, sentiment in zip(dates, sentiment_values)
-        ]
-        
-        themes = [
-            {'theme': 'Relationships', 'importance': round(random.uniform(0.6, 0.9), 2)},
-            {'theme': 'Career', 'importance': round(random.uniform(0.5, 0.8), 2)},
-            {'theme': 'Finances', 'importance': round(random.uniform(0.4, 0.7), 2)},
-            {'theme': 'Spiritual Growth', 'importance': round(random.uniform(0.3, 0.6), 2)},
-            {'theme': 'Family', 'importance': round(random.uniform(0.2, 0.5), 2)}
-        ]
-        
-        sentiment_by_theme = [
-            {'theme': 'Relationships', 'sentiment': round(random.uniform(0.3, 0.8), 2)},
-            {'theme': 'Career', 'sentiment': round(random.uniform(-0.2, 0.5), 2)},
-            {'theme': 'Finances', 'sentiment': round(random.uniform(-0.4, 0.2), 2)},
-            {'theme': 'Spiritual Growth', 'sentiment': round(random.uniform(0.4, 0.9), 2)},
-            {'theme': 'Family', 'sentiment': round(random.uniform(0.1, 0.6), 2)}
-        ]
-        
+        # Return empty data structure with success status (match other endpoints pattern)
+        # This ensures the UI can still load and show appropriate empty states
         return jsonify({
             'status': 'success',
             'data': {
-                'sentiment_over_time': sentiment_over_time,
-                'top_themes': themes,
-                'sentiment_by_theme': sentiment_by_theme
+                'sentiment_over_time': [],
+                'top_themes': [],
+                'sentiment_by_theme': [],
+                'common_questions': [],
+                'concerns_skepticism': [],
+                'positive_interactions': []
             },
             'metadata': {
                 'start_date': start_date,
@@ -1028,7 +954,7 @@ def themes_sentiment_data():
                 'conversation_count': 0,
                 'error': str(e)
             }
-        }), 200  # Return 200 so UI works
+        }), 200  # Use 200 for consistency with other endpoints
 
 @main_bp.route('/api/conversations/<conversation_id>')
 def get_conversation(conversation_id):
