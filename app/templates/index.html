@@ -388,6 +388,11 @@
             // Update summary statistics
             document.getElementById('total-conversations').textContent = data.total_conversations;
             
+            // Add debug logging of the raw duration value
+            console.log('Raw avg_duration value from API:', data.avg_duration);
+            console.log('Type of avg_duration:', typeof data.avg_duration);
+            logDebug(`Raw avg_duration from API: ${data.avg_duration} (type: ${typeof data.avg_duration})`);
+            
             // Format the duration nicely
             const formattedDuration = formatDuration(data.avg_duration);
             document.getElementById('avg-duration').textContent = formattedDuration;
@@ -635,20 +640,37 @@
     
     // Helper function to format duration in a user-friendly way
     function formatDuration(seconds) {
-        // Handle null, undefined, NaN or non-numeric values
-        if (seconds === null || seconds === undefined || isNaN(seconds) || seconds === 0) {
-            return "0s";
+        // Handle null, undefined, NaN, strings, or invalid values
+        if (seconds === null || seconds === undefined) {
+            return "No data";
         }
         
-        // Convert to number if it's not already
-        seconds = Number(seconds);
+        // Convert to number if it's a string
+        if (typeof seconds === 'string') {
+            seconds = parseFloat(seconds);
+        }
         
+        // Handle non-numeric values or NaN
+        if (isNaN(seconds) || typeof seconds !== 'number') {
+            console.warn(`Invalid duration value: ${seconds}, type: ${typeof seconds}`);
+            return "No data";
+        }
+        
+        // Handle zero values
+        if (seconds <= 0) {
+            console.warn(`Zero or negative duration value: ${seconds}`);
+            return "No duration data";
+        }
+        
+        // Format time logically
         if (seconds < 60) {
             return `${Math.round(seconds)}s`;
         } else {
             const minutes = Math.floor(seconds / 60);
             const remainingSeconds = Math.round(seconds % 60);
-            return `${minutes}m ${remainingSeconds}s`;
+            
+            // Format with zero-padding for seconds
+            return `${minutes}m ${remainingSeconds.toString().padStart(2, '0')}s`;
         }
     }
     

@@ -308,14 +308,61 @@ def dashboard_stats():
         # Calculate basic statistics - convert NumPy types to Python native types
         total_conversations = int(len(df))
         
-        # Check if 'duration' column exists before using it
+        # Check if duration data is available - using same approach as Transcript Viewer page
         total_duration = 0
         avg_duration = 0
-        if 'duration' in df.columns:
-            total_duration = int(df['duration'].sum())
-            avg_duration = float(df['duration'].mean()) if len(df) > 0 else 0
-        else:
-            logging.warning("No 'duration' column found in conversations data")
+        
+        try:
+            # Add a calculated_duration column using multiple potential sources
+            if 'duration' in df.columns or 'call_duration_secs' in df.columns or 'turn_count' in df.columns:
+                logging.info("Processing duration data using multi-field approach")
+                
+                # First try direct duration
+                if 'duration' in df.columns:
+                    df['calculated_duration'] = pd.to_numeric(df['duration'], errors='coerce')
+                    
+                # If no duration, try call_duration_secs
+                if 'call_duration_secs' in df.columns:
+                    mask = df['calculated_duration'].isna() | (df['calculated_duration'] <= 0)
+                    df.loc[mask, 'calculated_duration'] = pd.to_numeric(df['call_duration_secs'], errors='coerce')
+                    
+                # If no duration but we have turn_count, estimate from turn count (same logic as Transcript Viewer)
+                if 'turn_count' in df.columns:
+                    mask = df['calculated_duration'].isna() | (df['calculated_duration'] <= 0)
+                    df.loc[mask, 'calculated_duration'] = df.loc[mask, 'turn_count'] * 6  # 6 seconds per turn estimate
+                
+                # If we have start_time and end_time, use them as another fallback
+                if 'start_time' in df.columns and 'end_time' in df.columns:
+                    mask = df['calculated_duration'].isna() | (df['calculated_duration'] <= 0)
+                    
+                    # Convert to datetime if not already
+                    if not pd.api.types.is_datetime64_any_dtype(df['start_time']):
+                        df['start_time'] = pd.to_datetime(df['start_time'], errors='coerce')
+                    if not pd.api.types.is_datetime64_any_dtype(df['end_time']):
+                        df['end_time'] = pd.to_datetime(df['end_time'], errors='coerce')
+                    
+                    # Calculate seconds between timestamps
+                    df.loc[mask, 'calculated_duration'] = (
+                        df.loc[mask, 'end_time'] - df.loc[mask, 'start_time']
+                    ).dt.total_seconds()
+                
+                # Filter out negative or NaN values
+                valid_durations = df['calculated_duration'].dropna()
+                valid_durations = valid_durations[valid_durations > 0]
+                
+                if len(valid_durations) > 0:
+                    total_duration = int(valid_durations.sum())
+                    avg_duration = float(valid_durations.mean())
+                    # Log for debugging
+                    logging.info(f"Calculated average duration: {avg_duration:.2f} seconds from {len(valid_durations)} valid records")
+                    logging.info(f"Sample duration values: {valid_durations.head(5).tolist()}")
+                else:
+                    logging.warning("No valid duration values found after multi-field processing")
+            else:
+                logging.warning("No duration-related columns found in conversations data")
+        except Exception as e:
+            logging.error(f"Error calculating duration stats: {e}")
+            logging.error(traceback.format_exc())
         
         # If we have timestamp data, group by day for chart
         daily_counts = {}
@@ -411,7 +458,7 @@ def dashboard_stats():
         response_data = {
             'total_conversations': total_conversations,
             'total_duration': total_duration,
-            'avg_duration': round(avg_duration, 2),
+            'avg_duration': max(0.1, round(avg_duration, 2)) if avg_duration > 0 else 0,  # Ensure minimum reasonable value
             'daily_counts': daily_counts,
             'hour_distribution': hour_distribution,
             'weekday_distribution': weekday_distribution,
@@ -424,6 +471,7 @@ def dashboard_stats():
         }
         
         logging.info(f"Returning dashboard stats with {total_conversations} conversations")
+        logging.info(f"Final avg_duration in API response: {response_data['avg_duration']}")
         return jsonify(response_data)
         
     except Exception as e:
