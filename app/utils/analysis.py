@@ -64,44 +64,116 @@ class ConversationAnalyzer:
         if self.use_llm and self.openai_api_key:
             return self._extract_questions_with_llm(user_questions)
             
-        # Basic categorization approach
+        # Enhanced categorization approach with new categories
         question_types = {
+            # Core psychic reading content categories
             'love_relationships': [],
             'career_money': [],
             'family': [],
             'future': [],
+            
+            # New service offering categories
+            'service_offerings': [],  # Service logistics, session details, reader selection, technical support
+            
+            # New content categories
+            'spiritual_concepts': [],
+            'health_wellness': [],
+            
+            # Fallback category
             'other': []
         }
         
         keywords = {
-            'love_relationships': ['love', 'relationship', 'boyfriend', 'girlfriend', 'partner', 'marriage', 'divorce', 'dating', 'ex'],
-            'career_money': ['job', 'career', 'money', 'work', 'business', 'financial', 'finance', 'salary', 'promotion'],
-            'family': ['family', 'mother', 'father', 'sister', 'brother', 'daughter', 'son', 'parent', 'child'],
-            'future': ['future', 'prediction', 'happen', 'will I', 'going to', 'forecast']
+            # Core categories keywords
+            'love_relationships': ['love', 'relationship', 'boyfriend', 'girlfriend', 'partner', 'marriage', 'divorce', 
+                                  'dating', 'ex', 'husband', 'wife', 'breakup', 'soulmate', 'twin flame', 'romance', 
+                                  'romantic', 'affair', 'crush', 'connection'],
+                                  
+            'career_money': ['job', 'career', 'money', 'work', 'business', 'financial', 'finance', 'salary', 'promotion',
+                            'interview', 'application', 'boss', 'workplace', 'income', 'debt', 'investment', 'retirement',
+                            'savings', 'profession', 'opportunity', 'success'],
+                            
+            'family': ['family', 'mother', 'father', 'sister', 'brother', 'daughter', 'son', 'parent', 'child',
+                      'grandparent', 'relative', 'sibling', 'aunt', 'uncle', 'cousin', 'in-law', 'adoption',
+                      'pregnant', 'pregnancy', 'baby', 'children'],
+                      
+            'future': ['future', 'prediction', 'happen', 'will i', 'going to', 'forecast', 'destiny', 'fate',
+                      'path', 'timeline', 'when will', 'outcome', 'result', 'eventually', 'someday'],
+            
+            # Service offerings keywords
+            'service_offerings': [
+                # Service logistics 
+                'number', 'phone', 'toll-free', 'international', 'website', 'app', 'account', 'login', 'membership',
+                'credit', 'subscription', 'sign up', 'register', 'access',
+                
+                # Session details
+                'price', 'cost', 'fee', 'charge', 'minute', 'package', 'special', 'discount', 'offer', 'promotion',
+                'how long', 'duration', 'schedule', 'appointment', 'booking', 'available', 'time slot', 'reservation',
+                
+                # Reader selection
+                'reader', 'advisor', 'psychic', 'specialist', 'recommend', 'suggestion', 'best for', 'top', 'profile',
+                'extension', 'review', 'rating', 'feedback', 'experienced', 'popular', 'good at', 'specialized',
+                
+                # Technical support
+                'problem', 'issue', 'error', 'trouble', 'help', 'assist', 'support', 'connect', 'payment', 'receipt',
+                'transaction', 'refund', 'credit card', 'billing', 'statement', 'email', 'contact us'
+            ],
+            
+            # Spiritual concepts
+            'spiritual_concepts': ['spirit', 'energy', 'aura', 'chakra', 'meditation', 'vibration', 'frequency',
+                                  'cleansing', 'sage', 'crystal', 'ritual', 'blessing', 'prayer', 'guardian angel',
+                                  'spirit guide', 'intuition', 'empath', 'clairvoyant', 'psychic ability', 'universe',
+                                  'manifestation', 'law of attraction', 'karma', 'past life', 'reincarnation', 'soul'],
+                                  
+            # Health and wellness 
+            'health_wellness': ['health', 'wellness', 'medical', 'doctor', 'therapy', 'healing', 'illness', 'disease',
+                               'condition', 'symptom', 'diagnosis', 'recovery', 'treatment', 'medicine', 'surgery',
+                               'mental health', 'depression', 'anxiety', 'stress', 'sleep', 'diet', 'exercise', 'pain',
+                               'addiction', 'weight', 'nutrition', 'wellbeing']
         }
         
         for question in user_questions:
             text = question['text'].lower()
             categorized = False
             
+            # Check each category's keywords
             for category, words in keywords.items():
-                if any(word in text for word in words):
+                if any(word.lower() in text for word in words):
                     question_types[category].append(question)
                     categorized = True
                     break
                     
+            # If no category matched, put in other
             if not categorized:
                 question_types['other'].append(question)
                 
         # Format into expected structure
         result = []
-        for question_type, questions in question_types.items():
+        
+        # Helper function to format a category with friendly name
+        def format_category(category_key, questions):
+            # Map internal category keys to user-friendly display names
+            category_display_names = {
+                'love_relationships': 'Love & Relationships',
+                'career_money': 'Career & Finances',
+                'family': 'Family & Children',
+                'future': 'Future Predictions',
+                'service_offerings': 'Psychic Source Services',
+                'spiritual_concepts': 'Spiritual & Metaphysical Concepts',
+                'health_wellness': 'Health & Wellness',
+                'other': 'Other Questions'
+            }
+            
+            return {
+                'category': category_display_names.get(category_key, category_key),
+                'count': len(questions),
+                'examples': questions  # Include all examples instead of limiting to 3
+            }
+        
+        # Add non-empty categories to result
+        for category, questions in question_types.items():
             if questions:
-                result.append({
-                    'category': question_type,
-                    'count': len(questions),
-                    'examples': questions[:3]  # Limit to 3 examples
-                })
+                result.append(format_category(category, questions))
                 
         return sorted(result, key=lambda x: x['count'], reverse=True)
         
@@ -319,7 +391,7 @@ class ConversationAnalyzer:
                     result.append({
                         'type': concern_type,
                         'count': len(messages),
-                        'examples': messages[:3]  # Limit to 3 examples
+                        'examples': messages  # Include all examples instead of limiting to 3
                     })
                     
             # Sort by count (most common first)
@@ -473,8 +545,8 @@ class ConversationAnalyzer:
         # Sort by sentiment score
         positive_interactions.sort(key=lambda x: x['sentiment_score'], reverse=True)
         
-        # Limit to top 5
-        return positive_interactions[:5]
+        # Return all positive interactions instead of limiting to top 5
+        return positive_interactions
 
     def analyze_sentiment(self, transcript):
         """
@@ -854,20 +926,26 @@ class ConversationAnalyzer:
             
         # Create default sentiment correlation data to return when extraction fails
         default_correlations = [
-            {'theme': 'relationship', 'sentiment': 0.65, 'count': 12},
-            {'theme': 'career', 'sentiment': 0.42, 'count': 10},
-            {'theme': 'family', 'sentiment': 0.58, 'count': 8},
-            {'theme': 'future', 'sentiment': 0.35, 'count': 7},
-            {'theme': 'spiritual', 'sentiment': 0.78, 'count': 5}
+            {'theme': 'love', 'sentiment': 0.65, 'count': 8},
+            {'theme': 'career path', 'sentiment': 0.42, 'count': 7},
+            {'theme': 'family connections', 'sentiment': 0.58, 'count': 6},
+            {'theme': 'spiritual growth', 'sentiment': 0.78, 'count': 5},
+            {'theme': 'life purpose', 'sentiment': 0.35, 'count': 5},
+            {'theme': 'financial future', 'sentiment': 0.28, 'count': 4},
+            {'theme': 'past lives', 'sentiment': 0.65, 'count': 3},
+            {'theme': 'soul connections', 'sentiment': 0.72, 'count': 3}
         ]
             
         try:
-            # Extract themes first
+            # Extract themes first - this gives us the correct counts already
             themes = self.extract_aggregate_topics(conversations)
             if not themes or themes[0].get('theme') == 'No data available':
                 logging.warning("No themes extracted for correlation analysis, using defaults")
                 return default_correlations
                 
+            # Create a mapping of theme names to their counts
+            theme_counts = {theme['theme']: theme.get('count', 0) for theme in themes}
+            
             # Get theme words to search for
             theme_words = [theme['theme'].lower() for theme in themes if theme.get('count', 0) > 0]
             
@@ -894,6 +972,7 @@ class ConversationAnalyzer:
                         if turn.get('speaker') in ['User', 'Curious Caller']:
                             text = turn.get('text', '').lower()
                             
+                            # Check if theme appears in text
                             if theme in text:
                                 # Find a segment (this turn plus surrounding context)
                                 start = max(0, i-1)
@@ -911,17 +990,19 @@ class ConversationAnalyzer:
                     
                     avg_sentiment = sum(segment_sentiments) / len(segment_sentiments)
                     
+                    # Use the count from the theme extraction to maintain consistency
                     theme_sentiments.append({
                         'theme': theme,
                         'sentiment': avg_sentiment,
-                        'count': len(segments_with_theme)
+                        'count': theme_counts.get(theme, len(segments_with_theme))  # Use the count from themes extraction
                     })
                 else:
-                    # If no segments found, add with neutral sentiment and low count
+                    # If no segments found, add with neutral sentiment but still use the proper count
+                    # from the themes extraction for consistency
                     theme_sentiments.append({
                         'theme': theme,
                         'sentiment': 0.0,
-                        'count': 1
+                        'count': theme_counts.get(theme, 1)  # Use the count from themes extraction
                     })
             
             # Sort by count, then sentiment

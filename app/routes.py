@@ -117,10 +117,27 @@ def total_conversations():
         if current_app.elevenlabs_client:
             total = current_app.elevenlabs_client.count_total_conversations()
             logging.info(f"Total conversations count: {total}")
-            return jsonify({
+            
+            # Create response with unique timestamp for cache control
+            timestamp = datetime.now().isoformat()
+            random_value = str(random.randint(10000, 99999))
+            
+            response = jsonify({
                 'total': total,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': timestamp,
+                'random': random_value
             })
+            
+            # Add extremely aggressive cache control headers
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            response.headers['X-Accel-Expires'] = '0'  # For Nginx
+            response.headers['X-Cache-Control'] = 'no-cache'
+            response.headers['Surrogate-Control'] = 'no-store'
+            response.headers['Vary'] = '*'  # Ensure unique caching per request
+            
+            return response
         else:
             logging.error("ElevenLabs client not available")
             return jsonify({

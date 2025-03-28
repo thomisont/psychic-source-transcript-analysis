@@ -58,7 +58,7 @@ class ElevenLabsClient:
             logging.error(f"Error testing ElevenLabs API connection: {e}")
             return False
     
-    @cache_api_response(ttl=600)  # Cache for 10 minutes
+    @cache_api_response(ttl=1)  # Cache for 1 second only
     def count_total_conversations(self):
         """
         Count the total number of conversations available in the system regardless of date filters.
@@ -66,8 +66,24 @@ class ElevenLabsClient:
         Returns:
             int: Total number of conversations available
         """
-        # Return the exact known total to match the calls in selected period
-        return 49
+        logging.info("Getting actual total conversations count...")
+        
+        try:
+            # Use all_time date range to get all conversations
+            result = self.get_conversations(
+                start_date='2020-01-01',  # Very old date to get all conversations
+                end_date=datetime.now().strftime('%Y-%m-%d'),  # Today
+                limit=1000  # High limit to get as many as possible
+            )
+            
+            # Count the total conversations
+            total = len(result.get('conversations', []))
+            logging.info(f"Actual total conversations count: {total}")
+            
+            return total
+        except Exception as e:
+            logging.error(f"Error getting total conversations count: {e}")
+            return 0
     
     @cache_api_response(ttl=3600)  # Cache for 1 hour
     def get_conversations(self, start_date=None, end_date=None, limit=100, offset=0):

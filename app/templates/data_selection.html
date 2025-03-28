@@ -1013,7 +1013,7 @@ function createTranscriptContent(data, quote = null) {
     const startTime = data.start_time ? new Date(data.start_time).toLocaleString() : 'Unknown';
     const endTime = data.end_time ? new Date(data.end_time).toLocaleString() : 'Unknown';
     const duration = data.duration || 0;
-    const cost = data.cost !== undefined ? `$${data.cost.toFixed(2)}` : 'N/A';
+    const cost = data.cost !== undefined ? Math.round(data.cost) : 'N/A';
     
     overviewContent.innerHTML = `
         <div class="card mb-4">
@@ -1027,7 +1027,7 @@ function createTranscriptContent(data, quote = null) {
                     <div class="col-md-6">
                         <p><strong>Conversation ID:</strong> ${data.conversation_id || data.id}</p>
                         <p><strong>Status:</strong> <span class="badge ${data.status === 'done' ? 'bg-success' : 'bg-secondary'}">${data.status || 'Unknown'}</span></p>
-                        <p><strong>Cost:</strong> ${cost}</p>
+                        <p><strong>Cost (credits):</strong> ${cost}</p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Start Time:</strong> ${startTime}</p>

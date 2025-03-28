@@ -190,6 +190,100 @@
         padding: 2px 4px;
         border-radius: 3px;
     }
+    
+    /* Scrollable container for long lists */
+    .scrollable-dropdown {
+        max-height: 300px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    
+    /* Custom scrollbar styling */
+    .scrollable-dropdown::-webkit-scrollbar {
+        width: 5px;
+    }
+    
+    .scrollable-dropdown::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .scrollable-dropdown::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    
+    .scrollable-dropdown::-webkit-scrollbar-thumb:hover {
+        background: #6f42c1;
+    }
+    
+    /* Style for examples in dropdowns - show only 3 items initially */
+    .examples-container {
+        max-height: 150px !important; /* Height for 3 items exactly */
+        overflow-y: auto !important;
+        scrollbar-width: thin;
+        padding-right: 5px;
+    }
+    
+    /* Limit height of list-group items to create 3-item initial view */
+    .limited-height-list {
+        max-height: 150px !important; /* Height for 3 examples exactly */
+        overflow-y: auto !important;
+        scrollbar-width: thin;
+    }
+    
+    /* Examples wrapper with fixed height */
+    .examples-wrapper {
+        max-height: 150px !important; /* Set to show exactly 3 examples */
+        overflow-y: auto !important;
+        scrollbar-width: thin;
+        position: relative;
+    }
+    
+    /* Force consistent height for list items to ensure 3 fit */
+    .limited-height-list .list-group-item {
+        padding: 0.5rem 0.75rem;
+        height: 50px !important; /* Fixed height so exactly 3 show */
+        overflow: hidden;
+    }
+    
+    /* Consistent height for concern examples */
+    .concern-example {
+        padding: 0.5rem 0;
+        height: 50px !important; /* Fixed height so exactly 3 show */
+        overflow: hidden;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    /* Indicator for scrollable content */
+    .scroll-indicator {
+        position: absolute;
+        bottom: 5px;
+        right: 10px;
+        color: #6f42c1;
+        font-size: 14px;
+        animation: bounce 2s infinite;
+        opacity: 0.7;
+        background-color: rgba(255,255,255,0.7);
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {
+            transform: translateY(0);
+        }
+        40% {
+            transform: translateY(-5px);
+        }
+        60% {
+            transform: translateY(-3px);
+        }
+    }
 </style>
 {% endblock %}
 
@@ -433,9 +527,12 @@
             <div class="col-12">
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white py-3">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-star me-2"></i>Most Positive Caller Interactions
-                        </h5>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-star me-2"></i>Most Positive Caller Interactions
+                            </h5>
+                            <span class="badge bg-light text-primary fs-5 px-3 py-2 rounded-pill" id="positive-interactions-count">0</span>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div id="positive-interactions-container">
@@ -1843,6 +1940,10 @@
             // Get category name and count
             const categoryName = category.category || 'Question Category';
             const count = category.count || 0;
+            const examples = category.examples || [];
+            
+            // Check if we need scrolling (more than 3 examples)
+            const needsScroll = examples.length > 3;
             
             // Create header
             item.innerHTML = `
@@ -1856,20 +1957,23 @@
                 <div id="${collapseId}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" 
                      aria-labelledby="${headerId}" data-bs-parent="#${accordionId}">
                     <div class="accordion-body">
-                        <ul class="list-group list-group-flush">
-                            ${(category.examples || []).map(example => `
-                                <li class="list-group-item">
-                                    <i class="fas fa-quote-left text-muted me-2 small"></i>
-                                    ${example.text || 'No text available'}
-                                    <div class="small text-muted mt-1">
-                                        Conversation ID: 
-                                        <a href="#" class="conversation-link" 
-                                           data-conversation-id="${example.conversation_id || 'unknown'}"
-                                           data-highlight-text="${example.text ? example.text.replace(/"/g, '&quot;') : ''}">${example.conversation_id || 'unknown'}</a>
+                        <div class="examples-wrapper position-relative" style="max-height: 150px !important; overflow-y: auto !important;">
+                            <ul class="list-group list-group-flush ${needsScroll ? 'limited-height-list' : ''}" style="${needsScroll ? 'max-height: 150px !important; overflow-y: auto !important;' : ''}">
+                                ${examples.map((example, idx) => `
+                                    <li class="list-group-item" style="${idx >= 3 ? '' : ''}">
+                                        <i class="fas fa-quote-left text-muted me-2 small"></i>
+                                        ${example.text || 'No text available'}
+                                        <div class="small text-muted mt-1">
+                                            Conversation ID: 
+                                            <a href="#" class="conversation-link" 
+                                               data-conversation-id="${example.conversation_id || 'unknown'}"
+                                               data-highlight-text="${example.text ? example.text.replace(/"/g, '&quot;') : ''}">${example.conversation_id || 'unknown'}</a>
+                                        </div>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                            ${needsScroll ? '<div class="scroll-indicator"><i class="fas fa-chevron-down"></i></div>' : ''}
                         </div>
-                                </li>
-                            `).join('')}
-                        </ul>
                     </div>
                 </div>
             `;
@@ -1879,8 +1983,19 @@
         
         container.appendChild(accordion);
         
-        // Add event listeners to conversation links
+        // Add event listeners to conversation links and enforce height limits after rendering
         setTimeout(() => {
+            // Enforce height limits programmatically
+            document.querySelectorAll('.examples-wrapper').forEach(wrapper => {
+                wrapper.style.maxHeight = '150px';
+                wrapper.style.overflowY = 'auto';
+            });
+            
+            document.querySelectorAll('.limited-height-list').forEach(list => {
+                list.style.maxHeight = '150px';
+                list.style.overflowY = 'auto';
+            });
+            
             document.querySelectorAll('.conversation-link').forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -1888,6 +2003,21 @@
                     const highlightText = this.getAttribute('data-highlight-text');
                     if (conversationId && conversationId !== 'unknown') {
                         showConversationModal(conversationId, highlightText);
+                    }
+                });
+            });
+            
+            // Remove scroll indicators after user has scrolled
+            document.querySelectorAll('.examples-wrapper, .limited-height-list').forEach(container => {
+                container.addEventListener('scroll', function() {
+                    const indicator = this.closest('.examples-wrapper').querySelector('.scroll-indicator');
+                    if (indicator) {
+                        setTimeout(() => {
+                            indicator.style.opacity = '0';
+                            setTimeout(() => {
+                                indicator.remove();
+                            }, 500);
+                        }, 1000);
                     }
                 });
             });
@@ -1906,13 +2036,16 @@
         if (concernsData.length > 0) {
             // Create content
             const concernsList = document.createElement('div');
-            concernsList.className = 'list-group';
+            concernsList.className = 'list-group scrollable-dropdown';
             
             // Add each concern category
             concernsData.forEach(concern => {
                 const concernType = concern.type || 'Unknown';
                 const count = concern.count || 0;
                 const examples = concern.examples || [];
+                
+                // Check if we need scrolling for examples (more than 3 examples)
+                const needsScroll = examples.length > 3;
                 
                 const item = document.createElement('div');
                 item.className = 'list-group-item';
@@ -1929,12 +2062,26 @@
                 
                 // Add examples if available
                 if (examples.length > 0) {
-                    const examplesList = document.createElement('div');
-                    examplesList.className = 'small';
+                    const examplesWrapper = document.createElement('div');
+                    examplesWrapper.className = 'examples-wrapper position-relative';
+                    examplesWrapper.style.maxHeight = '150px';
+                    examplesWrapper.style.overflowY = 'auto';
                     
-                    examples.forEach(example => {
+                    const examplesList = document.createElement('div');
+                    examplesList.className = `small ${needsScroll ? 'limited-height-list' : ''}`;
+                    if (needsScroll) {
+                        examplesList.style.maxHeight = '150px';
+                        examplesList.style.overflowY = 'auto';
+                    }
+                    
+                    // Only show first 3 examples by default, then add remaining examples
+                    const visibleExamples = examples.slice(0, 3);
+                    const hiddenExamples = examples.slice(3);
+                    
+                    // Add the first 3 examples
+                    visibleExamples.forEach((example, idx) => {
                         const exampleItem = document.createElement('div');
-                        exampleItem.className = 'mb-2 pb-2 border-bottom';
+                        exampleItem.className = 'concern-example';
                         exampleItem.innerHTML = `
                             <div class="fst-italic">"${example.text || 'No text'}"</div>
                             <div class="text-muted small">
@@ -1947,7 +2094,32 @@
                         examplesList.appendChild(exampleItem);
                     });
                     
-                    item.appendChild(examplesList);
+                    // Add the rest in a scrollable area if needed
+                    if (needsScroll) {
+                        hiddenExamples.forEach(example => {
+                            const exampleItem = document.createElement('div');
+                            exampleItem.className = 'concern-example';
+                            exampleItem.innerHTML = `
+                                <div class="fst-italic">"${example.text || 'No text'}"</div>
+                                <div class="text-muted small">
+                                    Conversation ID: 
+                                    <a href="#" class="conversation-link" 
+                                       data-conversation-id="${example.conversation_id || 'unknown'}"
+                                       data-highlight-text="${example.text ? example.text.replace(/"/g, '&quot;') : ''}">${example.conversation_id || 'unknown'}</a>
+                                </div>
+                            `;
+                            examplesList.appendChild(exampleItem);
+                        });
+                        
+                        // Add scroll indicator
+                        const scrollIndicator = document.createElement('div');
+                        scrollIndicator.className = 'scroll-indicator';
+                        scrollIndicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                        examplesWrapper.appendChild(scrollIndicator);
+                    }
+                    
+                    examplesWrapper.appendChild(examplesList);
+                    item.appendChild(examplesWrapper);
                 }
                 
                 concernsList.appendChild(item);
@@ -1957,6 +2129,17 @@
             
             // Add event listeners to conversation links
             setTimeout(() => {
+                // Enforce height limits programmatically
+                document.querySelectorAll('.examples-wrapper').forEach(wrapper => {
+                    wrapper.style.maxHeight = '150px';
+                    wrapper.style.overflowY = 'auto';
+                });
+                
+                document.querySelectorAll('.limited-height-list').forEach(list => {
+                    list.style.maxHeight = '150px';
+                    list.style.overflowY = 'auto';
+                });
+                
                 document.querySelectorAll('.conversation-link').forEach(link => {
                     link.addEventListener('click', function(e) {
                         e.preventDefault();
@@ -1964,6 +2147,21 @@
                         const highlightText = this.getAttribute('data-highlight-text');
                         if (conversationId && conversationId !== 'unknown') {
                             showConversationModal(conversationId, highlightText);
+                        }
+                    });
+                });
+                
+                // Remove scroll indicators after user has scrolled
+                document.querySelectorAll('.examples-wrapper, .limited-height-list').forEach(container => {
+                    container.addEventListener('scroll', function() {
+                        const indicator = this.closest('.examples-wrapper').querySelector('.scroll-indicator');
+                        if (indicator) {
+                            setTimeout(() => {
+                                indicator.style.opacity = '0';
+                                setTimeout(() => {
+                                    indicator.remove();
+                                }, 500);
+                            }, 1000);
                         }
                     });
                 });
@@ -1984,6 +2182,12 @@
         console.log('Updating positive interactions with data:', interactionsData);
         const container = document.getElementById('positive-interactions-container');
         
+        // Update the count badge
+        const countElement = document.getElementById('positive-interactions-count');
+        if (countElement) {
+            countElement.textContent = interactionsData.length;
+        }
+        
         // Clear current content
         container.innerHTML = '';
         
@@ -1998,6 +2202,37 @@
             timelineLine.className = 'position-absolute h-100';
             timelineLine.style = 'width: 2px; background-color: #e9ecef; left: 20px; top: 0;';
             timeline.appendChild(timelineLine);
+            
+            // Create scrollable container if we have more than 5 items
+            const scrollContainer = document.createElement('div');
+            if (interactionsData.length > 5) {
+                scrollContainer.style.maxHeight = '450px'; // Height to show approximately 5 items
+                scrollContainer.style.overflowY = 'auto';
+                scrollContainer.style.position = 'relative';
+                
+                // Add scroll indicators if more than 5 items
+                const scrollIndicator = document.createElement('div');
+                scrollIndicator.className = 'scroll-indicator-bottom';
+                scrollIndicator.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                scrollIndicator.style.position = 'absolute';
+                scrollIndicator.style.bottom = '0';
+                scrollIndicator.style.left = '50%';
+                scrollIndicator.style.transform = 'translateX(-50%)';
+                scrollIndicator.style.backgroundColor = 'rgba(255,255,255,0.8)';
+                scrollIndicator.style.padding = '5px 10px';
+                scrollIndicator.style.borderRadius = '15px';
+                scrollIndicator.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
+                scrollIndicator.style.zIndex = '10';
+                scrollIndicator.style.opacity = '0.8';
+                
+                // Add event listeners to show/hide scroll indicators based on scroll position
+                scrollContainer.addEventListener('scroll', function() {
+                    const isScrolledToBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 10;
+                    scrollIndicator.style.display = isScrolledToBottom ? 'none' : 'block';
+                });
+                
+                container.appendChild(scrollIndicator);
+            }
             
             // Add each interaction
             interactionsData.forEach(interaction => {
@@ -2045,7 +2280,13 @@
                 timeline.appendChild(item);
             });
             
-            container.appendChild(timeline);
+            // Add the timeline to the scroll container if we have many items, or directly to main container
+            if (interactionsData.length > 5) {
+                scrollContainer.appendChild(timeline);
+                container.appendChild(scrollContainer);
+            } else {
+                container.appendChild(timeline);
+            }
             
             // Add event listeners to conversation links
             setTimeout(() => {
