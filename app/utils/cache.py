@@ -9,6 +9,12 @@ import os
 from datetime import datetime, timedelta
 from functools import wraps
 
+# Helper function to serialize datetime objects for JSON
+def datetime_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
 class SimpleCache:
     """Simple in-memory cache with expiration."""
     
@@ -98,15 +104,17 @@ class SimpleCache:
             items = sorted(self.cache.items(), key=lambda x: x[1]['expires'])
             self.cache = dict(items[-(self.max_size):])
         
-        # If cache_dir is set, also write to file
+        # Write to file cache if directory is set
         if self.cache_dir:
+            cache_file = os.path.join(self.cache_dir, f"{key}.json")
             try:
-                cache_file = os.path.join(self.cache_dir, f"{key}.json")
                 with open(cache_file, 'w') as f:
-                    json.dump(cache_item, f)
-                logging.debug(f"Wrote cache file: {cache_file}")
+                    # Use the custom serializer for datetime objects
+                    json.dump(cache_item, f, default=datetime_serializer)
+                logging.debug(f"Wrote item to file cache: {key}")
             except Exception as e:
-                logging.warning(f"Error writing cache file {cache_file}: {e}")
+                # Log the specific key and error
+                logging.warning(f"Error writing cache file for key '{key}' ({cache_file}): {e}")
     
     def delete(self, key):
         """
@@ -213,13 +221,18 @@ def cache_api_response(ttl=3600):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Generate cache key
+            # Check for force_refresh parameter
+            force_refresh = kwargs.pop('force_refresh', False) if 'force_refresh' in kwargs else False
+            
+            # Generate cache key (excluding force_refresh parameter)
             key = cache_key(func.__name__, *args, **kwargs)
             
-            # Try to get from cache
-            cached_value = cache.get(key)
-            if cached_value is not None:
-                return cached_value
+            # If force_refresh is True, skip cache lookup
+            if not force_refresh:
+                # Try to get from cache
+                cached_value = cache.get(key)
+                if cached_value is not None:
+                    return cached_value
             
             # Call function
             result = func(*args, **kwargs)

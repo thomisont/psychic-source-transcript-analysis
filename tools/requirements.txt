@@ -1,0 +1,22 @@
+# Basic requirements
+requests>=2.27.1
+python-dotenv>=0.20.0
+pandas>=1.4.2
+
+# Database connectivity
+psycopg2-binary>=2.9.3
+sqlalchemy>=1.4.36
+
+# Data processing
+numpy>=1.22.3
+tqdm>=4.64.0
+
+# AI/ML
+openai>=1.10.0
+sentence-transformers>=2.2.2
+
+# Visualization/UI
+prettytable>=3.3.0
+
+# Vector extensions
+scikit-learn>=1.0.2  # Optional: for local embedding similarity calculations 

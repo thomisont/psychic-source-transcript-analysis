@@ -1,7 +1,7 @@
-run = "bash /home/runner/workspace/simplified_start.sh"
+run = "bash start_supabase_app.sh"
 language = "python3"
 entrypoint = "run.py"
-modules = ["web", "python-3.12", "nodejs-20", "nix"]
+modules = ["nix", "nodejs-20", "python-3.11", "python-3.12", "web"]
 
 [env]
 VIRTUAL_ENV = "/home/runner/${REPL_SLUG}/venv"
@@ -95,6 +95,14 @@ externalPort = 8081
 [[ports]]
 localPort = 8082
 externalPort = 8082
+
+[[ports]]
+localPort = 8083
+externalPort = 4200
+
+[[ports]]
+localPort = 8085
+externalPort = 5000
 
 [[ports]]
 localPort = 8090

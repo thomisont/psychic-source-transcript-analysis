@@ -1,12 +1,30 @@
+"""
+Client for interacting with the ElevenLabs API, specifically for the
+Conversational Voice Agent data.
+"""
+# ==============================================================================
+# == WARNING: CORE API CLIENT & ADAPTER LOGIC ==
+# ==============================================================================
+# This client handles communication with the ElevenLabs API and includes
+# critical data adaptation logic (_adapt_conversation_details, 
+# _adapt_data_structure) relied upon by the sync task (app/tasks/sync.py).
+# 
+# !! DO NOT MODIFY THIS FILE without explicit request and careful review !!
+# 
+# Changes can break API calls, data parsing, and impact data integrity.
+# Discuss any required changes thoroughly before implementation.
+# ==============================================================================
+
 import requests
 from flask import current_app
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import logging
 import os
 from urllib.parse import quote
 from app.utils.cache import cache_api_response
+import traceback
 
 class ElevenLabsClient:
     def __init__(self, api_key, agent_id=None, api_url="https://api.elevenlabs.io"):
@@ -73,7 +91,7 @@ class ElevenLabsClient:
             result = self.get_conversations(
                 start_date='2020-01-01',  # Very old date to get all conversations
                 end_date=datetime.now().strftime('%Y-%m-%d'),  # Today
-                limit=1000  # High limit to get as many as possible
+                limit=2000  # Very high limit to get as many as possible
             )
             
             # Count the total conversations
@@ -86,195 +104,205 @@ class ElevenLabsClient:
             return 0
     
     @cache_api_response(ttl=3600)  # Cache for 1 hour
-    def get_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
+    def get_conversations(self, 
+                        start_date: str = None, 
+                        end_date: str = None, 
+                        from_time: int = None, # Unix timestamp
+                        to_time: int = None,   # Unix timestamp
+                        limit: int = 100, 
+                        offset: int = 0, # Offset is likely ignored by API but kept for signature consistency
+                        force_refresh: bool = False):
         """
-        Get conversations from the ElevenLabs API
+        Get conversations from the ElevenLabs API.
+        Prioritizes from_time/to_time (Unix timestamps) if provided.
+        Falls back to start_date/end_date (ISO string) if timestamps are not given.
         
         Args:
-            start_date (str, optional): Start date filter (ISO format)
-            end_date (str, optional): End date filter (ISO format)
-            limit (int, optional): Max number of conversations to return
-            offset (int, optional): Offset for pagination
+            start_date (str, optional): Start date filter (YYYY-MM-DD)
+            end_date (str, optional): End date filter (YYYY-MM-DD)
+            from_time (int, optional): Start Unix timestamp filter.
+            to_time (int, optional): End Unix timestamp filter.
+            limit (int, optional): Max number of conversations PER PAGE (API max is usually 1000).
+            offset (int, optional): Ignored by API, pagination handled by cursor.
+            force_refresh (bool, optional): Force refresh data, bypass cache.
             
         Returns:
-            dict: API response with conversations
+            dict: API response containing 'conversations' list and potentially 'next_cursor'/'has_more'.
         """
-        # Format dates for API - convert to Unix timestamps
-        formatted_start = self._format_date(start_date) if start_date else None
-        formatted_end = self._format_date(end_date, end_of_day=True) if end_date else None
+        # --- Parameter Prioritization --- 
+        # Use from_time/to_time directly if provided
+        use_timestamps = from_time is not None or to_time is not None
         
-        # Log the formatted dates for debugging
-        logging.info(f"Processing dates: {start_date} → {formatted_start}, {end_date} → {formatted_end}")
+        # Fallback: Format start_date/end_date to timestamps ONLY if from_time/to_time were NOT provided
+        formatted_start_from_date = None
+        formatted_end_from_date = None
+        if not use_timestamps:
+            formatted_start_from_date = self._format_date(start_date) if start_date else None
+            formatted_end_from_date = self._format_date(end_date, end_of_day=True) if end_date else None
         
-        # Define endpoints to try, prioritizing the one that works for individual conversations
+        # Log the effective time parameters being used
+        effective_start = from_time if use_timestamps else formatted_start_from_date
+        effective_end = to_time if use_timestamps else formatted_end_from_date
+        logging.info(f"Effective time filter: from_time={effective_start}, to_time={effective_end}")
+        
+        # Define endpoints to try
+        # --- REVERT ENDPOINT ORDER --- 
         endpoints_to_try = [
-            f"{self.api_url}/v1/convai/conversations",    # This consistently works based on logs
-            f"{self.api_url}/v1/history",                 # Secondary option
+            f"{self.api_url}/v1/convai/conversations",    # Primary
+            f"{self.api_url}/v1/history",                 # Fallback
             f"{self.api_url}/v1/voices/history"           # Last resort
         ]
+        # --- END REVERT --- 
         
         logging.info(f"Will try these endpoints in order: {endpoints_to_try}")
         
-        # Storage for all conversations
-        all_conversations = []
-        next_cursor = None
-        max_pages = 10
-        current_page = 0
+        # Storage for the best result found across all endpoints
+        best_result_conversations = []
+        best_result_count = 0
         
-        # Try each endpoint until one works
+        # --- Loop through Endpoints --- 
         for endpoint in endpoints_to_try:
-            logging.info(f"Trying endpoint: {endpoint}")
-            
-            # Try multiple parameter formats for date filtering
-            parameter_formats_to_try = [
-                # Format 1: Simple from_time/to_time (Unix timestamps)
-                {
-                    'limit': limit,
-                    'from_time': formatted_start,
-                    'to_time': formatted_end
-                } if formatted_start and formatted_end else None,
-                
-                # Format 2: ISO string dates
-                {
-                    'limit': limit,
-                    'start_date': start_date,
-                    'end_date': end_date
-                } if start_date and end_date else None,
-                
-                # Format 3: No date filters, just get recent conversations
-                {
-                    'limit': limit
-                }
-            ]
-            
-            # Remove None entries (if dates weren't provided)
-            parameter_formats_to_try = [p for p in parameter_formats_to_try if p is not None]
-            
-            # Try each parameter format
+            logging.info(f"=== Trying Endpoint: {endpoint} ===")
+            # Reset vars for this endpoint attempt
+            endpoint_succeeded_at_all = False 
+            current_endpoint_conversations = []
+            pagination_complete = False
+
+            # --- Construct Parameter Formats (same as before) --- 
+            parameter_formats_to_try = []
+            # Format 1: Unix timestamps
+            if use_timestamps:
+                params_ts = {'limit': 50} # Use fixed page size for reliability
+                if from_time is not None: params_ts['from_time'] = from_time
+                if to_time is not None: params_ts['to_time'] = to_time
+                parameter_formats_to_try.append(params_ts)
+            # Format 2: Derived timestamps
+            elif formatted_start_from_date is not None or formatted_end_from_date is not None:
+                params_derived_ts = {'limit': 50}
+                if formatted_start_from_date is not None: params_derived_ts['from_time'] = formatted_start_from_date
+                if formatted_end_from_date is not None: params_derived_ts['to_time'] = formatted_end_from_date
+                parameter_formats_to_try.append(params_derived_ts)
+            # Format 3: ISO dates
+            if not use_timestamps and (start_date or end_date):
+                params_iso = {'limit': 50}
+                if start_date: params_iso['start_date'] = start_date
+                if end_date: params_iso['end_date'] = end_date
+                if len(params_iso) > 1 and params_iso not in parameter_formats_to_try:
+                    parameter_formats_to_try.append(params_iso)
+            # Format 4: Limit only
+            params_limit_only = {'limit': 50}
+            if params_limit_only not in parameter_formats_to_try:
+                 parameter_formats_to_try.append(params_limit_only)
+            logging.debug(f"Endpoint {endpoint}: Parameter formats to try: {parameter_formats_to_try}")
+
+            # --- Loop through Parameter Formats for this endpoint --- 
             for params in parameter_formats_to_try:
-                logging.info(f"Trying parameter format: {params}")
-                
+                # Skip to next format if we already completed pagination with a previous format for this endpoint
+                if pagination_complete: continue 
+
+                logging.info(f"Endpoint {endpoint}: Trying parameter format: {params}")
                 try:
-                    # Make the request
+                    # --- Initial Request --- 
                     response = self.session.get(endpoint, params=params)
                     response_status = response.status_code
-                    
-                    logging.info(f"Response status from {endpoint}: {response_status}")
-                    
-                    # If not 200, try next format
+                    logging.info(f"Endpoint {endpoint}, Params {params}: Initial response status: {response_status}")
                     if response_status != 200:
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get('detail', error_json)
-                            logging.info(f"Error response from API: {error_detail}")
-                        except:
-                            error_detail = response.text[:200]
-                            logging.info(f"Error response (non-JSON): {error_detail}")
-                        
-                        logging.info(f"Trying next parameter format...")
-                        continue
-                    
-                    # Successfully got data
+                        # Log error detail if possible
+                        try: logging.info(f"Error detail: {response.json().get('detail', response.text[:100])}")
+                        except: pass
+                        continue # Try next parameter format for this endpoint
+
+                    # --- Process Initial Data & Start Pagination --- 
                     data = response.json()
-                    logging.info(f"Successfully retrieved data from {endpoint}")
-                    logging.info(f"Response data keys: {list(data.keys())}")
+                    initial_conversations = []
+                    if 'conversations' in data: initial_conversations = data.get('conversations', [])
+                    elif 'history' in data: initial_conversations = data.get('history', [])
+                    elif 'items' in data: initial_conversations = data.get('items', [])
                     
-                    # Try to extract conversations from various possible formats
-                    conversations = []
-                    if 'conversations' in data:
-                        conversations = data.get('conversations', [])
-                    elif 'history' in data:
-                        conversations = data.get('history', [])
-                    elif 'items' in data:
-                        conversations = data.get('items', [])
+                    if not initial_conversations and not data.get('next_cursor'): # Check if response is empty AND no cursor
+                        logging.info(f"Endpoint {endpoint}, Params {params}: No conversations found and no cursor. Trying next format.")
+                        continue # Try next parameter format
                     
-                    logging.info(f"Retrieved {len(conversations)} conversations from API")
-                    
-                    # If we found conversations, we can stop trying other formats/endpoints
-                    if conversations:
-                        logging.info(f"Found {len(conversations)} conversations with {endpoint} using params {params}")
-                        # Store these for pagination
-                        successful_endpoint = endpoint
-                        successful_params = params
+                    logging.info(f"Endpoint {endpoint}, Params {params}: Found {len(initial_conversations)} initial conversations. Starting pagination...")
+                    endpoint_succeeded_at_all = True # Mark this endpoint as having worked at least once
+                    current_endpoint_conversations = list(initial_conversations) # Reset list for this attempt
+                    successful_params = params 
+                    next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
+                    has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
+                    current_page = 0
+                    max_pages = 30 # Increase max pages slightly just in case
+
+                    # --- Pagination Loop (for this endpoint/param format) --- 
+                    while next_cursor and current_page < max_pages:
+                        current_page += 1
+                        logging.info(f"PAGINATION ({endpoint}): Entering page {current_page+1}/{max_pages}. Cursor: {next_cursor}")
+                        pagination_params = successful_params.copy()
                         
-                        # Add to our collected list
-                        all_conversations.extend(conversations)
+                        # Detect cursor param name (simplified)
+                        cursor_param_name = 'cursor' # Default guess
+                        if 'next_page_token' in data: cursor_param_name = 'page_token'
+                        elif 'after_id' in data: cursor_param_name = 'after_id'
+                        pagination_params[cursor_param_name] = next_cursor
+                        logging.debug(f"PAGINATION ({endpoint}): Requesting page {current_page+1} with params: {pagination_params}")
                         
-                        # Check for pagination options
-                        next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
-                        has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
+                        response = self.session.get(endpoint, params=pagination_params)
                         
-                        # Handle pagination if available
-                        while next_cursor and has_more and current_page < max_pages:
-                            current_page += 1
-                            logging.info(f"Moving to page {current_page+1} with cursor {next_cursor}")
+                        if response.status_code == 200:
+                            data = response.json() # Update data for next cursor check
+                            page_conversations = []
+                            if 'conversations' in data: page_conversations = data.get('conversations', [])
+                            elif 'history' in data: page_conversations = data.get('history', [])
+                            elif 'items' in data: page_conversations = data.get('items', [])
+                            logging.info(f"PAGINATION ({endpoint}): Retrieved {len(page_conversations)} conversations on page {current_page+1}")
+                            current_endpoint_conversations.extend(page_conversations)
                             
-                            # Update pagination parameter
-                            pagination_params = successful_params.copy()
-                            if 'next_cursor' in data:
-                                pagination_params['cursor'] = next_cursor
-                            elif 'next_page_token' in data:
-                                pagination_params['page_token'] = next_cursor
-                            else:
-                                pagination_params['cursor'] = next_cursor
+                            next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
+                            has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
+                            logging.info(f"PAGINATION ({endpoint}): After page {current_page+1} - next_cursor: {next_cursor}, has_more: {has_more}")
                             
-                            # Make the paginated request
-                            response = self.session.get(successful_endpoint, params=pagination_params)
-                            
-                            if response.status_code == 200:
-                                data = response.json()
-                                
-                                # Get conversations from this page
-                                if 'conversations' in data:
-                                    page_conversations = data.get('conversations', [])
-                                elif 'history' in data:
-                                    page_conversations = data.get('history', [])
-                                elif 'items' in data:
-                                    page_conversations = data.get('items', [])
-                                else:
-                                    page_conversations = []
-                                
-                                logging.info(f"Retrieved {len(page_conversations)} conversations on page {current_page+1}")
-                                
-                                # Add to our result list
-                                all_conversations.extend(page_conversations)
-                                
-                                # Update pagination for next page
-                                next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
-                                has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
-                            else:
-                                logging.info(f"Error in pagination, stopping at page {current_page+1}")
+                            if not has_more and not next_cursor:
+                                logging.info(f"PAGINATION ({endpoint}): Stopping - API reports no more data.")
+                                pagination_complete = True # Mark pagination as complete for this endpoint
                                 break
-                        
-                        # Successfully found and retrieved conversations
-                        logging.info(f"Successfully retrieved a total of {len(all_conversations)} conversations from API")
-                        
-                        # Apply date filtering manually if API didn't do it correctly
-                        if start_date or end_date:
-                            filtered_conversations = self._apply_date_filtering(all_conversations, start_date, end_date)
-                            logging.info(f"After manual date filtering: {len(filtered_conversations)} conversations (from {len(all_conversations)})")
-                            
-                            # Return filtered data
-                            return {
-                                'conversations': filtered_conversations,
-                                'total': len(filtered_conversations)
-                            }
                         else:
-                            # Return all conversations if no date filter
-                            return {
-                                'conversations': all_conversations,
-                                'total': len(all_conversations)
-                            }
-                
+                            logging.error(f"PAGINATION ({endpoint}): Error fetching page {current_page+1}. Status: {response.status_code}. Stopping pagination for this attempt.")
+                            break # Stop pagination for this endpoint/param attempt
+
+                    # Mark pagination complete if loop finished naturally or hit max pages
+                    if not pagination_complete: 
+                         pagination_complete = True 
+                         logging.info(f"PAGINATION ({endpoint}): Finished (max pages reached or no more cursor).")
+
+                    # Since this parameter format worked and pagination completed, break from parameter format loop
+                    logging.info(f"Endpoint {endpoint}: Successfully completed fetch/pagination with params {successful_params}.")
+                    break # Exit the parameter format loop
+
                 except Exception as e:
-                    logging.error(f"Exception with endpoint {endpoint} and params {params}: {e}")
-                    continue
-        
-        # If we reach here, all endpoint/parameter combinations failed
-        logging.warning("All API endpoints failed, returning empty results")
+                    logging.error(f"Endpoint {endpoint}, Params {params}: Error during fetch/pagination: {e}")
+                    # Do not set pagination_complete = True on error, allow next format to be tried
+                    continue # Try next parameter format
+
+            # --- After trying all parameter formats for the endpoint --- 
+            if endpoint_succeeded_at_all:
+                logging.info(f"Endpoint {endpoint}: Succeeded. Total conversations fetched: {len(current_endpoint_conversations)}")
+                # Check if this endpoint gave us more results than previous ones
+                if len(current_endpoint_conversations) > best_result_count:
+                    logging.info(f"Endpoint {endpoint}: Found more conversations ({len(current_endpoint_conversations)}) than previous best ({best_result_count}). Updating best result.")
+                    best_result_conversations = current_endpoint_conversations
+                    best_result_count = len(current_endpoint_conversations)
+            else:
+                 logging.warning(f"Endpoint {endpoint}: Failed to retrieve any data after trying all formats.")
+            # --- Continue to the next endpoint --- 
+
+        # --- After trying all endpoints --- 
+        logging.info(f"Finished trying all endpoints. Best result count: {best_result_count}")
+        if best_result_count == 0:
+            logging.error("CRITICAL: No endpoints were able to successfully retrieve any conversation data.")
+
+        # Return the best result found
         return {
-            'conversations': [],
-            'total': 0
+            'conversations': best_result_conversations[:limit] if limit > 0 else best_result_conversations,
+            'total_count': best_result_count
         }
     
     def _apply_date_filtering(self, conversations, start_date=None, end_date=None):
@@ -427,7 +455,19 @@ class ElevenLabsClient:
                         return history_item
                 elif 'id' in data or 'conversation_id' in data:
                     # Format 3: Direct conversation object
-                    return data
+
+                    # +++ ADD LOGGING BEFORE ADAPTATION +++
+                    try:
+                        log_keys = list(data.keys()) if isinstance(data, dict) else "Not a dict"
+                        analysis_block = data.get('analysis') if isinstance(data, dict) else "N/A"
+                        logging.error(f"PRE-ADAPT KEYS: {log_keys}")
+                        logging.error(f"PRE-ADAPT ANALYSIS: {str(analysis_block)[:500]}")
+                    except Exception as log_err:
+                        logging.error(f"Error logging PRE-ADAPT data: {log_err}")
+                    # +++ END LOGGING BEFORE ADAPTATION +++
+
+                    adapted_data = self._adapt_conversation_details(data)
+                    return adapted_data
                 
                 # If we reach here, the response didn't match any known format
                 logging.warning(f"Unknown response format from {endpoint}")
@@ -628,7 +668,19 @@ class ElevenLabsClient:
     
     def _adapt_conversation_details(self, data):
         """Adapt conversation details to the format our app expects"""
-        print(f"DEBUG: Adapting conversation details from ElevenLabs format")
+        # --- REMOVE SAFER RAW DATA LOGGING --- 
+        # if not hasattr(self, '_safe_log_count'): self._safe_log_count = 0
+        # if self._safe_log_count < 5: 
+        #     try:
+        #         log_keys = list(data.keys()) if isinstance(data, dict) else "Not a dict"
+        #         analysis_block = data.get('analysis') if isinstance(data, dict) else "N/A"
+        #         # Log keys and analysis block using ERROR level for visibility
+        #         logging.error(f"SAFELOG RAW KEYS (call {self._safe_log_count + 1}): {log_keys}")
+        #         logging.error(f"SAFELOG ANALYSIS BLOCK (call {self._safe_log_count + 1}): {str(analysis_block)[:500]}") # Log analysis content
+        #     except Exception as log_err:
+        #          logging.error(f"Could not perform safe logging: {log_err}")
+        #     self._safe_log_count += 1
+        # --- END REMOVE SAFER RAW DATA LOGGING ---
         
         # Handle ElevenLabs convai/conversations/{id} format
         if 'conversation_id' in data and 'transcript' in data:
@@ -643,26 +695,95 @@ class ElevenLabsClient:
             start_time = metadata.get('created_at', '')
             end_time = metadata.get('last_updated_at', '')
             duration = metadata.get('duration_seconds', 0)
+
+            # +++ Extract Summary (Revised - Check analysis block) +++
+            summary = None
+            analysis_data = data.get('analysis') # Get analysis data again
+            if analysis_data and isinstance(analysis_data, dict):
+                summary = analysis_data.get('transcript_summary') # Check this first!
+                if summary is None:
+                    summary = analysis_data.get('summary')
+                if summary is None:
+                    summary = analysis_data.get('generated_summary')
+                if summary is None:
+                    summary = analysis_data.get('abstractive_summary')
+            
+            # Fallback checks (as before)
+            if summary is None: 
+                 summary = data.get('summary') # Check root level
+            if summary is None:
+                 summary = metadata.get('summary') # Check metadata
+            if summary is None:
+                 summary = data.get('call_summary') # Check other common key
+            # +++ End Summary Extraction +++
+
+            # +++ Extract cost information from metadata +++
+            cost = metadata.get('cost_in_credits') # Check metadata first
+            if cost is None: # Fallback check directly on data if not in metadata
+                cost = data.get('cost_in_credits')
+            if cost is None: # Fallback check for other potential keys
+                 cost = metadata.get('cost') or data.get('cost')
+            if cost is None:
+                 cost = metadata.get('total_tokens') or data.get('total_tokens')
+            # +++ End Cost Extraction +++
             
             # Process transcript into turns
             transcript = data.get('transcript', [])
             turns = []
+
+            # +++ Get start_time_unix_secs for timestamp calculation +++
+            start_time_unix_secs = metadata.get('start_time_unix_secs')
+
+            if start_time_unix_secs is None:
+                logging.error(f"Missing start_time_unix_secs in metadata for conv {conversation_id}, cannot calculate message timestamps.")
+                # Set to None to indicate failure downstream
+                calculated_timestamp = None 
             
             for message in transcript:
-                # Determine if message is from agent or user
-                is_agent = message.get('sender_type', '') == 'agent'
+                # Determine role and if agent
+                role = message.get('role', 'unknown') # Use 'role' key as per docs
+                is_agent = (role == 'agent')
                 
+                # +++ Determine Speaker Name +++
+                speaker_name = 'agent' if is_agent else 'user'
+                if role == 'unknown': # Handle unknown role case
+                    # You might decide on a different default or logic here
+                    speaker_name = 'unknown' 
+                    logging.warning(f"Unknown role found in transcript for {conversation_id}. Defaulting speaker to 'unknown'. Message: {str(message)[:100]}")
+                # +++ End Speaker Name Determination +++
+
                 # Get the message text
-                text = message.get('text', '')
+                text = message.get('message', '') # Use 'message' key as per docs
                 
-                # Get timestamp if available
-                timestamp = message.get('created_at', '')
+                # +++ Calculate timestamp +++
+                calculated_timestamp = None # Default to None
+                if start_time_unix_secs is not None:
+                    time_in_call_secs = message.get('time_in_call_secs')
+                    if time_in_call_secs is not None:
+                        try:
+                            # Ensure both are numbers before adding
+                            if isinstance(start_time_unix_secs, (int, float)) and isinstance(time_in_call_secs, (int, float)):
+                                message_unix_ts = float(start_time_unix_secs) + float(time_in_call_secs)
+                                # Convert to timezone-aware UTC datetime object
+                                calculated_timestamp = datetime.fromtimestamp(message_unix_ts, tz=timezone.utc) 
+                            else:
+                                logging.warning(f"Non-numeric type for start_time ({type(start_time_unix_secs)}) or time_in_call ({type(time_in_call_secs)}) for msg in conv {conversation_id}")
+                        except (ValueError, TypeError, OverflowError) as ts_err:
+                            logging.warning(f"Error calculating timestamp for conv {conversation_id}: {ts_err}. Start: {start_time_unix_secs}, Offset: {time_in_call_secs}")
+                    else:
+                         logging.warning(f"Missing time_in_call_secs for message in conv {conversation_id}: {message}")
+                # else: start_time_unix_secs was None - error already logged
+
+                # Get timestamp if available (REMOVED - we calculate it now)
+                # timestamp = message.get('created_at', '')
                 
                 # Create turn object
                 turn = {
                     'text': text,
                     'is_agent': is_agent,
-                    'timestamp': timestamp
+                    'role': role, # Add role for potential future use
+                    'timestamp': calculated_timestamp, # Use the calculated timestamp (datetime object or None)
+                    'speaker': speaker_name # Add the determined speaker name
                 }
                 
                 turns.append(turn)
@@ -674,10 +795,11 @@ class ElevenLabsClient:
                 'end_time': end_time,
                 'duration': duration,
                 'status': status,
-                'turns': turns
+                'turns': turns,
+                'cost': cost,
+                'summary': summary 
             }
             
-            print(f"DEBUG: Returning adapted conversation with {len(turns)} turns")
             return result
         
         # Create a basic structure (fallback)
@@ -687,7 +809,8 @@ class ElevenLabsClient:
             'end_time': data.get('end_time', ''),
             'duration': data.get('duration', 0),
             'status': data.get('status', 'completed'),
-            'turns': []
+            'turns': [],
+            'summary': (data.get('analysis', {}).get('summary') if isinstance(data, dict) else None) or data.get('summary') or data.get('call_summary') 
         }
         
         # Extract turns/messages from different possible formats
@@ -723,6 +846,11 @@ class ElevenLabsClient:
                     }
                 ]
         
+        # +++ Add cost extraction to fallback structure +++
+        cost = data.get('cost_in_credits') or data.get('cost') or data.get('total_tokens')
+        result['cost'] = cost
+        # +++ End Cost Extraction +++
+
         return result
     
     def _adapt_calls_to_conversations(self, data):

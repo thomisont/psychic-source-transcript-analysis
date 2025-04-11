@@ -1,10 +1,102 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
 
-# Your rule content
+---
+description: Python project development rules and guidelines
+globs: ["*.py"]
+alwaysApply: true
+---
 
-- You can @ files here
-- You can use markdown but dont have to
+# Python Project Rules
+
+## Core Development Guidelines
+
+1. **Code Style & Structure**
+   - Follow PEP 8 for Python code
+   - Use type hints where appropriate
+   - Write comprehensive docstrings
+   - Keep files under 200-300 lines of code
+   - Refactor when files exceed size limits
+   - Avoid code duplication
+
+2. **Testing Requirements**
+   - Write thorough tests for all major functionality
+   - Add unit tests for new features
+   - Run tests before committing changes
+   - Use appropriate test fixtures and mocks
+   - Test error cases and edge conditions
+
+3. **Error Handling**
+   - Implement proper exception handling
+   - Log errors with appropriate severity levels
+   - Show informative error messages to users
+   - Handle API failures gracefully
+   - Use proper error boundaries
+
+4. **Data Handling**
+   - Never use sample or mock data in production
+   - Handle missing data with appropriate empty states
+   - Validate all API responses
+   - Log errors but don't generate fake data
+   - Use proper data types and validation
+
+5. **Development Workflow**
+   - Never start the server until explicitly requested
+   - Wait for user approval before applying changes
+   - Allow code review before execution
+   - Create backups before significant changes
+   - Never delete backup files without permission
+
+6. **Environment Management**
+   - Use virtual environments for development
+   - Keep dependencies up to date
+   - Document all environment variables
+   - Handle different environments (dev/test/prod)
+   - Never overwrite .env files without permission
+
+7. **Code Organization**
+   - Follow service-oriented architecture
+   - Separate business logic from API integration
+   - Use proper module structure
+   - Keep related code together
+   - Maintain clear separation of concerns
+
+8. **Documentation**
+   - Keep documentation up to date
+   - Document API endpoints
+   - Include setup instructions
+   - Document environment requirements
+   - Maintain clear code comments
+
+9. **Security**
+   - Never expose sensitive data
+   - Use proper authentication
+   - Validate user inputs
+   - Handle API keys securely
+   - Follow security best practices
+
+10. **Performance**
+    - Optimize database queries
+    - Implement proper caching
+    - Handle large datasets efficiently
+    - Monitor memory usage
+    - Profile code when needed
+
+    // ... existing code ...
+
+    - Monitor memory usage
+    - Profile code when needed
+
+---
+
+# Current Project Initiatives
+
+## Refactoring (April 2024 Onwards)
+
+*   **Context:** Due to persistent UI/scalability issues, a major refactoring effort is underway.
+*   **Plan:** See `refactoring_plan.md` for details.
+*   **Goals:** Migrate backend storage to Supabase (PostgreSQL), improve data processing, clean up frontend code (HTML/CSS/JS), enhance scalability, and improve overall code quality/maintainability.
+*   **Impact:** Development should align with the refactoring plan. Avoid introducing significant new features on the *old* architecture unless critical. Prioritize tasks that contribute to the refactoring goals.

@@ -32,10 +32,6 @@
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <i class="fas fa-brain me-2"></i>Psychic Source Agent: How's Lily Doing
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
@@ -63,6 +59,13 @@
                         </a>
                     </li>
                 </ul>
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user me-1"></i>Logged in as: <strong id="user-role">User</strong>
+                </span>
+                <button type="button" class="btn btn-outline-light btn-sm me-2" id="sync-button" title="Fetch new conversations from ElevenLabs">
+                    <i class="fas fa-sync-alt me-1"></i> Sync New
+                </button>
+                <span id="sync-status" class="navbar-text small text-warning me-3"></span>
             </div>
         </div>
     </nav>
@@ -81,7 +84,7 @@
     </div>
     
     <!-- Main Content -->
-    <main class="container mt-4">
+    <main class="container mt-4" id="content">
         {% block content %}{% endblock %}
     </main>
     
@@ -106,6 +109,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
     
     <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
     <!-- Initialize global JS features -->
@@ -126,6 +130,87 @@
         });
     </script>
     
+    <!-- Add just before the closing </body> tag -->
+    <script>
+    // Debug helper that runs on all pages
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🔍 Page loaded successfully: ' + window.location.pathname);
+        
+        // Check if the content area exists
+        const contentArea = document.querySelector('[data-content="main"]') || document.getElementById('content');
+        if (!contentArea) {
+            console.error('❌ Content area not found - page may render incorrectly');
+        } else {
+            console.log('✅ Content area detected');
+        }
+        
+        // Add error trapping to detect JS errors
+        window.addEventListener('error', function(event) {
+            console.error('🚨 JavaScript error: ', event.error);
+            
+            // Create a visible error panel for users if one doesn't exist
+            if (!document.getElementById('js-error-panel')) {
+                const errorPanel = document.createElement('div');
+                errorPanel.id = 'js-error-panel';
+                errorPanel.style.position = 'fixed';
+                errorPanel.style.bottom = '10px';
+                errorPanel.style.right = '10px';
+                errorPanel.style.padding = '15px';
+                errorPanel.style.background = '#f8d7da';
+                errorPanel.style.border = '1px solid #f5c6cb';
+                errorPanel.style.borderRadius = '5px';
+                errorPanel.style.zIndex = '9999';
+                errorPanel.style.maxWidth = '300px';
+                errorPanel.innerHTML = `
+                    <h5>JavaScript Error Detected</h5>
+                    <p>${event.error?.message || 'Unknown error'}</p>
+                    <div>
+                        <a href="/debug-info" class="btn btn-sm btn-danger">View Debug Info</a>
+                        <button onclick="this.parentNode.parentNode.style.display='none'" class="btn btn-sm btn-secondary">Close</button>
+                    </div>
+                `;
+                document.body.appendChild(errorPanel);
+            }
+        });
+        
+        // Add debug link to footer
+        const footer = document.querySelector('footer');
+        if (footer) {
+            const debugLink = document.createElement('div');
+            debugLink.className = 'text-center mt-2';
+            debugLink.innerHTML = '<a href="/debug-info" class="text-muted small">Debug Info</a>';
+            footer.appendChild(debugLink);
+        }
+    });
+    </script>
+    
     {% block scripts %}{% endblock %}
+
+    <!-- Sync Status Modal -->
+    <div class="modal fade" id="syncStatusModal" tabindex="-1" aria-labelledby="syncStatusModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="syncStatusModalLabel">Sync Complete</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p><strong>Database Counts:</strong> <span id="modal-db-initial">N/A</span> &rarr; <span id="modal-db-final">N/A</span></p>
+            <p><strong>Added:</strong> <span id="modal-added">N/A</span></p>
+            <p><strong>Updated:</strong> <span id="modal-updated">N/A</span></p>
+            <p><strong>Skipped (Already Up-to-Date):</strong> <span id="modal-skipped">N/A</span></p>
+            <div id="modal-failed-section" class="d-none"> <!-- Hide if 0 failures -->
+                <p class="text-danger mb-0"><strong>Failed:</strong> <span id="modal-failed">N/A</span></p>
+            </div>
+            <hr>
+            <small class="text-muted">Checked <span id="modal-checked-api">N/A</span> summaries from API.</small>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- End Sync Status Modal -->
 </body>
 </html> 

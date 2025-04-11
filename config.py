@@ -8,3 +8,6 @@ class Config:
     ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY')
     ELEVENLABS_AGENT_ID = os.environ.get('ELEVENLABS_AGENT_ID') or '3HFVw3nTZfIivPaHr3ne'
     ELEVENLABS_API_URL = "https://api.elevenlabs.io"  # Removed /v1 to allow more flexibility in endpoint construction 
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'app.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False 

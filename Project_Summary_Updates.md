@@ -547,47 +547,352 @@ For maximum impact with minimal development overhead, we recommend prioritizing 
 
 These recommendations represent a comprehensive path forward for transforming the Themes & Sentiment page into a powerful analytical tool that delivers actionable insights from psychic reading conversations. 
 
-## Project Update: April 2, 2025 - Fixed Critical Analysis Methods and Enhanced Sentiment Analysis
+## Project Update: April 2, 2025 - Themes & Sentiment Analysis Enhanced Recommendations
 
-### Resolved Critical Analysis Issues
+After completing the renovation of the Themes & Sentiment page, our analysis has identified several potential enhancements that would significantly improve the analytical capabilities of the application. The following recommendations provide a roadmap for transforming the page from a basic visualization tool to a sophisticated insights platform.
 
-#### Syntax Error Fixes:
-- Fixed syntax errors in `app/utils/analysis.py` that prevented the application from starting
-- Resolved issues with try/except blocks that had incorrect indentation or missing except clauses
-- Added proper exception handling for OpenAI API calls with both new and legacy clients
+### Advanced Theme Analysis Recommendations
 
-#### Restored Missing Methods:
-- Restored critical methods needed for the Themes & Sentiment page:
-  - `analyze_sentiment`: Basic sentiment analysis for conversation transcripts
-  - `extract_aggregate_topics`: Extraction of common topics across conversations
-  - `analyze_theme_sentiment_correlation`: Analysis of sentiment aligned with specific themes
-  - `analyze_sentiment_over_time`: Time-series analysis of sentiment trends
-  - `analyze_aggregate_sentiment`: Aggregated sentiment metrics across conversations
+1. **Topic Modeling Implementation**:
+   - Integrate Latent Dirichlet Allocation (LDA) to identify more nuanced topic clusters
+   - Implement hierarchical topic modeling to identify parent/child relationships between themes
+   - Create a dynamic topic evolution tracker to show how themes trend over time
 
-#### Enhanced Development Guidelines:
-- Added new development workflow rules to prevent future issues:
-  - Never start the server in Cursor until user explicitly requests it
-  - Always wait for user approval before applying changes
-  - Never delete or overwrite backup files without explicit permission
-  - Create backups before making significant changes to critical files
+2. **Semantic Network Analysis**:
+   - Map relationships between related themes using network visualization
+   - Calculate centrality metrics to identify core themes in psychic readings
+   - Implement theme clustering to group semantically related topics
 
-### Current Work: Advanced Sentiment Analysis Implementation
+3. **Custom Psychic Reading Taxonomy**:
+   - Develop a specialized taxonomy of psychic reading topics and subtopics
+   - Create a domain-specific keyword dictionary for more accurate theme categorization
+   - Implement a machine learning classifier trained on psychic reading transcripts
 
-The team is currently working on enhancing the sentiment analysis capabilities by:
-- Replacing the simple TextBlob-based sentiment analysis with a more sophisticated approach
-- Implementing context-aware sentiment analysis that considers psychic reading domain-specific patterns
-- Adding support for more granular emotion detection beyond basic positive/negative sentiment
-- Creating a hybrid approach that can leverage LLM capabilities when available but fallback to rule-based analysis
+### Enhanced Sentiment Analysis Recommendations
 
-### Technical Insights:
-- The `ConversationAnalyzer` class is the central component for all analysis features and needs to be complete for the application to function
-- The system uses a dual approach for NLP tasks: basic rule-based analysis with TextBlob when in lightweight mode, and advanced LLM-based analysis when available
-- Critical error points were found in the try/except structure when making API calls to OpenAI
-- The application properly handles both new (`OpenAI` client class) and legacy (`openai` module) OpenAI API access patterns
+1. **Multi-dimensional Sentiment Analysis**:
+   - Move beyond positive/negative to measure emotional dimensions (joy, fear, anticipation)
+   - Implement VADER or fine-tuned BERT models for more accurate sentiment detection
+   - Track emotional arcs throughout conversations to identify turning points
 
-### Next Development Areas:
-1. **Advanced Sentiment Analysis**: Complete the implementation of more sophisticated sentiment analysis
-2. **VADER Integration**: Consider integrating VADER for more nuanced sentiment scoring
-3. **Contextual Weighting**: Implement domain-specific keyword weighting for psychic readings
-4. **Emotion Detection**: Add support for detecting specific emotions beyond simple sentiment
-5. **Performance Optimization**: Ensure sentiment analysis remains performant for large datasets 
+2. **Semantic Context Enhancement**:
+   - Analyze sentiment within the context of specific psychic topics
+   - Measure sentiment change before/after key predictions or insights
+   - Identify emotional triggers and resolution patterns in readings
+
+3. **Comparative Sentiment Analysis**:
+   - Benchmark sentiment patterns against historical averages
+   - Implement cohort analysis to compare sentiment across different user segments
+   - Create sentiment forecasting to predict future emotional trends
+
+### Optimized LLM Integration Recommendations
+
+1. **Custom Prompt Engineering Framework**:
+   - Develop specialized prompts for psychic reading analysis
+   - Implement chain-of-thought reasoning for more insightful theme extraction
+   - Create a prompt template system with fallbacks for different LLM providers
+
+2. **Model Efficiency Improvements**:
+   - Implement tiered analysis with simpler models for initial processing
+   - Use embedding models (like OpenAI's text-embedding-3-small) for similarity clustering
+   - Create a caching layer for expensive LLM operations
+
+3. **Hybrid Analysis Approach**:
+   - Combine rule-based analysis with LLM insights for more reliable results
+   - Implement confidence scoring for LLM outputs
+   - Create feedback loops to improve LLM prompt effectiveness
+
+### Visualization & UX Enhancements
+
+1. **Interactive Analysis Components**:
+   - Implement theme filtering and drill-down capabilities
+   - Create clickable visualizations that reveal supporting transcript segments
+   - Add search functionality for specific themes or sentiment patterns
+
+2. **Advanced Visualization Techniques**:
+   - Implement theme clouds with size representing frequency and color indicating sentiment
+   - Create flow diagrams showing relationships between themes
+   - Develop timeline visualizations showing theme evolution
+
+3. **Insight Presentation**:
+   - Add automated insight generation with plain-language explanations
+   - Implement comparative views (this period vs. previous period)
+   - Create exportable reports and presentations
+
+### Technical Infrastructure Recommendations
+
+1. **Data Processing Optimization**:
+   - Implement asynchronous processing for long-running analyses
+   - Create a task queue for processing large batches of conversations
+   - Develop incremental analysis to avoid reprocessing unchanged data
+
+2. **Database Integration**:
+   - Store analysis results in a dedicated database (PostgreSQL or MongoDB)
+   - Implement versioning for analysis results
+   - Create a data warehouse for long-term trend analysis
+
+3. **API Enhancements**:
+   - Develop a dedicated Analysis API with parameter-driven insights
+   - Implement GraphQL for more flexible data querying
+   - Create webhook integrations for real-time analysis notifications
+
+### Implementation Priorities
+
+For maximum impact with minimal development overhead, we recommend prioritizing these enhancements:
+
+1. **Immediate Term (1-2 Weeks)**:
+   - Implement topic filtering and search functionality
+   - Enhance visualization sizing and responsiveness
+   - Add transcript links from themes to specific conversation segments
+
+2. **Near Term (1-2 Months)**:
+   - Integrate more sophisticated LLM prompt engineering
+   - Implement theme relationship visualization
+   - Add comparative analysis (period over period)
+
+3. **Long Term (3-6 Months)**:
+   - Develop custom psychic reading taxonomy
+   - Implement full database integration
+   - Create an automated insights engine
+
+These recommendations represent a comprehensive path forward for transforming the Themes & Sentiment page into a powerful analytical tool that delivers actionable insights from psychic reading conversations. 
+
+## Project Update: April 5, 2025 - Themes & Sentiment Scroll Box Fixes
+
+### Issue Resolution: Scroll Box Functionality
+
+We successfully fixed persistent issues with scroll box functionality in the Themes & Sentiment page:
+
+1. **Problem Identification**:
+   - Scroll boxes were not properly displaying all content in dropdowns
+   - Users could not scroll through the full list of conversation records within the scrollable containers
+   - Initial scrolling showed movement but didn't fully render all available content
+   - Only the first few conversation records were visible in dropdown categories
+
+2. **CSS Fixes Implemented**:
+   - Enhanced CSS in `style.css` with proper overflow properties and `!important` flags
+   - Fixed container sizing and positioning for all scrollable elements
+   - Implemented consistent scrollbar styling for cross-browser compatibility
+   - Improved list item styling with better height handling
+   - Modified accordion content containers to properly show all items
+
+3. **JavaScript Improvements**:
+   - Added a comprehensive `initScrollBoxes()` function to properly initialize all scrollable containers
+   - Implemented event listeners to handle accordion expansion/collapse properly
+   - Added MutationObserver to detect content changes and reinitialize scrollboxes
+   - Created a custom `api-data-loaded` event to trigger reinitialization after data loads
+   - Added explicit container reinitialization on accordion clicks
+
+4. **Structure Enhancements**:
+   - Modified `renderCollapsibleCategories` function to use proper semantic HTML (ul/li structure)
+   - Improved accordion item structure to better handle scrollable content
+   - Removed arbitrary content limits to show all available items
+   - Added proper event delegation for conversation item links
+
+### Technical Insights
+
+1. **UI Component Behavior**:
+   - Bootstrap accordions require special handling for nested scrollable content
+   - CSS overflow properties need `!important` flags to prevent Bootstrap overrides
+   - Webkit (Chrome, Safari) and Firefox handle scrollbars differently
+   - DOM manipulation is needed after accordion transitions to properly render scrollable content
+
+2. **Content Management Patterns**:
+   - LLM analysis processes large numbers of conversation entries (469 raw conversations seen in logs)
+   - The server processes conversations in batches of varying sizes (seen in logs)
+   - OpenAI API is used for various analysis tasks through HTTP requests
+   - The system implements effective caching with cached analysis results
+
+3. **Performance Considerations**:
+   - The analysis process is computationally intensive, making efficient scrolling essential
+   - Scroll containers need to handle large numbers of items (92+ interactions in a single category)
+   - LLM operations are expensive, so results are cached to improve performance
+   - Client-side interactions need to be smooth even with large datasets
+
+### Next Development Areas
+
+1. **Continued UI Polish**:
+   - Further improve interaction design for scrolling containers
+   - Enhance loading states and transitions between views
+   - Optimize rendering for very large datasets
+   - Add lazy loading for long lists to improve performance
+
+2. **Data Visualization Improvements**:
+   - Ensure visualization components properly handle data from dynamically loaded content
+   - Add more interactive filtering capabilities
+   - Improve responsive behavior across different device sizes
+   - Enhance visual feedback for data loading and processing
+
+3. **Testing & QA**:
+   - Implement comprehensive cross-browser testing for scroll behaviors
+   - Create test cases for different data volumes in scrollable containers
+   - Add automated testing for UI components
+   - Verify scroll behavior handles future content growth appropriately
+
+The Themes & Sentiment page now has fully functional scroll boxes, allowing users to access all conversation records within the UI. This fix improves the overall usability of the application and provides users with complete access to the analysis results. 
+
+---
+
+### Pivot to Refactoring (April 5th, 2024)
+
+Despite incremental fixes addressing UI issues like scrollable containers, fundamental problems related to data loading, state management, and CSS conflicts persist, hindering a stable and scalable user experience. After attempting various targeted fixes, the decision has been made to undertake a more comprehensive refactoring effort.
+
+**Rationale:**
+
+*   **Persistent UI Bugs:** Incremental CSS and JS adjustments haven't fully resolved layout and scrolling inconsistencies, especially with dynamic content.
+*   **Scalability Concerns:** The current architecture struggles with large datasets and frequent data updates, leading to performance bottlenecks.
+*   **Maintainability:** The codebase has grown complex, making it difficult to implement new features or fix bugs efficiently.
+
+**New Direction:**
+
+*   Focus will shift to implementing the plan outlined in `refactoring_plan.md`.
+*   Key goals include migrating the data backend to Supabase (PostgreSQL), optimizing data ingestion/analysis pipelines, cleaning up frontend code (HTML/CSS/JS), and improving overall code structure and testing.
+*   This refactoring aims to build a more robust, scalable, and maintainable foundation for the application.
+
+---
+
+### Next Development Areas
+
+1. **Continued UI Polish**:
+   - Further improve interaction design for scrolling containers
+   - Enhance loading states and transitions between views
+   - Optimize rendering for very large datasets
+   - Add lazy loading for long lists to improve performance
+
+2. **Data Visualization Improvements**:
+   - Ensure visualization components properly handle data from dynamically loaded content
+   - Add more interactive filtering capabilities
+   - Improve responsive behavior across different device sizes
+   - Enhance visual feedback for data loading and processing
+
+3. **Testing & QA**:
+   - Implement comprehensive cross-browser testing for scroll behaviors
+   - Create test cases for different data volumes in scrollable containers
+   - Add automated testing for UI components
+   - Verify scroll behavior handles future content growth appropriately
+
+The Themes & Sentiment page now has fully functional scroll boxes, allowing users to access all conversation records within the UI. This fix improves the overall usability of the application and provides users with complete access to the analysis results. 
+
+## Agent Session Learnings (Timestamp & Dashboard Fix - YYYY-MM-DD)
+
+*   The `Conversation.created_at` field stores the database record creation time, **not** the original conversation time.
+*   The actual conversation time must be derived from message timestamps.
+*   `Message.timestamp` values are *calculated* within `app/api/elevenlabs_client.py` (`_adapt_conversation_details`) using `metadata.start_time_unix_secs` + `message.time_in_call_secs` from the `/v1/convai/conversations/{id}` endpoint response. This logic is crucial for accurate time-based analysis.
+*   The import script (`scripts/bulk_import.py`) expects the client's `get_conversation_details` method to return an adapted dictionary containing a `'turns'` key, where each turn (message) dictionary has a `'timestamp'` key holding a timezone-aware `datetime` object. It uses this structure for populating the `messages` table.
+*   API client caching in `instance/cache/` can mask changes made to the client's data processing logic. Clear this cache (`rm -rf instance/cache`) when debugging the client or import script if stale data is suspected.
+*   The "Total Conversations" metric counts all rows in the `conversations` table. Dashboard statistics derived from `/api/dashboard/stats`, however, are based only on conversations having associated messages, as message timestamps are required for the filtering and calculations. This can lead to a slight, expected discrepancy in counts. 
+
+## Agent Session Learnings (Global Sync Button - 2025-04-07)
+
+*   **Global Sync Feature:** A manual "Sync New Conversations" button is now available in the main navigation bar (`app/templates/base.html`), allowing users to trigger a data refresh from any page.
+*   **Sync Task:** The synchronization logic resides in `app/tasks/sync.py`. This task is triggered by a `POST` request to the `/api/sync-conversations` endpoint defined in `app/api/routes.py`.
+*   **Client Configuration Check:** When checking if the `ElevenLabsClient` (accessed via `app.elevenlabs_client`) is ready for use within tasks or routes, verify the existence of the client object itself and its essential attributes like `api_key` and `agent_id`. Avoid checking for non-existent methods like `is_configured()`.
+*   **Global JS Interactions:** JavaScript for globally available UI elements (like the navbar sync button) is managed in `app/static/js/main.js`. Avoid calling page-specific functions (e.g., table refresh functions unique to one template) directly from these global handlers; use generic feedback mechanisms like toast notifications instead. 
+
+## Agent Session Learnings (Themes & Sentiment Enhancement - YYYY-MM-DD)
+
+*   **Frontend Refactoring:** Successfully refactored page-specific JavaScript logic (date range selection) into a global, reusable function (`initializeGlobalDateRangeSelector` in `main.js`) that accepts page-specific callbacks, improving code organization and maintainability.
+*   **Backend Service Enhancement:** Expanded the `AnalysisService` with a new method (`get_full_themes_sentiment_analysis`) designed to provide a consolidated data payload for a specific UI page (`/api/themes-sentiment/full-analysis`), reducing the number of API calls needed by the frontend.
+*   **API Design:** Created a new, more comprehensive API endpoint (`/api/themes-sentiment/full-analysis`) tailored to the needs of the enhanced "Themes & Sentiment" page, while keeping the older, simpler endpoint for potential backward compatibility or other uses.
+*   **UI Placeholders:** Implemented a pattern of using placeholder functions and helper functions (`showAllPlaceholders`, `displayErrorInAll`) on the frontend to manage the loading and rendering states of multiple components driven by a single API call, preparing for the implementation of detailed component rendering. 
+
+## Agent Session Learnings (Database Schema Debug - 2025-04-08)
+
+*   **Database Schema vs. Model Mismatch:** Identified a critical issue where the `external_id` column in the `conversations` table was incorrectly set to `INTEGER` in the database due to a previous migration (`b3d589ea6ff6`), while the SQLAlchemy model (`app/models.py`) defined it as `db.String`. This mismatch was the root cause of persistent transaction errors.
+*   **Error Symptom:** The schema mismatch manifested as a `sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedFunction) operator does not exist: integer = character varying` error when querying with numeric-like string IDs (e.g., '28').
+*   **Transaction Failures:** This initial type mismatch error caused subsequent database operations within the same request/transaction to fail with `sqlalchemy.exc.InternalError: (psycopg2.errors.InFailedSqlTransaction)`, as the transaction was aborted.
+*   **Resolution:** The issue was resolved by manually running an `ALTER TABLE conversations ALTER COLUMN external_id TYPE VARCHAR;` command directly on the database, aligning the schema with the model. A corrective migration file (`migrations/versions/20250408_change_external_id_to_string.py`) was also created.
+*   **Environment/Tooling Issues:** Encountered difficulties running `flask db upgrade` commands within the Replit terminal environment used during the session, necessitating the manual SQL fix.
+*   **Port Conflicts:** Frequently encountered "Address already in use" errors for the default port `8080`, requiring server restarts on alternate ports (e.g., `8081`). 
+
+## Agent Session Summary (April 9, 2025)
+
+**1. Where We've Been:**
+
+*   Continued the refactoring effort to integrate Supabase as the primary data backend, replacing direct SQLAlchemy database access.
+*   Created the `execute_sql` stored procedure in Supabase to allow the backend to run custom SQL queries.
+*   Attempted to fix the broken "Dashboard" page by updating the `/api/dashboard/stats` endpoint to format data correctly from the `SupabaseConversationService`.
+*   Updated the API status display (`/api/status` endpoint and frontend) to include Supabase connection status.
+*   Refactored the `AnalysisService` (`app/services/analysis_service.py`) to accept a generic `conversation_service` dependency in its `__init__` method, removing direct database access (`db.session`).
+*   Updated internal methods within `AnalysisService` (`get_conversation_ids`, `get_conversations_with_transcripts`) to use the injected `conversation_service` methods.
+*   Updated the application factory (`app/__init__.py`) to inject the instantiated `conversation_service` into `AnalysisService`.
+*   Performed a reflection on the project state and updated multiple documentation files (`README.md`, `refactoring_plan.md`, etc.) with this reflection at the top.
+
+**2. What Has Been Fixed:**
+
+*   The Supabase `execute_sql` function was successfully created.
+*   The main Dashboard page (`/`) now appears to correctly display API status (including Supabase) and conversation counts fetched via the `SupabaseConversationService`.
+*   The `AnalysisService` has been structurally refactored to remove direct database dependencies and rely on an injected `conversation_service`.
+
+**3. Current Task & Problem:**
+
+*   **The "Themes & Sentiment Analysis" page (`/themes-sentiment`) remains non-functional.** Despite refactoring `AnalysisService` to use the injected `conversation_service`, the page still fails to load data, showing "Network response was not ok" and JS errors related to promise handling (`Cannot read properties of undefined (reading 'then')`).
+*   **Root Cause Analysis:** The primary blockers appear to be **critical errors during application startup** identified in the console logs:
+    *   **`TypeError: ConversationService.__init__() got an unexpected keyword argument 'db_session'`**: This error (seen multiple times, e.g., 23:09, 23:17, 23:28 logs) occurs during the initialization phase in `app/__init__.py`. It indicates that the application is *still trying to instantiate the original SQLAlchemy-based `ConversationService`* (which now likely expects `db` or no db-related arguments) with an incorrect `db_session` argument, instead of correctly selecting and initializing the `SupabaseConversationService`. The log message `ConversationService initialized (Database Mode)` confirms this.
+    *   **`AttributeError: 'SupabaseClient' object has no attribute 'client'`**: This error (seen around 23:14 logs) occurred within the `SupabaseConversationService` itself, specifically when trying to call `self.supabase.execute_sql`. This points to an initialization or attribute access problem within our `SupabaseClient` utility class (`tools/supabase_client.py`) or how it's used by the service. Although later logs (after 23:24) show `Official Supabase client initialized successfully`, this earlier error might resurface or indicate instability in the client wrapper.
+*   **Immediate Goal:** Resolve the `TypeError` during service initialization in `app/__init__.py` to ensure the correct `ConversationService` implementation (ideally `SupabaseConversationService`) is being instantiated and injected into `AnalysisService`. Investigate and fix the logic that determines which service to use (Supabase-first with DB fallback). Verify the stability and correctness of the `SupabaseClient` wrapper, particularly around the `execute_sql` call.
+
+**4. Codebase Learnings & Guidance:**
+
+*   **Hybrid Strategy Complexity:** The hybrid Supabase/DB approach requires careful handling during service initialization in `app/__init__.py` to ensure the correct service implementation is chosen and dependencies are injected properly. The current logic seems flawed, defaulting to "Database Mode".
+*   **Dependency Injection:** The pattern of injecting dependencies (like `conversation_service` into `AnalysisService`) is established but needs consistent application and correct initialization upstream.
+*   **Supabase Client Wrapper:** The `tools/supabase_client.py` might need review to ensure the underlying `supabase-py` client (`self.client` or similar) is correctly initialized and accessed correctly within our wrapper. Check if the official `supabase-py` library's client object is being stored and accessed correctly within our wrapper.
+*   **Focus Area:** The next steps should focus almost entirely on `app/__init__.py`'s service initialization logic and potentially `tools/supabase_client.py` to fix the startup errors and ensure consistent use of the `SupabaseConversationService`. 
+
+## Agent Session Learnings (Themes & Sentiment Refactor - 2025-04-09/10)
+
+*   **Refactoring Goal:** Modify the "Themes & Sentiment" page analysis to fetch data via `SupabaseConversationService` instead of direct DB access.
+*   **Data Flow:** Successfully refactored `AnalysisService` (`get_full_themes_sentiment_analysis` method) and the API route (`/api/themes-sentiment/full-analysis`) to use the injected `app.conversation_service` (which points to `SupabaseConversationService`). Data now flows: `Frontend -> API Route -> AnalysisService -> SupabaseConversationService -> Supabase DB`.
+*   **Service Layer Usage:** Confirmed pattern of using services attached to `current_app` context in routes (e.g., `current_app.analysis_service`). Services should use standard `logging`, not `current_app.logger`.
+*   **Supabase Querying:** `supabase-py` syntax for ordering nested tables (`messages` within `conversations`) proved problematic. `.order('messages.timestamp', ...)` failed. Nested ordering is temporarily disabled in `SupabaseConversationService.get_conversations` for functionality.
+*   **Analyzer Robustness:** `ConversationAnalyzer` initialization (specifically its internal OpenAI client) can fail silently. `AnalysisService.__init__` was made more robust to check for this and force limited mode if the analyzer isn't fully ready.
+*   **Error Handling:** Refined error checking between API routes and service calls (checking for `{'error': ...}` dict returned by services).
+*   **Frontend Dependencies:** Frontend JS depends heavily on specific element IDs in HTML templates and specific data structures/keys in API responses. Mismatches lead to `TypeError` or `Cannot set properties of null` errors.
+*   **Environment/Caching:** Encountered significant issues with code changes not being reflected despite server reloads, possibly due to environment caching or Flask reloader issues. Required forceful restarts (`pkill -9`) and temporary route renaming (`/v2`) to bypass.
+*   **Current Status (Themes Page):** Data fetching via Supabase is working. Sentiment Overview and Top Themes display data. Other sections (Trends, Questions, Concerns, Positive Interactions) appear empty because the underlying analysis methods in `ConversationAnalyzer` are returning no results for the current data sample. 
+
+## Agent Session Learnings (Conversation Detail API Fix - 2025-04-10)
+
+*   **API Route Location:** API endpoints related to core data models (e.g., `/api/conversations`, `/api/conversations/<id>`) are primarily located within the `api` blueprint defined in `app/api/routes.py`.
+*   **Service Layer Interaction:** API route handlers consistently use service objects attached to the Flask `current_app` context (e.g., `current_app.conversation_service`) to abstract away data access and business logic.
+*   **Error Handling Pattern:** Service methods (like `ConversationService.get_conversation_details`) ideally return either a dictionary containing the requested data or a dictionary indicating an error (e.g., `{'error': 'Details not found'}`). Returning `None` from a service method, as was occurring when a conversation ID wasn't found, is not consistently handled by the API route handlers and can lead to `TypeError` exceptions if the handler expects a dictionary. API routes need to be robust against `None` returns from services, typically by translating them into appropriate HTTP error responses (e.g., 404 Not Found). 
+
+## Agent Session Learnings (April 10, 2025)
+
+*   **Active Service Layer:** The application uses `app/services/supabase_conversation_service.py` for interactions with Supabase data, not the base `app/services/conversation_service.py`. Modifications must target the correct service file.
+*   **Data Flow for UI:** The UI modal fetches conversation details *from the Supabase database* via the `/api/conversations/<id>` endpoint. It does not directly call the `ElevenLabsClient`.
+*   **Sync Task Role:** The background sync (`app/tasks/sync.py`) is crucial. It fetches data from `ElevenLabsClient`, uses `_adapt_conversation_details` to process it, and then performs inserts/updates on the Supabase `conversations` and `messages` tables. Debugging sync issues requires examining this task's logic.
+*   **Debugging Path:** Tracing data requires checking: External API -> `ElevenLabsClient._adapt_conversation_details` -> `app/tasks/sync.py` -> Supabase DB -> `SupabaseConversationService.get_conversation_details` -> `/api/conversations/<id>` route -> `app/static/js/transcript_viewer.js` -> `app/templates/data_selection.html`.
+*   **Field Naming:** The frontend expects `cost` and `summary` keys in the API response. The backend service maps these from `cost_credits` and `summary` columns in the Supabase `conversations` table, respectively. 
+
+## Agent Session Learnings (Sync Optimization - April 11, 2025)
+
+*   **Sync Task Optimization (`app/tasks/sync.py`):**
+    *   The sync task is now heavily optimized for incremental updates.
+    *   It fetches existing conversation `external_id`s and their `summary` status from Supabase at the start.
+    *   It only calls the expensive `ElevenLabsClient.get_conversation_details` API for conversations that are entirely new or are existing but confirmed to be missing a summary in Supabase (unless `full_sync=True`).
+    *   Existing conversations with summaries are skipped during incremental syncs, significantly improving performance.
+*   **ORM Fallback Removed:** The complex and problematic SQLAlchemy ORM fallback logic within `app/tasks/sync.py` has been **removed**. The task now relies solely on the primary `supabase-py` client calls for database interactions. Errors are logged, and the task proceeds.
+*   **Data Handling Fixes (Sync Task):**
+    *   Handles cases where `created_at` data from the API/parsing is `None` by defaulting to the current time before Supabase insert, satisfying the `NOT NULL` constraint.
+    *   Handles cases where message `text` is `None` by defaulting to an empty string (`''`) before Supabase insert, satisfying the `NOT NULL` constraint.
+*   **Model Update (`app/models.py`):** The `summary` field (`db.Text, nullable=True`) was added to the SQLAlchemy `Conversation` model to align with the database schema (although the sync task no longer uses the ORM for inserts/updates).
+*   **Client Adaptation (`app/api/elevenlabs_client.py`):** The `_adapt_conversation_details` method was corrected to properly extract the `transcript_summary` key from the API response's `analysis` block.
+*   **Frontend Feedback (`main.js`, `base.html`):** The sync completion feedback was changed from a temporary toast to a persistent Bootstrap modal (`#syncStatusModal`) that displays detailed statistics (initial/final counts, added, updated, skipped, failed).
+*   **Critical Code Flagging:** Warning comments have been added to the top of `app/tasks/sync.py` and `app/api/elevenlabs_client.py` to prevent accidental modification of this critical, optimized logic. 
+
+## Agent Session Summary (April 11, 2025 - Dashboard Refactor)
+
+*   **Goal:** Refactor the Dashboard (`/`) to use `SupabaseConversationService` and fetch data based on message timestamps.
+*   **Backend:**
+    *   Added `/api/dashboard/stats` route to `app/api/routes.py`.
+    *   Removed conflicting `/api/dashboard/stats` route from `app/routes.py`.
+    *   Refactored `SupabaseConversationService.get_dashboard_stats` multiple times to query `messages` by timestamp range to determine relevant conversation IDs for the period. **(Note: Calculation still produces inconsistent results).**
+*   **Frontend (`dashboard.js`, `index.html`, `utils.js`):**
+    *   Fixed JS initialization errors (missing container ID).
+    *   Fixed chart rendering errors (incorrect canvas IDs, faulty re-initialization).
+    *   Corrected data key mismatches between JS and API response.
+    *   Updated date range utility (`getDatesFromTimeframe`) to handle button values.
+    *   Fixed chart sizing issues with CSS constraints.
+*   **Environment:** Added rule to use `python run.py` for server startup.
+*   **Current Status:** Dashboard KPIs and charts load data, but the `total_conversations_period` count is inconsistent and illogical across different date ranges, indicating an ongoing issue in the backend calculation within `SupabaseConversationService.get_dashboard_stats`. 

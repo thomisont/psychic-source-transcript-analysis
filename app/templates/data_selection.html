@@ -3,6 +3,72 @@
 {% block title %}Transcript Viewer - Psychic Source Analyzer{% endblock %}
 
 {% block head %}
+{{ super() }}
+<!-- Additional styles specific to this page -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.bootstrap5.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+    /* More specific styles for DataTable search input */
+    #conversations-table_filter input[type="search"] {
+        margin-left: 0.5em;
+        display: inline-block;
+        width: auto;
+        min-width: 150px; /* Ensure it doesn't get too small */
+    }
+    
+    /* Adjust modal body padding if needed */
+    #conversationModal .modal-body {
+        padding: 1rem; /* Add padding back to body */
+    }
+    
+    /* Custom styles for message bubbles */
+    .message-bubble-row {
+        display: flex;
+        margin-bottom: 1rem;
+    }
+    .user-row {
+        justify-content: flex-end;
+    }
+    .agent-row {
+        justify-content: flex-start;
+    }
+    .message-bubble {
+        max-width: 75%;
+        padding: 0.75rem 1rem;
+        border-radius: 1rem;
+        word-wrap: break-word;
+    }
+    .user-bubble {
+        background-color: #0d6efd; /* Bootstrap primary */
+        color: white;
+        border-bottom-right-radius: 0.25rem;
+    }
+    .agent-bubble {
+        background-color: #e9ecef; /* Bootstrap light grey */
+        color: #212529; /* Default text color */
+        border-bottom-left-radius: 0.25rem;
+    }
+    .speaker-label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.9em;
+    }
+    .timestamp {
+        font-size: 0.8em;
+        color: #6c757d; /* Bootstrap secondary text color */
+        margin-top: 0.5rem;
+        display: block;
+        text-align: right;
+    }
+    .agent-bubble .timestamp {
+        color: #495057; /* Darker grey for light background */
+    }
+
+    /* --- REMOVED CSS Fix for Bootstrap Tab Pane Visibility --- */
+</style>
 <script>
 // EMERGENCY RECOVERY SCRIPT - EXECUTES IMMEDIATELY
 (function() {
@@ -153,7 +219,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6 d-flex align-items-end">
-                                <button type="button" class="btn btn-primary w-100" id="search-button" onclick="handleDateSearch()">
+                                <button type="button" class="btn btn-primary w-100" id="search-button">
                                     <i class="fas fa-search me-2"></i>Search
                                 </button>
                             </div>
@@ -284,53 +350,47 @@
     </div>
 </div>
 
-<!-- Conversation Details Modal -->
+<!-- Conversation Details Modal (Simplified) -->
 <div class="modal fade" id="conversationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"> <!-- Added scrollable -->
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Conversation Details</h5>
+                <h5 class="modal-title" id="transcriptModalLabel">Conversation Details</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0">
-                <!-- Tabbed navigation -->
-                <ul class="nav nav-tabs" id="conversationTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-content" type="button" role="tab" aria-controls="overview" aria-selected="true">Overview</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="transcription-tab" data-bs-toggle="tab" data-bs-target="#transcription-content" type="button" role="tab" aria-controls="transcription" aria-selected="false">Transcription</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="client-data-tab" data-bs-toggle="tab" data-bs-target="#client-data-content" type="button" role="tab" aria-controls="client-data" aria-selected="false">Client data</button>
-                    </li>
-                </ul>
-                <div class="tab-content p-3" id="conversationTabContent">
-                    <div class="tab-pane fade show active" id="overview-content" role="tabpanel" aria-labelledby="overview-tab">
-                        <!-- Overview content will be loaded here -->
-                    </div>
-                    <div class="tab-pane fade" id="transcription-content" role="tabpanel" aria-labelledby="transcription-tab">
-                        <!-- Transcription content will be loaded here -->
-                    </div>
-                    <div class="tab-pane fade" id="client-data-content" role="tabpanel" aria-labelledby="client-data-tab">
-                        <!-- Client data content will be loaded here -->
-                    </div>
-                </div>
-                <div id="conversation-details-content" class="d-none">
-                    <!-- Original conversation details will be loaded here but hidden -->
+            <!-- Modal body now contains overview and then transcript -->
+            <div class="modal-body">
+                 <!-- Overview Section -->
+                 <div id="conversation-overview" class="p-3 mb-3 border-bottom">
+                     <h6>Overview</h6>
+                     <p id="overview-loading">Loading overview details...</p>
+                     <div id="overview-details" style="display: none;">
+                        <small>
+                            <strong>ID:</strong> <span id="overview-id"></span><br>
+                            <strong>Start Time:</strong> <span id="overview-start"></span><br>
+                            <strong>Duration:</strong> <span id="overview-duration"></span><br>
+                            <strong>Status:</strong> <span id="overview-status"></span><br>
+                            <strong>Cost (credits):</strong> <span id="overview-cost-credits"></span><br>
+                            <strong>Summary:</strong> <span id="overview-summary" class="text-muted"></span>
+                        </small>
+                     </div>
+                 </div>
+                 <!-- Transcription content will be loaded here -->
+                <div id="transcript-content">
+                    <!-- JS will populate this -->
                 </div>
             </div>
             <div class="modal-footer">
-                <div class="btn-group dropdown">
-                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
-                        <i class="fas fa-file-export me-2"></i>Export
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item export-conversation" data-format="json" href="#">JSON</a></li>
-                        <li><a class="dropdown-item export-conversation" data-format="csv" href="#">CSV</a></li>
-                        <li><a class="dropdown-item export-conversation" data-format="md" href="#">Markdown</a></li>
-                    </ul>
-                </div>
+                 <div class="btn-group me-auto"> 
+                     <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                         <i class="fas fa-file-export me-2"></i>Export Transcript
+                     </button>
+                     <ul class="dropdown-menu">
+                         <li><a class="dropdown-item" href="#" id="export-json"><i class="fas fa-file-code me-2"></i>JSON</a></li>
+                         <li><a class="dropdown-item" href="#" id="export-csv"><i class="fas fa-file-csv me-2"></i>CSV</a></li>
+                         <li><a class="dropdown-item" href="#" id="export-markdown"><i class="fab fa-markdown me-2"></i>Markdown</a></li>
+                     </ul>
+                 </div>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
@@ -373,835 +433,32 @@
 </div>
 {% endblock %}
 
-{% block styles %}
-<style>
-    /* Chat interface styling - iMessage inspired */
-    .transcript-messages {
-        display: flex;
-        flex-direction: column;
-        padding: 15px;
-        background-color: #f0f0f0;
-        border-radius: 0;
-        min-height: 60vh;
-        max-height: 60vh;
-        overflow-y: auto;
-        background-image: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), 
-                          url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDIwIDAgTCAwIDAgMCAyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTBlMGUwIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=');
-    }
-    
-    .message {
-        position: relative;
-        margin-bottom: 12px;
-        max-width: 75%;
-        display: flex;
-        flex-direction: column;
-        animation: message-fade-in 0.3s ease;
-    }
-    
-    @keyframes message-fade-in {
-        0% { opacity: 0; transform: translateY(10px); }
-        100% { opacity: 1; transform: translateY(0); }
-    }
-    
-    .agent-message {
-        align-self: flex-start;
-        margin-right: auto;
-    }
-    
-    .user-message {
-        align-self: flex-end;
-        margin-left: auto;
-    }
-    
-    /* Avatar styling */
-    .avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        margin-right: 10px;
-        font-size: 16px;
-        flex-shrink: 0;
-    }
-    
-    .avatar-agent {
-        background-color: #9c27b0; /* Purple for Lily */
-    }
-    
-    .avatar-user {
-        background-color: #ff9800; /* Orange for Curious Caller */
-    }
-    
-    /* Message row with avatar */
-    .message-row {
-        display: flex;
-        align-items: flex-start;
-        margin-bottom: 2px;
-    }
-    
-    .user-message .message-row {
-        flex-direction: row-reverse;
-    }
-    
-    /* Bubble styling */
-    .message-bubble {
-        padding: 10px 14px;
-        border-radius: 18px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        position: relative;
-        overflow-wrap: break-word;
-    }
-    
-    .agent-message .message-bubble {
-        background-color: #e9e9eb; /* Light gray for agent - iMessage gray */
-        color: #000;
-        border-top-left-radius: 4px;
-        margin-left: 8px;
-    }
-    
-    .user-message .message-bubble {
-        background-color: #0b93f6; /* Blue for user - iMessage blue */
-        color: white;
-        border-top-right-radius: 4px;
-        margin-right: 8px;
-    }
-    
-    /* Speaker labels */
-    .speaker-label {
-        font-size: 12px;
-        margin-bottom: 4px;
-        font-weight: bold;
-        color: #555;
-    }
-    
-    .user-message .speaker-label {
-        text-align: right;
-        margin-right: 46px;
-    }
-    
-    .agent-message .speaker-label {
-        margin-left: 46px;
-    }
-    
-    /* Message text */
-    .message-text {
-        white-space: pre-wrap;
-        margin: 0;
-        font-size: 15px;
-        line-height: 1.4;
-    }
-    
-    /* Timestamp styling */
-    .timestamp {
-        font-size: 11px;
-        margin-top: 2px;
-        opacity: 0.7;
-    }
-    
-    .agent-message .timestamp {
-        margin-left: 46px;
-        color: #666;
-    }
-    
-    .user-message .timestamp {
-        margin-right: 46px;
-        text-align: right;
-        color: #a0cfff;
-    }
-    
-    /* Highlight styling */
-    .highlighted-message .message-bubble {
-        border: 2px solid #ffc107;
-        box-shadow: 0 0 10px rgba(255, 193, 7, 0.4);
-        animation: pulse 2s infinite;
-    }
-    
-    .highlighted-text {
-        background-color: rgba(255, 255, 0, 0.4);
-        padding: 2px 0;
-        border-radius: 2px;
-    }
-    
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
-    }
-    
-    /* Spinner auto-hide */
-    @keyframes hideSpinnerAfterDelay {
-        0%, 99% { opacity: 1; visibility: visible; }
-        100% { opacity: 0; visibility: hidden; display: none; }
-    }
-    
-    #loading-indicator {
-        animation: hideSpinnerAfterDelay 10s forwards;
-    }
-</style>
-{% endblock %}
-
 {% block scripts %}
-<!-- Emergency Reset Script - Independent of main JavaScript -->
 <script>
-// This is a backup script that runs after the page loads
+// EMERGENCY RECOVERY SCRIPT - EXECUTES IMMEDIATELY
+(function() {
+    // ... (existing emergency script content) ...
+})();
+</script>
+
+<!-- Load Transcript Viewer specific JavaScript -->
+<script src="{{ url_for('static', filename='js/transcript_viewer.js') }}"></script>
+
+<script>
+// Initialize timeframe toggle visibility
 document.addEventListener('DOMContentLoaded', function() {
-    // Create a timeout that will check if the spinner is still visible after 5 seconds
-    setTimeout(function() {
-        var spinner = document.getElementById('loading-indicator');
-        if (spinner && !spinner.classList.contains('d-none')) {
-            console.log("BACKUP SCRIPT: Spinner still visible after timeout, hiding it");
-            spinner.classList.add('d-none');
-            spinner.style.display = 'none';
-            
-            // Show a recovery message
-            var errorMsg = document.getElementById('error-message');
-            if (errorMsg) {
-                errorMsg.classList.remove('d-none');
-                errorMsg.innerHTML = '<div class="alert alert-warning"><div class="d-flex justify-content-between align-items-center"><div><strong>UI Recovery:</strong> The page encountered an issue while loading data.</div><button class="btn btn-warning" onclick="window.location.reload()"><i class="fas fa-sync-alt me-1"></i> Refresh Page</button></div></div>';
-            }
-            
-            // Make sure the data table is visible
-            var tableContainer = document.querySelector('.table-responsive');
-            if (tableContainer) {
-                tableContainer.style.display = 'block';
-            }
-        }
-    }, 8000);
+    // ... (existing timeframe toggle logic) ...
+});
+
+// Fallback timer for table initialization (keep as a failsafe)
+document.addEventListener('DOMContentLoaded', function() {
+    // ... (existing failsafe timer logic) ...
 });
 </script>
 
-<!-- Main JavaScript -->
-<script>
-let currentConversationId = null;
-let dataTable = null;
+<!-- Main JavaScript for this page is now in main.js -->
 
-// Define the missing handleDateSearch function
-function handleDateSearch() {
-    const searchType = document.querySelector('input[name="search-type"]:checked').value;
-    if (searchType !== 'date') return;
-    
-    // Always reset error state and show loading indicator
-    document.getElementById('error-message').classList.add('d-none');
-    document.getElementById('loading-indicator').classList.remove('d-none');
-    document.getElementById('initial-instructions').style.display = 'none';
-    
-    // Clear existing data
-    if (typeof dataTable !== 'undefined') {
-        dataTable.clear().draw();
-    }
-    
-    // Get timeframe selection
-    let timeframe = document.querySelector('input[name="timeframe"]:checked').value;
-    console.log('Selected timeframe:', timeframe);
-    
-    // Calculate date range based on selected timeframe
-    let startDate, endDate;
-    
-    // Get today's date
-    let today = new Date();
-    endDate = today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-    
-    if (timeframe === 'custom') {
-        // Use custom date inputs
-        startDate = document.getElementById('start-date').value;
-        endDate = document.getElementById('end-date').value;
-        
-        if (!startDate || !endDate) {
-            document.getElementById('loading-indicator').classList.add('d-none');
-            document.getElementById('error-message').classList.remove('d-none');
-            document.getElementById('error-message').textContent = 'Please select both start and end dates for custom range.';
-            return;
-        }
-    } else {
-        // Calculate based on timeframe selection
-        if (timeframe === '7d') {
-            let sevenDaysAgo = new Date(today);
-            sevenDaysAgo.setDate(today.getDate() - 7);
-            startDate = sevenDaysAgo.toISOString().split('T')[0];
-            console.log(`Setting 7-day filter: ${startDate} to ${endDate}`);
-        } else if (timeframe === '30d') {
-            let thirtyDaysAgo = new Date(today);
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-            startDate = thirtyDaysAgo.toISOString().split('T')[0];
-        } else if (timeframe === '90d') {
-            let ninetyDaysAgo = new Date(today);
-            ninetyDaysAgo.setDate(today.getDate() - 90);
-            startDate = ninetyDaysAgo.toISOString().split('T')[0];
-        } else if (timeframe === 'all') {
-            // Set to a very old date for all time
-            startDate = '2020-01-01';
-        }
-    }
-    
-    console.log(`Fetching conversations from ${startDate} to ${endDate}`);
-    
-    // Add a timeframe indicator if it doesn't exist
-    let timeframeIndicator = document.getElementById('timeframe-indicator');
-    if (!timeframeIndicator) {
-        timeframeIndicator = document.createElement('div');
-        timeframeIndicator.id = 'timeframe-indicator';
-        timeframeIndicator.className = 'alert alert-info mb-3';
-        
-        // Insert before the table
-        const tableResponsive = document.querySelector('.table-responsive');
-        tableResponsive.parentNode.insertBefore(timeframeIndicator, tableResponsive);
-    }
-    
-    // Update the timeframe text
-    const labelMap = {
-        '7d': 'Last 7 days',
-        '30d': 'Last 30 days',
-        '90d': 'Last 90 days',
-        'all': 'All time (since 2020)',
-        'custom': 'Custom date range'
-    };
-    
-    // Update the indicator with formatted dates
-    const formattedStartDate = new Date(startDate).toLocaleDateString();
-    const formattedEndDate = new Date(endDate).toLocaleDateString();
-    timeframeIndicator.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <i class="fas fa-calendar-alt me-2"></i>
-                <strong>${labelMap[timeframe]}:</strong> 
-                <span class="ms-2">${formattedStartDate} to ${formattedEndDate}</span>
-            </div>
-            <div id="result-count" class="small text-muted">
-                Loading...
-            </div>
-        </div>
-    `;
-    
-    // Fetch data with the calculated date range
-    const url = `/api/conversations?start_date=${startDate}&end_date=${endDate}`;
-    fetch(url)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            // Hide loading indicator
-            document.getElementById('loading-indicator').classList.add('d-none');
-            
-            // Process the data
-            console.log('Received data:', data);
-            
-            // Check for various possible response formats
-            let conversations = [];
-            
-            if (data && Array.isArray(data)) {
-                conversations = data;
-            } else if (data && data.conversations && Array.isArray(data.conversations)) {
-                conversations = data.conversations;
-            } else if (data && data.data && Array.isArray(data.data)) {
-                conversations = data.data;
-            }
-            
-            if (conversations.length === 0) {
-                document.getElementById('error-message').classList.remove('d-none');
-                document.getElementById('error-message').textContent = 'No conversations found for the selected date range.';
-                
-                // Update result count in the indicator
-                const resultCountElement = document.getElementById('result-count');
-                if (resultCountElement) {
-                    resultCountElement.textContent = '0 conversations found';
-                }
-                return;
-            }
-            
-            // Sort conversations by start_time in descending order
-            conversations.sort((a, b) => {
-                try {
-                    const dateA = a.start_time ? new Date(a.start_time).getTime() : 0;
-                    const dateB = b.start_time ? new Date(b.start_time).getTime() : 0;
-                    return dateB - dateA; // descending order
-                } catch (e) {
-                    return 0;
-                }
-            });
-            
-            // Format dates for display and ensure correct IDs and duration
-            conversations.forEach(item => {
-                // Make sure conversation_id is properly set for display
-                item.conversation_id = item.conversation_id || item.id;
-                
-                // Ensure duration is set properly
-                if (item.duration === null || item.duration === undefined || item.duration === 0) {
-                    // Try alternative fields that might contain duration
-                    let estimatedDuration = item.call_duration_secs || 0;
-                    
-                    // If still no duration but we have turn count, estimate from message count
-                    if ((estimatedDuration === 0 || estimatedDuration === null) && item.turn_count) {
-                        estimatedDuration = item.turn_count * 6; // Rough estimate: 6 seconds per turn
-                    }
-                    
-                    // If we've found an estimated duration, use it
-                    if (estimatedDuration > 0) {
-                        item.duration = estimatedDuration;
-                    }
-                }
-            });
-            
-            // Add data to table
-            console.log(`Adding ${conversations.length} conversations to table`);
-            dataTable.clear().rows.add(conversations).draw();
-            
-            // Update result count in the indicator
-            const resultCountElement = document.getElementById('result-count');
-            if (resultCountElement) {
-                resultCountElement.textContent = `${conversations.length} conversations found`;
-            }
-            
-            // Always hide the initial instructions after search
-            $('#initial-instructions').hide();
-        })
-        .catch(error => {
-            console.error('Error fetching conversations:', error);
-            document.getElementById('loading-indicator').classList.add('d-none');
-            document.getElementById('error-message').classList.remove('d-none');
-            document.getElementById('error-message').innerHTML = `
-                <div class="alert alert-danger">
-                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Connection Error</h5>
-                    <p>${error.message || 'An error occurred while connecting to the server'}</p>
-                    <button type="button" class="btn btn-outline-danger mt-2" onclick="handleDateSearch()">
-                        <i class="fas fa-sync-alt me-2"></i>Try Again
-                    </button>
-                </div>
-            `;
-        });
-}
+<!-- REMOVE THE INLINE SCRIPT BLOCK THAT DEFINED handleDateSearch -->
+<!-- and the DOMContentLoaded listener that called it -->
 
-// Add event handlers when document is ready
-document.addEventListener('DOMContentLoaded', function() {
-    // Set up timeframe selector to show/hide custom date range and auto-search
-    document.querySelectorAll('input[name="timeframe"]').forEach(input => {
-        input.addEventListener('change', function() {
-            const customRangeContainer = document.getElementById('custom-range-container');
-            if (this.value === 'custom') {
-                customRangeContainer.style.display = 'block';
-                // Don't auto-search for custom - wait for button click
-            } else {
-                customRangeContainer.style.display = 'none';
-                // Auto-search when a non-custom timeframe is selected
-                handleDateSearch();
-            }
-        });
-    });
-    
-    // Initialize DataTable if not already initialized
-    if (!dataTable) {
-        initializeDataTable();
-    }
-    
-    // Automatically trigger a search with the default timeframe on page load
-    setTimeout(() => {
-        // Make sure timeframe-7d is checked (default)
-        document.getElementById('timeframe-7d').checked = true;
-        
-        // Trigger the search
-        handleDateSearch();
-    }, 100);
-});
-
-// Function to initialize the DataTable
-function initializeDataTable() {
-    dataTable = $('#conversations-table').DataTable({
-        columns: [
-            { 
-                data: 'start_time', 
-                type: 'date',
-                render: function(data, type, row) {
-                    // For ordering, return a timestamp number
-                    if (type === 'sort') {
-                        try {
-                            return new Date(data).getTime();
-                        } catch (e) {
-                            return 0;
-                        }
-                    }
-                    // For display, use formatted date
-                    return data ? formatDateForDisplay(data) : 'Unknown';
-                }
-            },
-            { 
-                data: 'end_time', 
-                type: 'date',
-                render: function(data, type, row) {
-                    // For ordering, return a timestamp number
-                    if (type === 'sort') {
-                        try {
-                            return new Date(data).getTime();
-                        } catch (e) {
-                            return 0;
-                        }
-                    }
-                    // For display, use formatted date
-                    return data ? formatDateForDisplay(data) : 'Unknown';
-                }
-            },
-            { 
-                data: 'duration', 
-                render: function(data, type, row) {
-                    // Handle missing duration data by checking multiple possible sources
-                    let duration = data;
-                    if (duration === null || duration === undefined || duration === 0) {
-                        // Try alternative fields that might contain duration
-                        duration = row.call_duration_secs || 0;
-                        
-                        // If still no duration but we have transcript, estimate from message count
-                        if ((duration === 0 || duration === null) && row.turn_count) {
-                            duration = row.turn_count * 6; // Rough estimate: 6 seconds per turn
-                        }
-                    }
-                    if (duration === 0 || duration === null || duration === undefined) return '-';
-                    return formatDuration(duration);
-                }
-            },
-            { data: 'turn_count' },
-            { 
-                data: 'status', 
-                render: function(data) {
-                    const statusClass = data === 'done' ? 'bg-success' : 'bg-secondary';
-                    return `<span class="badge ${statusClass}">${data}</span>`;
-                }
-            },
-            { data: 'conversation_id' },
-            {
-                data: null,
-                orderable: false,
-                render: function(data) {
-                    return `
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button type="button" class="btn btn-primary view-conversation" data-id="${data.conversation_id}">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button type="button" class="btn btn-info analyze-conversation" data-id="${data.conversation_id}">
-                                <i class="fas fa-chart-bar"></i>
-                            </button>
-                        </div>`;
-                }
-            }
-        ],
-        order: [[0, 'desc']], // Initial sort by start time descending
-        orderCellsTop: true,
-        pageLength: 25, // Show 25 records per page by default
-        lengthMenu: [10, 25, 50, 100],
-        language: {
-            emptyTable: "No conversations found"
-        }
-    });
-    
-    // Handle conversation view button
-    $('#conversations-table').on('click', '.view-conversation', function() {
-        const conversationId = $(this).data('id');
-        viewConversation(conversationId, null);
-    });
-    
-    // Handle conversation analyze button
-    $('#conversations-table').on('click', '.analyze-conversation', function() {
-        const conversationId = $(this).data('id');
-        window.location.href = `/analysis?conversation_id=${conversationId}`;
-    });
-}
-
-// Helper function to format date for display
-function formatDateForDisplay(dateStr) {
-    if (!dateStr) return 'Unknown';
-    try {
-        const date = new Date(dateStr);
-        return date.toLocaleString();
-    } catch (e) {
-        return dateStr;
-    }
-}
-
-// Helper function to format duration
-function formatDuration(seconds) {
-    if (seconds === 'Unknown') return 'Unknown';
-    
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-// Function to view conversation details 
-function viewConversation(conversationId, quote) {
-    console.log("Viewing conversation:", conversationId, "Quote:", quote);
-    
-    // Call loadConversationById to load the conversation details
-    loadConversationById(conversationId, quote, function() {
-        // After loading, show the modal
-        const modal = new bootstrap.Modal(document.getElementById('conversationModal'));
-        modal.show();
-    });
-}
-
-// Function to load conversation by ID
-function loadConversationById(conversationId, quote, callback) {
-    // Show loading indicator
-    document.getElementById('loading-indicator').classList.remove('d-none');
-    document.getElementById('error-message').classList.add('d-none');
-    
-    console.log("Loading conversation by ID:", conversationId, "Quote:", quote);
-    
-    // Fetch data for the specific conversation ID
-    fetch(`/api/conversations/${conversationId}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            document.getElementById('loading-indicator').classList.add('d-none');
-            console.log("Conversation data received:", data);
-            
-            // Show conversation details
-            createTranscriptContent(data, quote);
-            
-            // Call the callback if provided
-            if (typeof callback === 'function') {
-                callback();
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching conversation:', error);
-            document.getElementById('loading-indicator').classList.add('d-none');
-            document.getElementById('error-message').classList.remove('d-none');
-            
-            // Create retry button with proper quote handling
-            let retryButtonHtml;
-            if (typeof quote !== 'undefined' && quote !== null) {
-                // If quote exists, include it in the retry function
-                retryButtonHtml = `
-                    <button type="button" class="btn btn-outline-danger mt-2" onclick="loadConversationById('${conversationId}', '${quote}')">
-                        <i class="fas fa-sync-alt me-2"></i>Try Again
-                    </button>
-                `;
-            } else {
-                // If no quote, don't include it
-                retryButtonHtml = `
-                    <button type="button" class="btn btn-outline-danger mt-2" onclick="loadConversationById('${conversationId}', null)">
-                        <i class="fas fa-sync-alt me-2"></i>Try Again
-                    </button>
-                `;
-            }
-            
-            document.getElementById('error-message').innerHTML = `
-                <div class="alert alert-danger">
-                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
-                    <p>Could not fetch conversation details: ${error.message}</p>
-                    ${retryButtonHtml}
-                </div>
-            `;
-            
-            // Call the callback if provided
-            if (typeof callback === 'function') {
-                callback();
-            }
-        });
-}
-
-// Create transcript for the conversation modal
-function createTranscriptContent(data, quote = null) {
-    // OVERVIEW TAB - Display basic info
-    const overviewContent = document.getElementById('overview-content');
-    const startTime = data.start_time ? new Date(data.start_time).toLocaleString() : 'Unknown';
-    const endTime = data.end_time ? new Date(data.end_time).toLocaleString() : 'Unknown';
-    const duration = data.duration || 0;
-    const cost = data.cost !== undefined ? Math.round(data.cost) : 'N/A';
-    
-    overviewContent.innerHTML = `
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-comment-alt me-2"></i>Conversation Details
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Conversation ID:</strong> ${data.conversation_id || data.id}</p>
-                        <p><strong>Status:</strong> <span class="badge ${data.status === 'done' ? 'bg-success' : 'bg-secondary'}">${data.status || 'Unknown'}</span></p>
-                        <p><strong>Cost (credits):</strong> ${cost}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Start Time:</strong> ${startTime}</p>
-                        <p><strong>End Time:</strong> ${endTime}</p>
-                        <p><strong>Duration:</strong> ${formatDuration(duration)}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // If we have summary data, add it to the overview tab
-    if (data.summary) {
-        overviewContent.innerHTML += `
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-file-alt me-2"></i>Summary
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p>${data.summary}</p>
-                </div>
-            </div>
-        `;
-    }
-    
-    // TRANSCRIPTION TAB - Modern message bubble implementation
-    const transcriptionContent = document.getElementById('transcription-content');
-    
-    // Create a container with the modern styling
-    let transcriptHtml = `
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-comments me-2"></i>Transcript
-                </h5>
-            </div>
-            <div class="card-body p-3">
-                <div id="transcript-display" style="max-height: 60vh; overflow-y: auto; border-radius: 6px;">
-                </div>
-            </div>
-        </div>
-    `;
-    
-    transcriptionContent.innerHTML = transcriptHtml;
-    
-    // Create and append transcript messages using the same approach as themes_sentiment
-    const transcriptDisplay = document.getElementById('transcript-display');
-    
-    if (data.transcript && data.transcript.length > 0) {
-        data.transcript.forEach((message, index) => {
-            const messageDiv = document.createElement('div');
-            const isAgent = message.is_agent || message.speaker === 'Lily' || message.speaker === 'Agent';
-            const speaker = message.speaker || (isAgent ? 'Lily' : 'Curious Caller');
-            
-            messageDiv.className = `message mb-3 ${isAgent ? 'message-agent' : 'message-user'}`;
-            
-            // Format timestamp
-            let timeDisplay = '';
-            if (message.timestamp) {
-                const messageTime = new Date(message.timestamp);
-                if (!isNaN(messageTime.getTime())) {
-                    timeDisplay = messageTime.toLocaleTimeString();
-                } else {
-                    timeDisplay = `Turn ${index + 1}`;
-                }
-            } else {
-                timeDisplay = `Turn ${index + 1}`;
-            }
-            
-            // Check if this message contains the quote we're looking for
-            let messageText = message.text || '';
-            let messageClass = '';
-            
-            if (quote && messageText.includes(quote)) {
-                // This is the message with our quote, highlight it
-                messageClass = 'highlighted-message';
-                // Wrap the quote in a highlight span
-                const safeQuote = quote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape regex special chars
-                const regex = new RegExp(`(${safeQuote})`, 'gi');
-                messageText = messageText.replace(regex, '<span class="highlighted-text">$1</span>');
-            }
-            
-            messageDiv.innerHTML = `
-                <div class="d-flex">
-                    <div class="message-avatar">
-                        ${isAgent ? '<i class="fas fa-gem"></i>' : '<i class="fas fa-user"></i>'}
-                    </div>
-                    <div class="message-content ${messageClass}">
-                        <div class="message-header d-flex justify-content-between">
-                            <span class="message-sender">${isAgent ? 'Lily' : 'Curious Caller'}</span>
-                            <span class="message-time text-muted small">${timeDisplay}</span>
-                        </div>
-                        <div class="message-text">${messageText}</div>
-                    </div>
-                </div>
-            `;
-            
-            transcriptDisplay.appendChild(messageDiv);
-        });
-    } else {
-        transcriptDisplay.innerHTML = `<div class="alert alert-warning">No messages in this transcript.</div>`;
-    }
-    
-    // CLIENT DATA TAB
-    let clientDataHtml = `
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-user me-2"></i>Client Information
-                </h5>
-            </div>
-            <div class="card-body">
-    `;
-    
-    if (data.client_data) {
-        const clientData = data.client_data;
-        clientDataHtml += `
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong>Name:</strong> ${clientData.name || 'Not provided'}</p>
-                    <p><strong>Email:</strong> ${clientData.email || 'Not provided'}</p>
-                    <p><strong>Phone:</strong> ${clientData.phone || 'Not provided'}</p>
-                </div>
-                <div class="col-md-6">
-                    <p><strong>Location:</strong> ${clientData.location || 'Not provided'}</p>
-                    <p><strong>Account ID:</strong> ${clientData.account_id || 'Not provided'}</p>
-                    <p><strong>Customer Since:</strong> ${clientData.customer_since || 'Not provided'}</p>
-                </div>
-            </div>
-        `;
-    } else {
-        clientDataHtml += `
-            <div class="alert alert-info">No client data available for this conversation.</div>
-        `;
-    }
-    
-    clientDataHtml += `
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('client-data-content').innerHTML = clientDataHtml;
-    
-    // If there's a quoted text to highlight, scroll to it
-    if (quote) {
-        setTimeout(() => {
-            const highlightedElement = document.querySelector('.highlighted-message');
-            if (highlightedElement) {
-                highlightedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 100);
-    }
-}
-
-// Helper function to get sentiment class for badges
-function getSentimentClass(sentiment) {
-    const sentimentLower = (sentiment || '').toLowerCase();
-    if (sentimentLower.includes('positive')) return 'bg-success';
-    if (sentimentLower.includes('negative')) return 'bg-danger';
-    if (sentimentLower.includes('neutral')) return 'bg-secondary';
-    if (sentimentLower.includes('mixed')) return 'bg-warning';
-    return 'bg-secondary';
-}
-
-// Helper function to get sentiment icon
-function getSentimentIcon(sentiment) {
-    const sentimentLower = (sentiment || '').toLowerCase();
-    if (sentimentLower.includes('positive')) return '<i class="fas fa-smile"></i>';
-    if (sentimentLower.includes('negative')) return '<i class="fas fa-frown"></i>';
-    if (sentimentLower.includes('neutral')) return '<i class="fas fa-meh"></i>';
-    if (sentimentLower.includes('mixed')) return '<i class="fas fa-balance-scale"></i>';
-    return '<i class="fas fa-question-circle"></i>';
-}
-</script>
 {% endblock %} 

@@ -1,7 +1,0 @@
-# Core Project Requirements - NO SAMPLE DATA
-1. NEVER include sample, mock, or demo data generation in the codebase
-2. Always use real data from API endpoints or proper fallbacks
-3. Handle missing data with appropriate empty states, not generated data
-4. Show informative error messages rather than placeholder data
-5. Ensure all visualizations show empty states for missing data
-6. Display actual API counts - do not fabricate statistics

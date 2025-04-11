@@ -2,6 +2,43 @@
 
 {% block title %}Dashboard - Psychic Source Analyzer{% endblock %}
 
+{% block head %}
+{{ super() }}
+<!-- Emergency error checking script - run immediately -->
+<script>
+    console.log('🔍 Loading dashboard page - immediate check');
+    window.dashboardErrors = [];
+    window.addEventListener('error', function(e) {
+        console.error('Dashboard error:', e.error);
+        window.dashboardErrors.push({
+            message: e.error?.message || 'Unknown error',
+            time: new Date().toISOString()
+        });
+        
+        // Create a minimal error display for catastrophic errors
+        setTimeout(function() {
+            if (document.body && document.body.innerHTML === '') {
+                document.body.innerHTML = `
+                    <div style="padding: 20px; font-family: Arial, sans-serif;">
+                        <h1>Dashboard Error</h1>
+                        <p>The application encountered an error while loading. Please try the following:</p>
+                        <ul>
+                            <li>Refresh the page (Ctrl+F5 or Cmd+Shift+R for hard refresh)</li>
+                            <li>Try accessing the <a href="/themes-sentiment">Themes page</a> directly</li>
+                            <li>Check the <a href="/debug-info">debug information</a></li>
+                        </ul>
+                        <div style="margin-top: 20px; padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">
+                            <strong>Error details:</strong>
+                            <pre>${JSON.stringify(window.dashboardErrors, null, 2)}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        }, 1000);  // Small delay to ensure this only runs if page is catastrophically broken
+    });
+</script>
+{% endblock %}
+
 {% block styles %}
 <style>
     /* Button pulse effect for feedback */
@@ -57,228 +94,188 @@
     #most-active-time {
         font-size: 1.8rem;
     }
+    
+    /* Constrain chart container height */
+    .chart-container {
+        position: relative; /* Required by Chart.js for responsive */
+        height: 280px; /* Adjust as needed */
+        max-height: 300px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="card shadow-sm border-0" style="background: linear-gradient(120deg, #4b6cb7, #182848); color: white;">
-            <div class="card-body py-3">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0 me-3">
-                        <div class="rounded-circle bg-white d-flex align-items-center justify-content-center text-primary" style="width: 52px; height: 52px;">
-                            <i class="fas fa-robot fa-lg"></i>
+{# Add the ID here for dashboard.js to find #}
+<div class="container-fluid py-4" id="dashboard-main-container">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1>Dashboard</h1>
+            <p class="text-muted">Overview of conversation analytics</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div id="date-range-selector" class="btn-group date-filter" role="group" aria-label="Date range options">
+                <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="last_7_days">7 Days</button>
+                <button type="button" class="btn btn-outline-primary date-range-btn active" data-timeframe="last_30_days">30 Days</button>
+                <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="last_90_days">90 Days</button>
+                <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="all_time">All</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title d-flex align-items-center">
+                        API Status <span class="status-indicator ms-2" id="statusIndicator"></span>
+                    </h5>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">Database Connection:</span>
+                                <span class="badge bg-secondary" id="databaseStatus">Unknown</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h4 class="mb-0 fw-bold">Hello team, Lily here with my Curious Caller Performance Report.</h4>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">ElevenLabs API:</span>
+                                <span class="badge bg-secondary" id="elevenlabsStatus">Unknown</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">Analysis Service:</span>
+                                <span class="badge bg-secondary" id="analysisStatus">Unknown</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2">Supabase:</span>
+                                <span class="badge bg-secondary" id="supabaseStatus">Unknown</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Add improved count indicators at the top -->
-<div class="count-indicators mb-4">
+    
+    {# Row for Key Performance Indicators (KPIs) #}
+    <div class="row stats-container">
+        <!-- Conversations KPI Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 border-light">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-chat-dots text-primary"></i>
+                        </div>
+                        <h5 class="card-title mb-0">Conversations</h5>
+                    </div>
+                    {# Corrected ID to match JS: total-conversations #}
+                    <h2 id="total-conversations" class="card-text mt-auto mb-1">--</h2> 
+                    <p class="text-muted small">In selected period</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Average Duration KPI Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 border-light">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-clock-history text-success"></i>
+                        </div>
+                        <h5 class="card-title mb-0">Avg Duration</h5>
+                    </div>
+                    {# Corrected ID to match JS: average-duration #}
+                    <h2 id="average-duration" class="card-text mt-auto mb-1">--:--</h2>
+                    <p class="text-muted small">Per conversation</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Average Cost KPI Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 border-light">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-coin text-warning"></i>
+                        </div>
+                        <h5 class="card-title mb-0">Avg Cost</h5>
+                    </div>
+                     {# Corrected ID to match JS: average-cost #}
+                    <h2 id="average-cost" class="card-text mt-auto mb-1">--</h2>
+                    <p class="text-muted small">Credits per conversation</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Peak Time KPI Card -->
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 border-light">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-secondary bg-opacity-10 p-3 me-3">
+                            <i class="bi bi-hourglass-split text-secondary"></i>
+                        </div>
+                        <h5 class="card-title mb-0">Peak Time</h5>
+                    </div>
+                    {# ID matches JS: peak-time #}
+                    <h2 id="peak-time" class="card-text mt-auto mb-1">--:--</h2> 
+                    <p class="text-muted small">Most active hour</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {# Row for Hourly and Weekday Bar Charts #}
     <div class="row">
-        <div class="col-md-6 mb-3 mb-md-0">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body d-flex align-items-center p-4">
-                    <div class="stats-icon bg-primary text-white rounded-circle p-3 me-4 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
-                        <i class="fas fa-phone-alt fa-2x"></i>
-                    </div>
-                    <div>
-                        <h6 class="text-muted mb-1">Calls in Selected Period</h6>
-                        <h1 class="display-5 fw-bold mb-0" id="total-conversations">-</h1>
-                    </div>
+        <!-- Hourly Activity Chart Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card border-light h-100">
+                <div class="card-header bg-transparent">Activity by Hour of Day</div>
+                <div class="card-body chart-container">
+                    <canvas id="hourlyActivityChart"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body d-flex align-items-center p-4">
-                    <div class="stats-icon bg-info text-white rounded-circle p-3 me-4 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
-                        <i class="fas fa-database fa-2x"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h6 class="text-muted mb-1">Total Conversations in Database</h6>
-                        <div class="d-flex align-items-center">
-                            <h1 class="display-5 fw-bold mb-0" id="total-conversations-count">...</h1>
-                            <button id="refresh-total" class="btn btn-sm btn-primary rounded-circle ms-3" title="Refresh count" style="width: 36px; height: 36px;">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-chart-line me-2"></i>Recent Activity
-                </h5>
-                <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-light time-selector" data-timeframe="last_7_days">7 Days</button>
-                    <button type="button" class="btn btn-warning time-selector active" data-timeframe="last_30_days">30 Days</button>
-                    <button type="button" class="btn btn-outline-light time-selector" data-timeframe="last_90_days">90 Days</button>
-                    <button type="button" class="btn btn-outline-light time-selector" data-timeframe="all_time">All Time</button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div id="recent-activity-chart" style="height: 250px;">
-                    <canvas id="conversationsChart"></canvas>
+        
+        <!-- Weekday Activity Chart Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card border-light h-100">
+                <div class="card-header bg-transparent">Activity by Day of Week</div>
+                <div class="card-body chart-container">
+                    <canvas id="weekdayActivityChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-tasks me-2"></i>Quick Actions
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    <a href="{{ url_for('main.data_selection') }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-database me-2"></i>Browse Conversation Data
-                    </a>
-                    <a href="{{ url_for('main.themes_sentiment_page') }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-search me-2"></i>Analyze Conversations
-                    </a>
-                    <a href="{{ url_for('main.visualization_page') }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-chart-pie me-2"></i>Visualize Insights
-                    </a>
-                    <a href="#" class="list-group-item list-group-item-action disabled text-muted" data-bs-toggle="tooltip" title="Coming Soon">
-                        <i class="fas fa-file-export me-2"></i>Export Recent Data
-                    </a>
+    {# Row for Volume and Duration Line Charts #}
+    <div class="row">
+        <!-- Call Volume Trend Chart Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    Call Volume Trends
+                </div>
+                <div class="card-body chart-container">
+                    <canvas id="callVolumeChart"></canvas>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-info text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-hourglass-half me-2"></i>Average Duration
-                </h5>
-            </div>
-            <div class="card-body text-center">
-                <h3 id="avg-duration">-</h3>
-                <p class="text-muted">Per conversation</p>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-check-circle me-2"></i>Completion Rate
-                </h5>
-            </div>
-            <div class="card-body text-center">
-                <h3 id="completion-rate">-</h3>
-                <p class="text-muted">Successful conversations</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-success text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-comments me-2"></i>Most Active Time
-                </h5>
-            </div>
-            <div class="card-body text-center">
-                <h3 id="most-active-time">-</h3>
-                <p class="text-muted">Peak conversation hour</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-clock me-2"></i>Time of Day Distribution
-                </h5>
-            </div>
-            <div class="card-body">
-                <div style="height: 250px;">
-                    <canvas id="hourlyChart"></canvas>
+        
+        <!-- Call Duration Trend Chart Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    Call Duration Trends
                 </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-calendar-alt me-2"></i>Day of Week Distribution
-                </h5>
-            </div>
-            <div class="card-body">
-                <div style="height: 250px;">
-                    <canvas id="weekdayChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-info-circle me-2"></i>Getting Started
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-body text-center">
-                                <i class="fas fa-search fa-3x mb-3 text-primary"></i>
-                                <h5>Select Data</h5>
-                                <p class="card-text">Choose date ranges and filter conversation data.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-body text-center">
-                                <i class="fas fa-chart-bar fa-3x mb-3 text-primary"></i>
-                                <h5>Analyze</h5>
-                                <p class="card-text">Perform sentiment analysis and extract key topics.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-body text-center">
-                                <i class="fas fa-file-download fa-3x mb-3 text-primary"></i>
-                                <h5>Export</h5>
-                                <p class="card-text">Download your data in JSON, CSV, or Markdown format.</p>
-                            </div>
-                        </div>
-                    </div>
+                <div class="card-body chart-container">
+                    <canvas id="callDurationChart"></canvas>
                 </div>
             </div>
         </div>
@@ -300,634 +297,94 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
+<!-- Load dashboard-specific JavaScript -->
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
+<!-- Existing inline script for API status -->
 <script>
-    let activeCharts = {};
-    
-    function loadDashboardData(timeframe) {
-        // Show loading state
-        document.getElementById('total-conversations').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        document.getElementById('avg-duration').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        document.getElementById('completion-rate').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        document.getElementById('most-active-time').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        
-        // Add loading indicators to charts too
-        document.getElementById('recent-activity-chart').innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><i class="fas fa-spinner fa-spin me-2"></i> Loading...</div>';
-        
-        console.log('Loading dashboard data for timeframe:', timeframe);
-        
-        // Add timeframe indicator to UI
-        const timeframeTitles = {
-            'last_7_days': '7 Day View',
-            'last_30_days': '30 Day View',
-            'last_90_days': '90 Day View',
-            'all_time': 'All Time View'
-        };
-        
-        const activeTimeframeTitle = timeframeTitles[timeframe] || '30 Day View';
-        
-        // Add or update timeframe indicator
-        let timeframeIndicator = document.getElementById('timeframe-indicator');
-        if (!timeframeIndicator) {
-            // Create indicator if it doesn't exist
-            timeframeIndicator = document.createElement('div');
-            timeframeIndicator.id = 'timeframe-indicator';
-            timeframeIndicator.className = 'alert alert-info py-1 mt-2 mb-3 text-center';
-            timeframeIndicator.style.fontSize = '0.9rem';
-            
-            // Insert after the first row
-            const firstRow = document.querySelector('.row');
-            firstRow.parentNode.insertBefore(timeframeIndicator, firstRow.nextSibling);
-        }
-        
-        timeframeIndicator.innerHTML = `<strong><i class="fas fa-calendar-alt me-1"></i> ${activeTimeframeTitle}</strong> - Showing data from ${getTimeframeDescription(timeframe)}`;
-        
-        // Build URL with explicit timeframe parameter - use lowercase for consistency
-        const url = `/api/dashboard/stats?timeframe=${encodeURIComponent(timeframe.toLowerCase())}`;
-        console.log('Fetching from URL:', url);
-        logDebug(`Fetching dashboard data from: ${url}`);
-        
-        // Fetch data with error handling, using no-cache to force fresh data
-        fetch(url, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        })
+function updateAPIStatus() {
+    fetch('/api/status')
         .then(response => {
             if (!response.ok) {
-                console.error(`HTTP error ${response.status}`);
-                throw new Error(`HTTP error ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Received dashboard data:', data);
-            logDebug(`Received ${data.total_conversations} conversations for timeframe ${timeframe}`);
-            
-            // Restore card opacity
-            document.querySelectorAll('.card-body').forEach(card => {
-                card.style.opacity = '1';
-            });
-            
-            // Check if there's an error message in the response
-            if (data.error) {
-                console.error('Error in API response:', data.error);
-                document.getElementById('total-conversations').textContent = 'Error';
-                document.getElementById('avg-duration').textContent = 'Error';
-                document.getElementById('completion-rate').textContent = 'Error';
-                document.getElementById('most-active-time').textContent = 'Error';
-                
-                // Show error in chart area
-                document.getElementById('recent-activity-chart').innerHTML = 
-                    `<div class="alert alert-danger mt-3">API Error: ${data.error}</div>`;
-                return;
-            }
-            
-            // Update summary statistics
-            document.getElementById('total-conversations').textContent = data.total_conversations;
-            
-            // Add debug logging of the raw duration value
-            console.log('Raw avg_duration value from API:', data.avg_duration);
-            console.log('Type of avg_duration:', typeof data.avg_duration);
-            logDebug(`Raw avg_duration from API: ${data.avg_duration} (type: ${typeof data.avg_duration})`);
-            
-            // Format the duration nicely
-            const formattedDuration = formatDuration(data.avg_duration);
-            document.getElementById('avg-duration').textContent = formattedDuration;
-            
-            // Set completion rate percentage
-            document.getElementById('completion-rate').textContent = `${data.completion_rate}%`;
-            
-            // Find and display most active hour
-            const mostActiveHour = findMostActiveHour(data.hour_distribution);
-            if (mostActiveHour) {
-                document.getElementById('most-active-time').textContent = mostActiveHour;
+            // Update Database status
+            const databaseStatus = document.getElementById('databaseStatus');
+            if (data.database.status === 'connected') {
+                databaseStatus.textContent = 'Connected';
+                databaseStatus.className = 'badge bg-success';
             } else {
-                document.getElementById('most-active-time').textContent = 'N/A';
+                databaseStatus.textContent = 'Disconnected';
+                databaseStatus.className = 'badge bg-danger';
             }
             
-            // Update charts
-            document.getElementById('recent-activity-chart').innerHTML = '<canvas id="conversationsChart"></canvas>';
+            // Update ElevenLabs status
+            const elevenlabsStatus = document.getElementById('elevenlabsStatus');
+            if (data.elevenlabs.status === 'connected') {
+                elevenlabsStatus.textContent = 'Connected';
+                elevenlabsStatus.className = 'badge bg-success';
+            } else {
+                elevenlabsStatus.textContent = 'Disconnected';
+                elevenlabsStatus.className = 'badge bg-danger';
+            }
             
-            // Reset canvas for other charts
-            document.getElementById('hourlyChart')?.getContext('2d')?.clearRect(0, 0, 
-                document.getElementById('hourlyChart')?.width || 0, 
-                document.getElementById('hourlyChart')?.height || 0);
-            document.getElementById('weekdayChart')?.getContext('2d')?.clearRect(0, 0, 
-                document.getElementById('weekdayChart')?.width || 0, 
-                document.getElementById('weekdayChart')?.height || 0);
+            // Update Analysis Service status
+            const analysisStatus = document.getElementById('analysisStatus');
+            if (data.analysis.status === 'available') {
+                analysisStatus.textContent = 'Available';
+                analysisStatus.className = 'badge bg-success';
+            } else if (data.analysis.status === 'limited') {
+                analysisStatus.textContent = 'Limited';
+                analysisStatus.className = 'badge bg-warning';
+            } else {
+                analysisStatus.textContent = 'Unavailable';
+                analysisStatus.className = 'badge bg-danger';
+            }
             
-            updateRecentActivityChart(data.daily_counts || {});
+            // Update Supabase status
+            const supabaseStatus = document.getElementById('supabaseStatus');
+            if (data.supabase.status === 'connected') {
+                supabaseStatus.textContent = 'Connected';
+                supabaseStatus.className = 'badge bg-success';
+            } else if (data.supabase.status === 'limited') {
+                supabaseStatus.textContent = 'Limited';
+                supabaseStatus.className = 'badge bg-warning';
+            } else {
+                supabaseStatus.textContent = 'Disconnected';
+                supabaseStatus.className = 'badge bg-danger';
+            }
             
-            // Check if we have hourly and weekday charts to update
-            if (document.getElementById('hourlyChart') && document.getElementById('weekdayChart')) {
-                updateHourlyDistributionChart(data.hour_distribution || {});
-                updateWeekdayDistributionChart(data.weekday_distribution || {});
+            // Update overall status indicator
+            const statusIndicator = document.getElementById('statusIndicator');
+            if (data.database.status === 'connected' || data.supabase.status === 'connected') {
+                statusIndicator.innerHTML = '🟢';
+            } else {
+                statusIndicator.innerHTML = '🔴';
             }
         })
         .catch(error => {
-            console.error('Error loading dashboard data:', error);
-            document.getElementById('total-conversations').textContent = 'Error';
-            document.getElementById('avg-duration').textContent = 'Error';
-            document.getElementById('completion-rate').textContent = 'Error';
-            document.getElementById('most-active-time').textContent = 'Error';
-            
-            // Restore card opacity
-            document.querySelectorAll('.card-body').forEach(card => {
-                card.style.opacity = '1';
-            });
-            
-            // Show error in chart area
-            document.getElementById('recent-activity-chart').innerHTML = 
-                `<div class="alert alert-danger mt-3">Error loading data: ${error.message}</div>`;
+            console.error('Error fetching API status:', error);
+            document.getElementById('databaseStatus').textContent = 'Error';
+            document.getElementById('databaseStatus').className = 'badge bg-danger';
+            document.getElementById('elevenlabsStatus').textContent = 'Error';
+            document.getElementById('elevenlabsStatus').className = 'badge bg-danger';
+            document.getElementById('analysisStatus').textContent = 'Error';
+            document.getElementById('analysisStatus').className = 'badge bg-danger';
+            document.getElementById('supabaseStatus').textContent = 'Error';
+            document.getElementById('supabaseStatus').className = 'badge bg-danger';
+            document.getElementById('statusIndicator').innerHTML = '🔴';
         });
-    }
-    
-    function updateRecentActivityChart(dailyData) {
-        // Convert daily data into labels and values arrays for chart
-        const dates = Object.keys(dailyData).sort();
-        const counts = dates.map(date => dailyData[date]);
-        
-        console.log('Updating recent activity chart with dates:', dates);
-        console.log('and counts:', counts);
-        
-        // Check if we have data
-        if (dates.length === 0) {
-            console.warn('No dates available for chart');
-            // Display a message in the chart area
-            document.getElementById('recent-activity-chart').innerHTML = 
-                '<div class="alert alert-warning mt-3">No data available for the selected date range.</div>';
-            return;
-        }
-        
-        // Check for empty data (all zeros)
-        const allZeros = counts.every(count => count === 0);
-        if (allZeros) {
-            console.warn('All zero counts in data');
-            document.getElementById('recent-activity-chart').innerHTML = 
-                '<div class="alert alert-info mt-3">No conversations recorded in the selected date range.</div>';
-            return;
-        }
-        
-        // Format dates to be more readable
-        const labels = dates.map(date => {
-            const d = new Date(date);
-            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        });
-        
-        // Destroy existing chart if it exists
-        if (activeCharts.conversationsChart) {
-            activeCharts.conversationsChart.destroy();
-        }
-        
-        // Create the chart
-        const ctx = document.getElementById('conversationsChart').getContext('2d');
-        activeCharts.conversationsChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Conversations',
-                    data: counts,
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 2,
-                    tension: 0.3,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            autoSkip: dates.length > 7,
-                            maxRotation: 45,
-                            minRotation: 45
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            title: function(context) {
-                                return dates[context[0].dataIndex];
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    function updateHourlyDistributionChart(hourData) {
-        // Create 24 hour labels and data array
-        const hours = Array.from({length: 24}, (_, i) => i);
-        const labels = hours.map(hour => `${hour}:00`);
-        const counts = hours.map(hour => hourData[hour] || hourData[hour.toString()] || 0);
-        
-        console.log('Updating hourly chart with data:', hourData);
-        console.log('Hours array:', hours);
-        console.log('Counts array:', counts);
-        
-        // Destroy existing chart if it exists
-        if (activeCharts.hourlyChart) {
-            activeCharts.hourlyChart.destroy();
-        }
-        
-        // Find peak hours (for highlighting)
-        const maxCount = Math.max(...counts);
-        const backgroundColor = counts.map(count => {
-            const ratio = count / (maxCount || 1);  // Avoid division by zero
-            return `rgba(54, 162, 235, ${Math.max(0.2, ratio)})`;
-        });
-        
-        // Create the chart
-        const ctx = document.getElementById('hourlyChart').getContext('2d');
-        activeCharts.hourlyChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Conversations',
-                    data: counts,
-                    backgroundColor: backgroundColor,
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-    
-    function updateWeekdayDistributionChart(weekdayData) {
-        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const counts = dayNames.map(day => weekdayData[day] || 0);
-        
-        // Destroy existing chart if it exists
-        if (activeCharts.weekdayChart) {
-            activeCharts.weekdayChart.destroy();
-        }
-        
-        // Find busiest days (for highlighting)
-        const maxCount = Math.max(...counts);
-        const backgroundColor = counts.map(count => {
-            const ratio = count / maxCount;
-            return `rgba(75, 192, 192, ${Math.max(0.2, ratio)})`;
-        });
-        
-        // Create the chart
-        const ctx = document.getElementById('weekdayChart').getContext('2d');
-        activeCharts.weekdayChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: dayNames,
-                datasets: [{
-                    label: 'Conversations',
-                    data: counts,
-                    backgroundColor: backgroundColor,
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    }
-    
-    // Helper function to format duration in a user-friendly way
-    function formatDuration(seconds) {
-        // Handle null, undefined, NaN, strings, or invalid values
-        if (seconds === null || seconds === undefined) {
-            return "No data";
-        }
-        
-        // Convert to number if it's a string
-        if (typeof seconds === 'string') {
-            seconds = parseFloat(seconds);
-        }
-        
-        // Handle non-numeric values or NaN
-        if (isNaN(seconds) || typeof seconds !== 'number') {
-            console.warn(`Invalid duration value: ${seconds}, type: ${typeof seconds}`);
-            return "No data";
-        }
-        
-        // Handle zero values
-        if (seconds <= 0) {
-            console.warn(`Zero or negative duration value: ${seconds}`);
-            return "No duration data";
-        }
-        
-        // Format time logically
-        if (seconds < 60) {
-            return `${Math.round(seconds)}s`;
-        } else {
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = Math.round(seconds % 60);
-            
-            // Format with zero-padding for seconds
-            return `${minutes}m ${remainingSeconds.toString().padStart(2, '0')}s`;
-        }
-    }
-    
-    // Helper function to get readable date range for timeframe
-    function getTimeframeDescription(timeframe) {
-        const today = new Date();
-        const endDate = today.toLocaleDateString();
-        
-        switch(timeframe) {
-            case 'last_7_days':
-                const sevenDaysAgo = new Date(today);
-                sevenDaysAgo.setDate(today.getDate() - 7);
-                return `${sevenDaysAgo.toLocaleDateString()} to ${endDate}`;
-                
-            case 'last_90_days':
-                const ninetyDaysAgo = new Date(today);
-                ninetyDaysAgo.setDate(today.getDate() - 90);
-                return `${ninetyDaysAgo.toLocaleDateString()} to ${endDate}`;
-                
-            case 'last_30_days':
-            default:
-                const thirtyDaysAgo = new Date(today);
-                thirtyDaysAgo.setDate(today.getDate() - 30);
-                return `${thirtyDaysAgo.toLocaleDateString()} to ${endDate}`;
-        }
-    }
-    
-    // Function to fetch total conversations count
-    function fetchTotalConversations() {
-        const totalElement = document.getElementById('total-conversations-count');
-        const refreshButton = document.getElementById('refresh-total');
-        if (!totalElement) return;
-        
-        totalElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        if (refreshButton) {
-            refreshButton.innerHTML = '<i class="fas fa-sync fa-spin"></i>';
-            refreshButton.disabled = true;
-        }
-        
-        // Add more robust cache-busting parameters - timestamp plus random value
-        const timestamp = new Date().getTime();
-        const randomValue = Math.floor(Math.random() * 1000000);
-        const cacheBuster = `${timestamp}-${randomValue}`;
-        
-        // Force a completely fresh request
-        fetch(`/api/total_conversations?_=${cacheBuster}`, {
-            method: 'GET',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-                'X-Cache-Bust': timestamp.toString() // Add another cache-busting header
-            },
-            // Add cache: 'no-store' to force fresh network request
-            cache: 'no-store'
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Total conversations data:', data);
-                totalElement.textContent = data.total.toLocaleString();
-                logDebug(`Total conversations in database: ${data.total}`);
-                
-                // Restore refresh button
-                if (refreshButton) {
-                    refreshButton.innerHTML = '<i class="fas fa-sync"></i>';
-                    refreshButton.disabled = false;
-                    
-                    // Add visual feedback for successful refresh
-                    refreshButton.classList.add('btn-success');
-                    refreshButton.classList.remove('btn-primary');
-                    setTimeout(() => {
-                        refreshButton.classList.remove('btn-success');
-                        refreshButton.classList.add('btn-primary');
-                    }, 1000);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching total conversations:', error);
-                totalElement.textContent = 'Error';
-                
-                // Restore refresh button
-                if (refreshButton) {
-                    refreshButton.innerHTML = '<i class="fas fa-sync"></i>';
-                    refreshButton.disabled = false;
-                    
-                    // Add visual feedback for error
-                    refreshButton.classList.add('btn-danger');
-                    refreshButton.classList.remove('btn-primary');
-                    setTimeout(() => {
-                        refreshButton.classList.remove('btn-danger');
-                        refreshButton.classList.add('btn-primary');
-                    }, 1000);
-                }
-            });
-    }
-    
-    // Debug utilities
-    let debugLines = [];
-    function logDebug(message) {
-        const timestamp = new Date().toLocaleTimeString();
-        debugLines.push(`[${timestamp}] ${message}`);
-        
-        // Keep only the last 50 lines
-        if (debugLines.length > 50) {
-            debugLines = debugLines.slice(-50);
-        }
-        
-        // Update debug panel if it's visible
-        const debugContent = document.getElementById('debug-content');
-        if (debugContent && document.getElementById('debug-panel').style.display !== 'none') {
-            debugContent.innerHTML = debugLines.map(line => `<div>${line}</div>`).join('');
-            // Scroll to bottom
-            debugContent.scrollTop = debugContent.scrollHeight;
-        }
-    }
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Dashboard ready - setting up timeframe selectors');
-        
-        // Initialize tooltips
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-        
-        // Get the selector buttons
-        const timeSelectors = document.querySelectorAll('.time-selector');
-        console.log(`Found ${timeSelectors.length} timeframe selectors`);
-        
-        // Load total conversations count
-        fetchTotalConversations();
-        
-        // Set up auto-refresh for total conversations (every 30 seconds)
-        const REFRESH_INTERVAL = 30 * 1000; // 30 seconds in milliseconds
-        const autoRefreshTimer = setInterval(() => {
-            logDebug('Auto-refreshing total conversations count');
-            
-            // Add subtle visual feedback for auto-refresh
-            const totalElement = document.getElementById('total-conversations-count');
-            if (totalElement) {
-                totalElement.style.transition = 'opacity 0.3s ease-in-out';
-                totalElement.style.opacity = '0.5';
-                setTimeout(() => {
-                    totalElement.style.opacity = '1';
-                }, 300);
-            }
-            
-            fetchTotalConversations();
-        }, REFRESH_INTERVAL);
-        
-        // Set up refresh button
-        document.getElementById('refresh-total').addEventListener('click', function(e) {
-            e.preventDefault();
-            fetchTotalConversations();
-        });
-        
-        // Set up debug panel toggle
-        document.addEventListener('keydown', function(e) {
-            // Alt+D to toggle debug panel
-            if (e.altKey && e.key === 'd') {
-                const debugPanel = document.getElementById('debug-panel');
-                if (debugPanel.style.display === 'none') {
-                    debugPanel.style.display = 'block';
-                    // Update content
-                    const debugContent = document.getElementById('debug-content');
-                    debugContent.innerHTML = debugLines.map(line => `<div>${line}</div>`).join('');
-                    // Scroll to bottom
-                    debugContent.scrollTop = debugContent.scrollHeight;
-                } else {
-                    debugPanel.style.display = 'none';
-                }
-            }
-        });
-        
-        // Set up close button for debug panel
-        document.getElementById('close-debug').addEventListener('click', function() {
-            document.getElementById('debug-panel').style.display = 'none';
-        });
-        
-        // Load dashboard data with default timeframe (30 days)
-        loadDashboardData('last_30_days');
-        
-        // Set up time selector buttons with robust event handling
-        timeSelectors.forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const timeframe = this.getAttribute('data-timeframe');
-                console.log(`Timeframe selector clicked: ${timeframe}`);
-                logDebug(`Timeframe selector clicked: ${timeframe}`);
-                
-                // Show visual confirmation of click
-                this.classList.add('btn-pulse');
-                setTimeout(() => {
-                    this.classList.remove('btn-pulse');
-                }, 300);
-                
-                // Update active state
-                timeSelectors.forEach(btn => {
-                    btn.classList.remove('active');
-                    btn.classList.remove('btn-warning');
-                    btn.classList.add('btn-outline-light');
-                    btn.style.opacity = '0.8';
-                });
-                
-                this.classList.add('active');
-                this.classList.remove('btn-outline-light');
-                this.classList.add('btn-warning');
-                this.style.opacity = '1';
-                
-                // Add loading indicator to cards
-                document.querySelectorAll('.card-body').forEach(card => {
-                    card.style.opacity = '0.6';
-                });
-                
-                // Force a refresh of the total conversations count
-                fetchTotalConversations();
-                
-                // Load data for selected timeframe with slight delay for visual feedback
-                setTimeout(() => {
-                    loadDashboardData(timeframe);
-                }, 100);
-            });
-        });
-        
-        // Log initial debug info
-        logDebug(`Dashboard initialized with ${timeSelectors.length} timeframe selectors`);
-    });
+}
 
-    // Find most active hour from hour distribution
-    function findMostActiveHour(hourDistribution) {
-        if (!hourDistribution) return null;
-        
-        let maxCount = 0;
-        let mostActiveHour = null;
-        
-        Object.entries(hourDistribution).forEach(([hour, count]) => {
-            if (count > maxCount) {
-                maxCount = count;
-                mostActiveHour = hour;
-            }
-        });
-        
-        if (mostActiveHour === null) return null;
-        
-        // Format the hour nicely
-        const hourNum = parseInt(mostActiveHour);
-        const displayHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
-        const amPm = hourNum < 12 ? 'AM' : 'PM';
-        
-        return `${displayHour}:00 ${amPm}`;
-    }
+// Update status when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    updateAPIStatus();
+    // Refresh status every 30 seconds
+    setInterval(updateAPIStatus, 30000);
+});
 </script>
 {% endblock %} 

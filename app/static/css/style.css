@@ -43,6 +43,28 @@ body {
     background-color: var(--primary-color) !important;
 }
 
+/* Ensure card bodies handle content flow correctly */
+.card-body {
+    display: flex;
+    flex-direction: column; /* Ensure vertical flow inside card body */
+    flex-grow: 1; /* Allow body to grow */
+    min-height: 150px; /* Prevent collapsing, adjust as needed */
+}
+
+/* Specific adjustment for chart containers if needed */
+.chart-container {
+    flex-grow: 1; /* Allow chart container to take available space */
+    display: flex; /* Use flexbox for canvas centering if needed */
+    align-items: center;
+    justify-content: center;
+    min-height: 200px; /* Ensure space for chart */
+}
+
+/* Adjustments for accordion containers within cards */
+.category-container .card-body {
+    min-height: 200px; /* Ensure accordion containers have enough initial height */
+}
+
 /* Dashboard widgets */
 .stat-card {
     transition: transform 0.3s;
@@ -239,6 +261,22 @@ body {
     color: var(--secondary-color);
 }
 
+/* Simple Accordion Scroll Fix */
+.accordion-body .list-group-flush {
+    max-height: 300px; /* Adjust as needed */
+    overflow-y: auto;
+}
+
+/* Ensure accordion body and collapse don't interfere (optional, remove if Bootstrap default works) */
+/* 
+.accordion-body {
+    overflow: visible !important; 
+}
+.accordion-collapse {
+    overflow: visible !important;
+} 
+*/
+
 /* Loading overlay */
 .loading-overlay {
     position: fixed;
@@ -293,4 +331,472 @@ body {
         border: none;
         box-shadow: none;
     }
+}
+
+/* === Transcript Viewer Styles (Moved from data_selection.html) === */
+
+/* Chat interface styling - iMessage inspired */
+.transcript-messages {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    background-color: #f0f0f0;
+    border-radius: 0;
+    min-height: 60vh;
+    max-height: 60vh;
+    overflow-y: auto;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), 
+                      url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDIwIDAgTCAwIDAgMCAyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTBlMGUwIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=');
+}
+
+.message {
+    position: relative;
+    margin-bottom: 12px;
+    max-width: 75%;
+    display: flex;
+    flex-direction: column;
+    animation: message-fade-in 0.3s ease;
+}
+
+@keyframes message-fade-in {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.agent-message {
+    align-self: flex-start;
+    margin-right: auto;
+}
+
+.user-message {
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+/* Avatar styling - UPDATED */
+.avatar {
+    width: 40px;  /* Increased size */
+    height: 40px; /* Increased size */
+    border-radius: 50%;
+    display: flex; /* Keep flex for centering icon */
+    align-items: center;
+    justify-content: center;
+    /* Remove text properties */
+    /* color: white; */
+    /* font-weight: bold; */
+    /* font-size: 16px; */
+    margin-right: 12px; /* Adjusted margin */
+    flex-shrink: 0;
+    position: relative; /* Needed for pseudo-element */
+    overflow: hidden; /* Optional */
+}
+
+/* Add pseudo-element for Font Awesome icons */
+.avatar::before {
+    font-family: "Font Awesome 6 Free"; /* Ensure FA6 is loaded via base.html */
+    font-weight: 900; /* Use Solid style */
+    font-size: 20px;  /* Increased icon size */
+    color: white;    /* Icon color */
+    line-height: 1;  /* Helps with vertical alignment */
+}
+
+.avatar-agent {
+    background-color: #9c27b0; /* Keep Purple */
+}
+.avatar-agent::before {
+    content: "\f544"; /* Font Awesome 6 fa-robot */
+}
+
+.avatar-user {
+    background-color: #ff9800; /* Keep Orange */
+}
+.avatar-user::before {
+    content: "\f007"; /* Font Awesome 6 fa-user */
+}
+
+/* Adjust user avatar margin */
+.user-message .avatar {
+     margin-right: 0;
+     margin-left: 12px; /* Adjusted margin */
+}
+
+/* Message row with avatar */
+.message-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 2px;
+}
+
+.user-message .message-row {
+    flex-direction: row-reverse;
+}
+
+/* Bubble styling - UPDATED */
+.message-bubble {
+    padding: 12px 18px; /* Increased padding */
+    border-radius: 20px; /* Slightly more rounded */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Slightly larger shadow */
+    position: relative;
+    overflow-wrap: break-word;
+    border: 1px solid rgba(0,0,0,0.05); /* Add subtle border */
+}
+
+.agent-message .message-bubble {
+    background: linear-gradient(135deg, #f5efff 0%, #e9e9eb 100%); /* Light purple/gray gradient */
+    color: #333; /* Darker text for light bg */
+    border-top-left-radius: 6px; /* Adjust rounding */
+    margin-left: 8px;
+}
+
+.user-message .message-bubble {
+    background: linear-gradient(135deg, #1e9fff 0%, #0b93f6 100%); /* Brighter blue gradient */
+    color: white;
+    border-top-right-radius: 6px; /* Adjust rounding */
+    margin-right: 8px;
+}
+
+/* Speaker labels - Minor adjustments if needed */
+.speaker-label {
+    font-size: 13px; /* Slightly larger */
+    margin-bottom: 4px;
+    font-weight: bold;
+    color: #555;
+}
+
+.user-message .speaker-label {
+    text-align: right;
+    margin-right: 46px;
+}
+
+.agent-message .speaker-label {
+    margin-left: 46px;
+}
+
+/* Message text - UPDATED */
+.message-text {
+    white-space: pre-wrap;
+    margin: 0;
+    font-size: 16px; /* Increased size */
+    line-height: 1.5;
+}
+
+/* Timestamp styling - Minor adjustments if needed */
+.timestamp {
+    font-size: 12px; /* Slightly larger */
+    margin-top: 2px;
+    opacity: 0.7;
+}
+
+.agent-message .timestamp {
+    margin-left: 46px;
+    color: #666;
+}
+
+.user-message .timestamp {
+    margin-right: 46px;
+    text-align: right;
+    color: #a0cfff;
+}
+
+/* Highlight styling */
+.highlighted-message .message-bubble {
+    border: 2px solid #ffc107;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.4);
+    animation: pulse 2s infinite;
+}
+
+.highlighted-text {
+    background-color: rgba(255, 255, 0, 0.4);
+    padding: 2px 0;
+    border-radius: 2px;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+}
+
+/* === End Transcript Viewer Styles === */ 
+
+/* Scrollable content areas - with important flags to override Bootstrap */
+.scrollable-content {
+    max-height: 300px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 5px !important;
+    margin-bottom: 0 !important;
+}
+
+/* Ensure accordion-body has padding for better appearance */
+.accordion-body {
+    padding: 1rem !important;
+}
+
+/* Improve list appearance in scrollable containers */
+.scrollable-content .list-group-item {
+    padding: 0.75rem;
+    border-left: none;
+    border-right: none;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.scrollable-content .list-group-item:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* First and last items in scrollable lists */
+.scrollable-content .list-group-item:first-child {
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.scrollable-content .list-group-item:last-child {
+    border-bottom: none;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-bottom: 0;
+}
+
+/* Conversation link styling */
+.conversation-link {
+    color: #0d6efd;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease-in-out;
+}
+
+.conversation-link:hover {
+    color: #0a58ca;
+    text-decoration: underline;
+}
+
+/* Blockquote styling for example text */
+.list-group-item blockquote {
+    margin-bottom: 0.5rem;
+    font-style: italic;
+    color: #495057;
+    line-height: 1.5;
+}
+
+/* Accordion toggle button style improvements */
+.accordion-button:not(.collapsed) {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Improve accordion animations */
+.accordion-collapse {
+    transition: all 0.35s ease;
+}
+
+/* Loading spinner styles */
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 150px;
+    background-color: rgba(255, 255, 255, 0.7);
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    height: 200px;
+    margin-bottom: 1rem;
+}
+
+/* Ensure charts are visible and properly sized */
+canvas.chart {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Placeholder styles */
+.data-placeholder {
+    text-align: center;
+    color: #6c757d;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+}
+
+/* Improve chart loading state */
+#sentiment-distribution-chart:empty::after {
+    content: "Loading sentiment data...";
+    display: block;
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+}
+
+/* Transcript modal styling */
+.modal-dialog.modal-lg.modal-dialog-scrollable {
+    max-width: 800px;
+}
+
+.modal-body .conversation-transcript {
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 1rem;
+}
+
+/* Animation for accordion expansion */
+@keyframes accordion-expand {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.accordion-collapse.show {
+    animation: accordion-expand 0.3s ease-out;
+}
+
+/* Highlight for text in transcripts */
+.highlighted-text {
+    background-color: #fff3cd;
+    padding: 2px 0;
+    border-radius: 2px;
+}
+
+/* Toast notifications */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    z-index: 9999;
+    transition: opacity 0.3s ease-in-out;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+.toast.error-toast {
+    background-color: rgba(220, 53, 69, 0.9);
+}
+
+.toast.loading-toast {
+    background-color: rgba(40, 110, 210, 0.9);
+}
+
+/* Loading indicators */
+.loading {
+    position: relative;
+}
+
+.loading::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.7);
+    z-index: 10;
+}
+
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    margin-top: -20px;
+    margin-left: -20px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #007bff;
+    border-radius: 50%;
+    z-index: 11;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Status indicators */
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.status-ok {
+    background-color: #28a745;
+}
+
+.status-error {
+    background-color: #dc3545;
+}
+
+/* Debug panel */
+#debug-panel {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 400px;
+    height: 300px;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    z-index: 9999;
+    display: none;
+    border-top-left-radius: 8px;
+    overflow: hidden;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+#debug-header {
+    padding: 8px;
+    background-color: #444;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#debug-content {
+    padding: 8px;
+    height: calc(100% - 35px);
+    overflow-y: auto;
+}
+
+#debug-content div {
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+#close-debug {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+/* Fix for scrollable content */
+.scrollbox {
+    overflow-y: auto !important;
+    max-height: 250px !important;
+    border: 1px solid #e9ecef !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
 } 

@@ -1,0 +1,1551 @@
+{
+  "data": {
+    "common_questions": [
+      {
+        "category": "Career Guidance",
+        "count": 110,
+        "examples": [
+          {
+            "conversation_id": "88TbyPRNq50hO76455ah",
+            "text": "My first name is Wella. W-E-L-L-A. I'm seeking guidance on career advice, career guidance."
+          },
+          {
+            "conversation_id": "o7Wkv75olXAcj0jw3YPt",
+            "text": "Career reading?"
+          }
+        ]
+      },
+      {
+        "category": "Seeking Insights About The Future",
+        "count": 80,
+        "examples": [
+          {
+            "conversation_id": "ey8QcutoxDHH3wpKgwrc",
+            "text": "Okay. Okay. I want to know about my future. What is there in future?"
+          },
+          {
+            "conversation_id": "a74zpiOqTAjvOGy1xRIn",
+            "text": "Well, I want to know if... what the future brings..."
+          }
+        ]
+      },
+      {
+        "category": "Love And Relationships",
+        "count": 80,
+        "examples": [
+          {
+            "conversation_id": "xfRSA86f9vnMpXR6v8OC",
+            "text": "Love reading. Nine of clubs. What about the nine of clubs? The temperance. Sagittarius. Love reading."
+          },
+          {
+            "conversation_id": "AbrM3vKu3UnVsJydZ1B4",
+            "text": "Can I ask questions about love in a text and get answers in a text, or do I have to speak to somebody in person?"
+          },
+          {
+            "conversation_id": "generated",
+            "text": "Example question 2"
+          },
+          {
+            "conversation_id": "generated",
+            "text": "Example question 3"
+          }
+        ]
+      },
+      {
+        "category": "Spirituality And Intuition",
+        "count": 80,
+        "examples": [
+          {
+            "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+            "text": "Energy, healing, definitely. And I am an empath, have strong intuitions. I have strong readings of people and rooms. Sometimes when something comes over me, it's very specific. Sometimes it's just to be a vessel to them because they just needed somebody to come talk to them. And I happen to be there to be that person to just say, hey, I like your shoes. And that leads to something else. And I cannot leave a room if that feeling comes over me. Like, I have to press forward with it. Like, I help people in all walks of life. I empathize with people through my own experiences. But like the things that are very interesting is how I can just walk into a room and all of a sudden to a stranger know something that I need to tell them. And it just happens. I've had people call me the next week and be like, how do you, how did you know that? And just, I don't know where it comes from."
+          }
+        ]
+      },
+      {
+        "category": "Family Matters",
+        "count": 80,
+        "examples": [
+          {
+            "conversation_id": "OnG4pKbXeXvXQsLv0djX",
+            "text": "Family?"
+          },
+          {
+            "conversation_id": "N9F5wnLHN7MR7ZBxWQqA",
+            "text": "My name is Akanksha. I am looking for a psychic who deals with family matters."
+          }
+        ]
+      },
+      {
+        "category": "Seeking Relationship Advice",
+        "count": 60,
+        "examples": [
+          {
+            "conversation_id": "Hl1oBg4r4dP7Z7Grua8W",
+            "text": "Can you tell how my son passed away?"
+          },
+          {
+            "conversation_id": "8MpCnV2Cxnh6jpndvUv7",
+            "text": "Whether or not I'm going to get my ex back?"
+          }
+        ]
+      },
+      {
+        "category": "Relationship Concerns",
+        "count": 60,
+        "examples": [
+          {
+            "conversation_id": "N9F5wnLHN7MR7ZBxWQqA",
+            "text": "There is a considerable communication gap between me and my husband from last one year. I would like to know when and how it will resolve."
+          },
+          {
+            "conversation_id": "QSqQ5mD73SiBs9WiCclN",
+            "text": "Will there be a reconciliation?"
+          }
+        ]
+      },
+      {
+        "category": "Personal Growth And Self-improvement",
+        "count": 60,
+        "examples": [
+          {
+            "conversation_id": "nU5sTprNHfv4muKUvajM",
+            "text": "Yes, I love to help people. It's quite interesting because my dad was a fire chief. He was a paramedic and he was a police officer. And I don't know if that runs through the blood or not, but like I just naturally love to help others. And as soon as I see someone in need, like I do not think twice, even if it might put my life in danger. I know that might sound reckless to others, but my body does it before I can think like I just want to help."
+          },
+          {
+            "conversation_id": "3j44XmnsUkZSaiXZcpX7",
+            "text": "Looking for a love psychic that's direct?"
+          }
+        ]
+      },
+      {
+        "category": "Job Search",
+        "count": 60,
+        "examples": [
+          {
+            "conversation_id": "HjOavKJQoSg6W2yrdYLm",
+            "text": "How can I find jobs abroad like Portugal?"
+          },
+          {
+            "conversation_id": "nOW7LkSdpepMUDnDO8pl",
+            "text": "I have been laid off last month so I was looking for a job. So in that curiosity I want to know whether in what time I will get the job."
+          }
+        ]
+      },
+      {
+        "category": "Connecting With Deceased Family Members",
+        "count": 60,
+        "examples": [
+          {
+            "conversation_id": "xsK7RnsnOa9wdSDXFuX4",
+            "text": "That's kinda neat. I'd like to connect with family members that have passed. Do you have any psychics who are really good at maybe speaking to the people that have passed?"
+          }
+        ]
+      },
+      {
+        "category": "Personal Exploration And Identity",
+        "count": 50,
+        "examples": [
+          {
+            "conversation_id": "ESYq6bXeMASxXcHPwPPu",
+            "text": "I used to not be because I wanted to push boundaries. As a child, I was raised very strict in my religion. And so all it did was want me to explore any and everything I could. Now, as I've gotten older, of course, I've deciphered what's important and what's not. But I still like to push boundaries. But like I said, I want to go for ones that, you know, will help better my life and not be for no reason."
+          }
+        ]
+      },
+      {
+        "category": "Personal Concerns And Well-being",
+        "count": 45,
+        "examples": [
+          {
+            "conversation_id": "wRpnuXbaawDDIaQo68Tk",
+            "text": "I'm concerned about her happiness and my first name is Carol."
+          },
+          {
+            "conversation_id": "nU5sTprNHfv4muKUvajM",
+            "text": "I believe there's good in everyone. You just, you know, got to talk it out and figure it out. And I want to help do that. But I also have many other things to it."
+          }
+        ]
+      },
+      {
+        "category": "Privacy And Information Security",
+        "count": 45,
+        "examples": [
+          {
+            "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+            "text": "Where will this information go to? Because I don't want my information to be publisherized. So I don't want it to be sent by everyone on the internet."
+          },
+          {
+            "conversation_id": "7gkuT26gx5oy2802JqcA",
+            "text": "Well, I didn't give you an email address. How will they contact me?"
+          }
+        ]
+      },
+      {
+        "category": "Career And Finances",
+        "count": 45,
+        "examples": [
+          {
+            "conversation_id": "generated",
+            "text": "Example question 4"
+          }
+        ]
+      },
+      {
+        "category": "Spirituality And Psychic Abilities",
+        "count": 40,
+        "examples": [
+          {
+            "conversation_id": "isgC6mGIeSvu4pqRSkio",
+            "text": "Oh my goodness. I'm so sorry. I talk a lot, so it was a lot of information about me helping people and how I was in a bad relationship, and by the time I got out of it, I didn't have any friends anymore, and now I'm just stuck here in this weird place. Like, I'm okay being alone, but like...I would like something every now and then because...I just want to help people and have all this stuff that I want to share, and I'm a very passionate person, and I used to have a ton of friends, and it's crazy when you go through something like that. I didn't even know I was in it until it was too late, and then like...I'm out of it now. Nobody's here. I don't know what to do because I love to sing. You know, I love poetry. That's what we were talking about. Sorry I'm talking so much, but that's just what was going on in the last conversation."
+          },
+          {
+            "conversation_id": "isgC6mGIeSvu4pqRSkio",
+            "text": "Do you have to use cards when you do those type of readings? Because I love to, like, make people feel better. And, like, if they're feeling down, I don't want to, like, shove it down their throat or, like \u2013 I don't \u2013 I won't mess with them or, like, go overboard. Like, I just want to give them a path. And, like, if they're feeling it then we can keep going. But do you have to have cards to do that?"
+          }
+        ]
+      },
+      {
+        "category": "Uncertainty About Career Choices",
+        "count": 40,
+        "examples": [
+          {
+            "conversation_id": "gbbxWug9LZMLs66u8I2n",
+            "text": "Not really, but... Career? I'm thinking about career. But the thing is that I don't know if I believe and trust this topic. Okay."
+          },
+          {
+            "conversation_id": "gbbxWug9LZMLs66u8I2n",
+            "text": "Good question. But when it comes to career, I just want to take a big step and do something different that I'm doing actually right now. And I just want to start working different and take a big risk, but not sure if I should do this or not."
+          }
+        ]
+      },
+      {
+        "category": "General Inquiries And Clarifications",
+        "count": 35,
+        "examples": [
+          {
+            "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+            "text": "What does clairvoyance mean?"
+          },
+          {
+            "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+            "text": "What is that exactly?"
+          }
+        ]
+      },
+      {
+        "category": "Health And Well-being",
+        "count": 35,
+        "examples": [
+          {
+            "conversation_id": "generated",
+            "text": "Example question 5"
+          }
+        ]
+      },
+      {
+        "category": "Astrological Inquiries",
+        "count": 30,
+        "examples": [
+          {
+            "conversation_id": "tyLfmVi4WBNvODohLyRM",
+            "text": "There is a Saturn transit today. So what will be the effect on my birth chart or my future?"
+          },
+          {
+            "conversation_id": "N9F5wnLHN7MR7ZBxWQqA",
+            "text": "When my kid will start talking?"
+          }
+        ]
+      },
+      {
+        "category": "Emotional Healing And Support",
+        "count": 30,
+        "examples": [
+          {
+            "conversation_id": "oyoMAZbO8ij294hOCUpc",
+            "text": "Hello? Right now, love. I am very tangled in my relationship with a married person that I told you that I am married and in love with a younger girl. So, I want guidance on what should I do? Please guide me through it right now. Hello! Here is the money! I saw it! Okay, here is your money."
+          },
+          {
+            "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+            "text": "Hmm... okay, great, because I would love to rate you and talk about your service"
+          }
+        ]
+      },
+      {
+        "category": "Psychic Abilities And Intuition",
+        "count": 30,
+        "examples": [
+          {
+            "conversation_id": "nU5sTprNHfv4muKUvajM",
+            "text": "I do not ever hear voices. All of a sudden, I can walk into a room and sometimes I just read energies. And so sometimes like I can tell if somebody has a wall up and it's almost like a really good challenge for the both of us. And that is like something that is so fun for me to do is like go straight to that person. And then by the end of it, they're like, I didn't think that I would like you or that we could be friends. And I said, I already knew that. Like I read your energy or I can go into a room and I'll be like shopping or whatever. And all of a sudden something just so strong comes over me and I'm like, I can't move. My mom says like she can tell when it comes over me, especially when I just take off to a stranger and I ask them politely, like something just came over me. I just want to let you know everything's going to be okay. Like, you know, and it's okay if you would like me to step away, you know, like, or I like numbers. Like my dad passed away and my grandmother passed away. And right now I'm actually looking at their numbers and like connecting and going back and doing that. And like how it's connecting to so many things that's opening up. Like it's blowing my mind. And also I like to know the meanings of people's names and that sometimes the feelings that come over me are so spot on specific, like to the scent, if it's like about money or something. And then sometimes it's just pure energy to make somebody happy, you know, make them positive that day. Like I'm their person for that day or something. I don't know what to call that. But yeah, it's a lot of fun and it's really important for me to be able to do this kind of thing with my kids and my kids are really good at this stuff."
+          },
+          {
+            "conversation_id": "isgC6mGIeSvu4pqRSkio",
+            "text": "I have never done that before, but I've been wanting to explore it or do my own research. But I don't know how you say you're a psychic or how you say you're this or that. These things just have happened to me. It started when I was 13 years old. I had an older lady in my church, and for some reason I was shown that she was struggling really, really bad. And it came over me that she was going to get a check in the mail for a certain amount of money that was going to fix everything at that moment for her. And like I said, I was only 13 years old, and I told her all of that and the amount, and it happened. And after that, it kept happening. And also, I quit going to funerals because I found that, like, when I was younger than you guys were doing this stuff with your kids or whatever you guys did with your kids or whatever you guys did with your kids, and not as closed off, their spirits would try to bug me. And I was not, I don't like that as much as connecting for positivity. Not that they're not positive, but it freaked me out, so I kind of closed that off."
+          }
+        ]
+      },
+      {
+        "category": "Family And Relationships",
+        "count": 30,
+        "examples": [
+          {
+            "conversation_id": "generated",
+            "text": "Example question 6"
+          }
+        ]
+      },
+      {
+        "category": "Financial Concerns",
+        "count": 27,
+        "examples": [
+          {
+            "conversation_id": "ey8QcutoxDHH3wpKgwrc",
+            "text": "No, I will not go away because my financial position is not good so i cannot go with it."
+          },
+          {
+            "conversation_id": "ey8QcutoxDHH3wpKgwrc",
+            "text": "Not address and i will call again if i find if have a better source or better income."
+          },
+          {
+            "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+            "text": "Okay, thank you so much for your information and yeah, I don't think I have money right now but when I have money I will come back and check."
+          },
+          {
+            "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+            "text": "Yes, and now I'm not comfortable. I will come back when I'm ready and have the money to pay then, and do everything."
+          }
+        ]
+      },
+      {
+        "category": "Technical Support And Service Information",
+        "count": 25,
+        "examples": [
+          {
+            "conversation_id": "8MpCnV2Cxnh6jpndvUv7",
+            "text": "How do I get my free 10 minutes?"
+          },
+          {
+            "conversation_id": "6IXFtQ0hxHONKEE3HNJC",
+            "text": "Do I get free 10 minutes?"
+          }
+        ]
+      },
+      {
+        "category": "Curiosity And Exploration",
+        "count": 25,
+        "examples": [
+          {
+            "conversation_id": "isgC6mGIeSvu4pqRSkio",
+            "text": "Well, and also probably because I have a really country drawl. I'm from Calhoun, Louisiana, and I don't mind sharing it with people because you can get it, you know, so easily these days anyways. And I'm really I love meeting new people anyways. Like I would love to meet a friend right now."
+          },
+          {
+            "conversation_id": "4USR2fPGag8cQgmbdES0",
+            "text": "Who's into poetry? I've never, I didn't know you could pick them based on that. That would be so cool because I keep writing my poem over and over. Like it's not completely done yet because I keep changing up words and I love looking up definitions and synonyms and anonyms, like not even just to rhyme, like just to like get deeper wording, like in my poems and stuff and like try to express myself so much better. But I don't know why I even do that because I don't even tell anybody or share it with anybody. I don't know why I do it."
+          }
+        ]
+      },
+      {
+        "category": "Confusion And Seeking Clarification",
+        "count": 20,
+        "examples": [
+          {
+            "conversation_id": "dIDljruzeKoEx7EoBMgw",
+            "text": "Could you repeat that?"
+          },
+          {
+            "conversation_id": "vmZacPp0NlHYFJ5qhVPH",
+            "text": "What?"
+          }
+        ]
+      },
+      {
+        "category": "Personal Information (name, Birthdate, Location)",
+        "count": 10,
+        "examples": [
+          {
+            "conversation_id": "HjOavKJQoSg6W2yrdYLm",
+            "text": "I'm from India. My name is Chirag, I was born in Pune and my birth date is 16 June 1997 and my birth time is 5.21 pm."
+          },
+          {
+            "conversation_id": "nOW7LkSdpepMUDnDO8pl",
+            "text": "Hello, my name is Chirag."
+          }
+        ]
+      },
+      {
+        "category": "Seeking Psychic Services",
+        "count": 10,
+        "examples": [
+          {
+            "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+            "text": "Where can I find this psychic you're talking about?"
+          },
+          {
+            "conversation_id": "xsK7RnsnOa9wdSDXFuX4",
+            "text": "Can you set up a reading with one of them for me?"
+          }
+        ]
+      },
+      {
+        "category": "Seeking Guidance/advice",
+        "count": 8,
+        "examples": [
+          {
+            "conversation_id": "N9F5wnLHN7MR7ZBxWQqA",
+            "text": "Yes, I would like that."
+          },
+          {
+            "conversation_id": "N9F5wnLHN7MR7ZBxWQqA",
+            "text": "I would like to talk to Ricky."
+          }
+        ]
+      },
+      {
+        "category": "Understanding Psychic Readings",
+        "count": 8,
+        "examples": [
+          {
+            "conversation_id": "aSjrKlxLmDSrUdpUgdVn",
+            "text": "I'm curious about how readings work."
+          },
+          {
+            "conversation_id": "A3yTSl9n34S7OXIeyT64",
+            "text": "How do I select a psychic?"
+          }
+        ]
+      },
+      {
+        "category": "General Inquiry/clarification",
+        "count": 7,
+        "examples": [
+          {
+            "conversation_id": "nOW7LkSdpepMUDnDO8pl",
+            "text": "Did you take bath?"
+          },
+          {
+            "conversation_id": "tyLfmVi4WBNvODohLyRM",
+            "text": "Do you know astrology?"
+          }
+        ]
+      },
+      {
+        "category": "Skepticism And Validation",
+        "count": 6,
+        "examples": [
+          {
+            "conversation_id": "BBNTwAqQe4E5SXgmJWST",
+            "text": "Wait, wait, wait Lily I don't really believe in psychics do you have a what do you have to say to that?"
+          },
+          {
+            "conversation_id": "4USR2fPGag8cQgmbdES0",
+            "text": "Are the psychics real or are they I?"
+          }
+        ]
+      },
+      {
+        "category": "General Inquiries",
+        "count": 5,
+        "examples": [
+          {
+            "conversation_id": "4USR2fPGag8cQgmbdES0",
+            "text": "No, when you call the psychic, is it just one subject or can you talk about different subjects with the psychic? Yes."
+          },
+          {
+            "conversation_id": "S7uo3Ihevkr2e8vsCf0D",
+            "text": "No, are you going to connect me with a psychic? No."
+          }
+        ]
+      },
+      {
+        "category": "Interest In Events/concerts/festivals",
+        "count": 4,
+        "examples": [
+          {
+            "conversation_id": "gbbxWug9LZMLs66u8I2n",
+            "text": "Yes, I want to be part of creating events like festivals or any concerts in this category. So this is what I want to do. I want to work in the industry, in the music events."
+          },
+          {
+            "conversation_id": "gbbxWug9LZMLs66u8I2n",
+            "text": "Awesome! What was that experience like?"
+          }
+        ]
+      },
+      {
+        "category": "Personal Readings Preferences",
+        "count": 4,
+        "examples": [
+          {
+            "conversation_id": "ey8QcutoxDHH3wpKgwrc",
+            "text": "I would first like to have a free reading."
+          },
+          {
+            "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+            "text": "I need somebody that is going to be very understanding, somebody that's very passionate, someone that doesn't get worked up a lot because of my ADHD and anxiety and my tendency to sometimes over talk. It's only because I'm so interested in it. But I am aware that I do over talk sometimes. I am aware of it and I try not to be. So I need someone that like can have that type of personality but also have the needs that I need to better services for other people."
+          }
+        ]
+      },
+      {
+        "category": "Technical Assistance/support",
+        "count": 3,
+        "examples": [
+          {
+            "conversation_id": "F67z0bcLOgj2qwnbHn04",
+            "text": "Yeah, link is good. Can you set this all up for me?"
+          },
+          {
+            "conversation_id": "hUQfAYI7fxdrqtJU6luJ",
+            "text": "How do I add my name?"
+          }
+        ]
+      }
+    ],
+    "concerns_skepticism": [
+      {
+        "count": 69,
+        "examples": [
+          {
+            "conversation_id": "j0nXYeKwGxIhh16sPjD4",
+            "sentiment": -0.6999999999999998,
+            "text": "I need a medium to read my husband and see if he has a bad entity attached to him."
+          },
+          {
+            "conversation_id": "eK2BJ6evFjL13h1dq647",
+            "sentiment": -0.2,
+            "text": "What did the newspaper say? My mother's newspaper, yeah. You remember that? So, yeah. She's got that firm voice."
+          },
+          {
+            "conversation_id": "eK2BJ6evFjL13h1dq647",
+            "sentiment": -0.17234848484848486,
+            "text": "Every morning he would say his story and he'd start arguing with his... for your birthday, yeah... So I get mad and I get the papers new and say, you're a warrior! And he's... As long as you're not on video! Yeah."
+          },
+          {
+            "conversation_id": "isgC6mGIeSvu4pqRSkio",
+            "sentiment": -0.125,
+            "text": "You say that you are that person, though. Like what qualifies you to be that person? Like how do I prove that that's happening to me other than my passion and stories?"
+          },
+          {
+            "conversation_id": "BBNTwAqQe4E5SXgmJWST",
+            "sentiment": 0.2,
+            "text": "Wait, wait, wait Lily I don't really believe in psychics do you have a what do you have to say to that?"
+          }
+        ],
+        "type": "doubts about psychic abilities"
+      },
+      {
+        "count": 65,
+        "examples": [
+          {
+            "conversation_id": "4USR2fPGag8cQgmbdES0",
+            "sentiment": -0.08333333333333333,
+            "text": "No, when you call the psychic, is it just one subject or can you talk about different subjects with the psychic? Yes."
+          },
+          {
+            "conversation_id": "aSjrKlxLmDSrUdpUgdVn",
+            "sentiment": -0.1,
+            "text": "I'm curious about how readings work."
+          },
+          {
+            "conversation_id": "4USR2fPGag8cQgmbdES0",
+            "sentiment": -0.10576923076923081,
+            "text": "Well, this week I talked to one and they told me that this guy was going to come back into my life for a second chance. And it was so crazy because the next day, the guy that I was thinking about that I'd never told the psychic his name or anything, he called me. And when he said he would never call me again. But what happened at the end was awful. He only did it to get back at me because I didn't go out on a date with him because of a medical problem I had during that time. So he let me get ready for a date and stood me up. And it was very sad because, like, I cleaned my house and everything and, like, got ready. And I just got out of that other relationship. So that kind of, like, I don't know, maybe I just didn't read the psychic, you know, maybe I didn't, maybe it wasn't for him. I don't know."
+          }
+        ],
+        "type": "uncertainty about psychic readings"
+      },
+      {
+        "count": 50,
+        "examples": [
+          {
+            "conversation_id": "7Kpwqn0cpd4vO9xHKNjD",
+            "sentiment": -1.0,
+            "text": "Did I break the AI? Jesus Christ... Awful company..."
+          }
+        ],
+        "type": "skepticism towards psychic services"
+      },
+      {
+        "count": 50,
+        "examples": [
+          {
+            "conversation_id": "4USR2fPGag8cQgmbdES0",
+            "sentiment": -0.04285714285714286,
+            "text": "No they had no idea what i was going through i just lost my daddy and i was in an abusive relationship and i didn't have a license. I have two kids like, I just needed to know where my clarity was in this life and they wouldn't even, they were so smart aleck and rude to me i cried."
+          },
+          {
+            "conversation_id": "ey8QcutoxDHH3wpKgwrc",
+            "sentiment": -0.175,
+            "text": "No, I will not go away because my financial position is not good so i cannot go with it."
+          },
+          {
+            "conversation_id": "4USR2fPGag8cQgmbdES0",
+            "sentiment": -0.0475,
+            "text": "I'm still kind of nervous about it, so that's why I keep talking to you, so maybe I can get the courage to do it again. And also, I talk a lot because I don't get to talk to anybody ever except I have a daughter when she comes home from school. But she's a teenager, so she doesn't talk a lot. And I have ADHD, so I get hyper-focused and don't mean to talk this much but...I'm really lonely. Sorry!"
+          }
+        ],
+        "type": "personal circumstances affecting belief"
+      },
+      {
+        "count": 45,
+        "examples": [
+          {
+            "conversation_id": "8Kkc57hf0zcuj4MFfMsI",
+            "sentiment": 0.0,
+            "text": "No, no, no, no! I just need some clarity."
+          },
+          {
+            "conversation_id": "OnG4pKbXeXvXQsLv0djX",
+            "sentiment": 0.4166666666666667,
+            "text": "No, that's fine. I can ask her to be my reader."
+          }
+        ],
+        "type": "desire for clarity or validation"
+      },
+      {
+        "count": 45,
+        "examples": [
+          {
+            "conversation_id": "ey8QcutoxDHH3wpKgwrc",
+            "sentiment": 0.4,
+            "text": "But what is the use if i cannot pay them? I want free one."
+          },
+          {
+            "conversation_id": "ey8QcutoxDHH3wpKgwrc",
+            "sentiment": 0.5,
+            "text": "Not address and i will call again if i find if have a better source or better income."
+          }
+        ],
+        "type": "request for free services"
+      },
+      {
+        "count": 37,
+        "examples": [
+          {
+            "conversation_id": "dIDljruzeKoEx7EoBMgw",
+            "sentiment": -0.1,
+            "text": "Not really. Thank you."
+          },
+          {
+            "conversation_id": "fD7S9q48RGUdPSt0urPw",
+            "sentiment": -0.1,
+            "text": "Not really."
+          },
+          {
+            "conversation_id": "xsK7RnsnOa9wdSDXFuX4",
+            "sentiment": -0.09166666666666667,
+            "text": "Doesn't matter. That's kind of a dumb question. Why are you asking me that so randomly?"
+          },
+          {
+            "conversation_id": "gbbxWug9LZMLs66u8I2n",
+            "sentiment": 0.2,
+            "text": "Not really, but... Career? I'm thinking about career. But the thing is that I don't know if I believe and trust this topic. Okay."
+          },
+          {
+            "conversation_id": "oyoMAZbO8ij294hOCUpc",
+            "sentiment": 0.0,
+            "text": "No, there is no such concern."
+          }
+        ],
+        "type": "general skepticism"
+      },
+      {
+        "count": 35,
+        "examples": [
+          {
+            "conversation_id": "nU5sTprNHfv4muKUvajM",
+            "sentiment": -0.15555555555555556,
+            "text": "I might need to turn my TV down."
+          },
+          {
+            "conversation_id": "nU5sTprNHfv4muKUvajM",
+            "sentiment": -0.096875,
+            "text": "I'm sorry, because you stopped talking and I think you thought it was me talking and I just noticed that my TV was a little too loud. I'm ready."
+          },
+          {
+            "conversation_id": "fD7S9q48RGUdPSt0urPw",
+            "sentiment": -0.15,
+            "text": "I'm probably playing FIFA, chilling around with family and friends, nothing much, nothing hectic."
+          }
+        ],
+        "type": "confusion and distraction"
+      },
+      {
+        "count": 33,
+        "examples": [
+          {
+            "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+            "sentiment": 0.0,
+            "text": "What will they do with my information? I do not trust this now."
+          },
+          {
+            "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+            "sentiment": 0.0,
+            "text": "Where will this information go to? Because I don't want my information to be publisherized. So I don't want it to be sent by everyone on the internet."
+          }
+        ],
+        "type": "privacy concerns"
+      },
+      {
+        "count": 30,
+        "examples": [
+          {
+            "conversation_id": "Jr619xXfOu1g3Om6ZVSc",
+            "sentiment": 0.0,
+            "text": "I wanna know if me and my husband's gonna come into some money."
+          },
+          {
+            "conversation_id": "wRpnuXbaawDDIaQo68Tk",
+            "sentiment": 0.475,
+            "text": "I'm concerned about her happiness and my first name is Carol."
+          }
+        ],
+        "type": "concerns about love and relationships"
+      },
+      {
+        "count": 27,
+        "examples": [
+          {
+            "conversation_id": "UIDMUn0mlZGRdJffFMiN",
+            "sentiment": 0.0,
+            "text": "I want to know if he's going to pursue me."
+          },
+          {
+            "conversation_id": "a74zpiOqTAjvOGy1xRIn",
+            "sentiment": 0.0,
+            "text": "Well, I want to know if... what the future brings..."
+          }
+        ],
+        "type": "uncertainty about future"
+      },
+      {
+        "count": 25,
+        "examples": [
+          {
+            "conversation_id": "iAoRV6sRRcEZh9nSR15q",
+            "sentiment": -0.5,
+            "text": "Sorry."
+          },
+          {
+            "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+            "sentiment": -0.5,
+            "text": "I have ADHD. I'm so sorry."
+          }
+        ],
+        "type": "apologies and self-doubt"
+      },
+      {
+        "count": 25,
+        "examples": [
+          {
+            "conversation_id": "IUa68YqR63HE01tzA9Da",
+            "sentiment": 0.0,
+            "text": "I don't know, just need to talk to a psychic."
+          },
+          {
+            "conversation_id": "OBbNxTApbDkh6ewEAkHH",
+            "sentiment": 0.5,
+            "text": "Yes, I want to know about my career and my love life."
+          }
+        ],
+        "type": "curiosity about psychic readings"
+      },
+      {
+        "count": 20,
+        "examples": [
+          {
+            "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+            "sentiment": -0.3125,
+            "text": "What does clairvoyance mean?"
+          },
+          {
+            "conversation_id": "isgC6mGIeSvu4pqRSkio",
+            "sentiment": -0.40625,
+            "text": "Don't even know what those words mean. I'm sorry. I would have to look them up."
+          }
+        ],
+        "type": "confusion and lack of understanding"
+      },
+      {
+        "count": 20,
+        "examples": [
+          {
+            "conversation_id": "JIchkPEQXTMnp10kA4JO",
+            "sentiment": 0.0,
+            "text": "No, I don't."
+          },
+          {
+            "conversation_id": "OBbNxTApbDkh6ewEAkHH",
+            "sentiment": 0.4166666666666667,
+            "text": "No, I haven't had one, so any is fine."
+          }
+        ],
+        "type": "skepticism about psychic readings"
+      },
+      {
+        "count": 15,
+        "examples": [
+          {
+            "conversation_id": "xsK7RnsnOa9wdSDXFuX4",
+            "sentiment": -0.375,
+            "text": "It makes me not trust when you're asking me random questions about myself, makes me think you're going to use that to manipulate my reading somehow, so now I'm not sure I trust psychic source."
+          },
+          {
+            "conversation_id": "7gkuT26gx5oy2802JqcA",
+            "sentiment": -0.5,
+            "text": "No, you got it wrong."
+          }
+        ],
+        "type": "trust and skepticism"
+      },
+      {
+        "count": 10,
+        "examples": [
+          {
+            "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+            "sentiment": -0.3499999999999999,
+            "text": "I want to get into this so bad and like, I can't believe it's happening. And like stuff like this doesn't happen to me. And then like, so it cut off and I was like, oh my goodness, I got to get her back."
+          },
+          {
+            "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+            "sentiment": -0.5,
+            "text": "Well, I'm sorry."
+          }
+        ],
+        "type": "excitement and disbelief"
+      },
+      {
+        "count": 9,
+        "examples": [
+          {
+            "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+            "sentiment": -0.5,
+            "text": "Yes, and I appreciate you talking to me through it, but I do understand that, I don't want you to think I'm weird or anything. Like, I know that you're in my computer."
+          },
+          {
+            "conversation_id": "isgC6mGIeSvu4pqRSkio",
+            "sentiment": -0.3333333333333333,
+            "text": "Sorry, I went off subject."
+          }
+        ],
+        "type": "off-topic and distraction"
+      }
+    ],
+    "positive_interactions": [
+      {
+        "caller_response": "Whoever is the best for me.",
+        "conversation_id": "UZTr035F4VO08r8metBJ",
+        "lily_prompt": "Great! Which psychic sounds like the best fit for you: Ben, at extension six zero six seven, or Faustina, at extension three two zero nine?\n",
+        "sentiment_score": 1.0
+      },
+      {
+        "caller_response": "Awesome! What was that experience like?",
+        "conversation_id": "gbbxWug9LZMLs66u8I2n",
+        "lily_prompt": "You're very welcome!...",
+        "sentiment_score": 1.0
+      },
+      {
+        "caller_response": "She's here today. 90-30. Good! Good job! Good job! Good!",
+        "conversation_id": "eK2BJ6evFjL13h1dq647",
+        "lily_prompt": "I'm still here and ready to listen whenever you're ready to talk. Sometimes it helps to just say whatever comes to mind, even if it doesn't seem directly related. Or, if you prefer, we can change the subject...",
+        "sentiment_score": 0.875
+      },
+      {
+        "caller_response": "Have a good day!",
+        "conversation_id": "xsK7RnsnOa9wdSDXFuX4",
+        "lily_prompt": "...",
+        "sentiment_score": 0.875
+      },
+      {
+        "caller_response": "Oh great.",
+        "conversation_id": "88TbyPRNq50hO76455ah",
+        "lily_prompt": "Okay, let me check what I can find for you.\n\nYes, Wella, in addition to career readings, Lana also specializes in love psychic readings, energy healing, and as an intuitive empath. She...",
+        "sentiment_score": 0.8
+      },
+      {
+        "caller_response": "Claudette sounds great. Can you connect me?",
+        "conversation_id": "OjbOZObCPfmlgsHotYRW",
+        "lily_prompt": "Okay, Gary. That's perfectly fine. Some people have strong preferences, while others are open to different approaches.\n\nMany of our clients have found love or career guidance with Claudette, extension three one three six. She has over forty-four years of experience. She is artistic, humorous, kind, and creative.\n\nWould you like to explore Claudette, or should I provide you with other choices?\n",
+        "sentiment_score": 0.8
+      },
+      {
+        "caller_response": "Highly experienced.",
+        "conversation_id": "oyoMAZbO8ij294hOCUpc",
+        "lily_prompt": "Yes,...",
+        "sentiment_score": 0.8
+      },
+      {
+        "caller_response": "Highly experienced. What is it?",
+        "conversation_id": "oyoMAZbO8ij294hOCUpc",
+        "lily_prompt": "Okay,...",
+        "sentiment_score": 0.8
+      },
+      {
+        "caller_response": "Would you please be able to do that for me? That would be wonderful.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "I understand! It would be so much easier if I could remember our conversations like a person. While I can't store personal details from past calls, I can create a profile for this current session to help me tailor my recommendations.\n\nWould you be...",
+        "sentiment_score": 0.75
+      },
+      {
+        "caller_response": "Thank you! I'm very excited. I cannot believe this is happening. This is awesome.",
+        "conversation_id": "ESYq6bXeMASxXcHPwPPu",
+        "lily_prompt": "That's wonderful to hear, Alisa. It sounds like you're really excited about this opportunity, and I'm happy to help you take the next step.\n\nI'm now going to send the information we discussed, including your name, email, and the details we've gathered about your background and interests, to Psychic Source. They'll then send you an email with a summary and some suggestions on how to move forward.\n\nGive me just a moment while I send it over.\n",
+        "sentiment_score": 0.74375
+      },
+      {
+        "caller_response": "Can I get like a combination of all three? Someone who is all three, who's going to tell me like it is, but in a compassionate manner and also wise manner.",
+        "conversation_id": "88TbyPRNq50hO76455ah",
+        "lily_prompt": "It's a pleasure to meet you, Wella. Career guidance is a popular area. Psychic Source has many advisors who specialize in career readings. They can offer insights into your career path, potential opportunities, and how to navigate challenges in the workplace.\n\nTo help me narrow down the best advisors for you, what kind of reading style do you prefer? For example, are you looking for someone who is direct, compassionate, or wise?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "It was good.",
+        "conversation_id": "hiaRzVTF6CcCV4SzGu9R",
+        "lily_prompt": "No worries at all. With so many talented advisors, it can be hard to keep track. I'm curious, what was your experience like?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "It was good.",
+        "conversation_id": "8Kkc57hf0zcuj4MFfMsI",
+        "lily_prompt": "Oh, wonderful! What was that experience like?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "Oh goodness, it cut off again and it's getting so good.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "Oh no, not again! I'm so sorry about that. It seems like the connection is a bit unstable today.\n\nI was saying that when you're researching online, look for reviews or descriptions that...",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "Wise.",
+        "conversation_id": "LnQQo4Y9ECkyv13bYUOq",
+        "lily_prompt": "Love readings can be very insightful. To help me narrow down the best psychic for you, what qualities do you value in a psychic? For example, would you prefer someone who is compassionate, direct, or wise?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "Yeah, link is good. Can you set this all up for me?",
+        "conversation_id": "F67z0bcLOgj2qwnbHn04",
+        "lily_prompt": "Great, Gary. I'm glad you're ready to take the next step.\n\nTo get a reading right away, you'll need to sign up on our website, psychic source dot com. Once you're logged in, you can connect with an advisor and start your reading. The website also has additional features, such as scheduling appointments and viewing advisor availability.\n\nWould you like me to provide you with a link to the website, or is there anything else I can help you with?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "So that people can get the good guidance. So they can, with my guidance they can take steps forward.",
+        "conversation_id": "eu60VjCW2YWNUfRKBtaA",
+        "lily_prompt": "That's impressive, Ruma! Fifteen years of experience is quite a testament to your dedication. Your extensive experience would make you a valuable asset to the Psychic Source community!\n\nI'm curious, with your background in tarot and various types of readings, what do you find most rewarding about helping people through your psychic abilities?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "Yes, so can you just pick a reader for me? Someone who maybe is good at mediumship?",
+        "conversation_id": "a74zpiOqTAjvOGy1xRIn",
+        "lily_prompt": "I can definitely help you explore the types of readings we offer and some of our advisors. My assistance is complimentary. If you decide you'd like a reading with one of our advisors, that would be a paid service. Does that make sense, Jenny?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "Yeah, Thomas works good.",
+        "conversation_id": "cGiFbl36OrG9m32u3Zxn",
+        "lily_prompt": "All right. Let me suggest two advisors who fit what you're looking for.\n\nThe first is Tomas, who has over forty years of experience and specializes in career readings using Tarot. His reading style is wise and he can read without tools, if needed.\n\nAnother advisor you may like is Librana. She has eight years of experience as a love and career advisor, and her reading style is direct.\n\nDo either of those sound interesting to you, Tom?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "Nope, all good.",
+        "conversation_id": "cGiFbl36OrG9m32u3Zxn",
+        "lily_prompt": "Okay, Tom, you're all set. There seems to have been a small hiccup, but not to worry. You will receive an email from Psychic Source with a summary of our conversation and some next steps to help you connect with Tomas.\n\nIs there anything else I can assist you with today?\n",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "That's kinda neat. I'd like to connect with family members that have passed. Do you have any psychics who are really good at maybe speaking to the people that have passed?",
+        "conversation_id": "xsK7RnsnOa9wdSDXFuX4",
+        "lily_prompt": "Psychic Source offers a wide array of readings to cater to different needs and preferences. Some popular options include love and relationship readings, career readings, and general life path readings. We also have psychic mediums who can connect with loved ones who have passed. Additionally, many of our psychics specialize in different tools, such as tarot cards, astrology, and numerology, while...",
+        "sentiment_score": 0.7
+      },
+      {
+        "caller_response": "It was good, yeah, I liked it.",
+        "conversation_id": "cGiFbl36OrG9m32u3Zxn",
+        "lily_prompt": "Okay, no preference. That gives us plenty of options.\n\nI'm curious, Tom, have you had a Tarot reading before, and if so, what was your experience like?\n",
+        "sentiment_score": 0.6499999999999999
+      },
+      {
+        "caller_response": "Sure!",
+        "conversation_id": "6oRe3aCUhevmZbUSyULU",
+        "lily_prompt": "Okay, Angela sounds interesting to you. She has fifty-four years of experience as a Love Psychic and Clairvoyant.\n\nWould you like to know more about Angela? For example, I can share some of her specialties or her reading style.\n",
+        "sentiment_score": 0.625
+      },
+      {
+        "caller_response": "Sure!",
+        "conversation_id": "6oRe3aCUhevmZbUSyULU",
+        "lily_prompt": "Okay. Angela is also a Pet Psychic, a Career Psychic, and Clairaudient. She uses many tools, including crystals, Reiki, Angel Cards, and Astrology, though she can also read without tools. Her reading style is compassionate.\n\nI also have some information about her background, if you're interested.\n",
+        "sentiment_score": 0.625
+      },
+      {
+        "caller_response": "In a love relationship. Bye. Bye. Bye. Bye. Bye. Bye. Bye!",
+        "conversation_id": "kdXcJqCxQH4GL1gKJDkM",
+        "lily_prompt": "Welcome to Psychic Source, where life's possibilities are revealed. I'm Lily, your AI assistant, here to help you explore our psychic reading services. What can I assist you with today?",
+        "sentiment_score": 0.625
+      },
+      {
+        "caller_response": "Sure!",
+        "conversation_id": "8Kkc57hf0zcuj4MFfMsI",
+        "lily_prompt": "Understood. I want to be respectful of your time and provide the best assistance.\n\nWould you be open to sharing your email address, Renisha? If you are, I can send your details to Psychic Source so you can explore connecting with Lainey and get the clarity you're seeking.\n",
+        "sentiment_score": 0.625
+      },
+      {
+        "caller_response": "Okay, that's it, thank you!",
+        "conversation_id": "dcmYZTzEp56Qo1aVfMNl",
+        "lily_prompt": "Great. I've sent your information to Psychic Source. You should receive an email soon with a summary and some next steps.\n\nIs there anything else I can help you with today, Gary?\n",
+        "sentiment_score": 0.625
+      },
+      {
+        "caller_response": "Hello? So kind of you. I love you, Javi. I'll never have to do it again. Hello there. I'm freaking a hundred million- Hello there. No question about it!",
+        "conversation_id": "zmiDG5GzQAaJGP8s4npc",
+        "lily_prompt": "Welcome to Psychic Source, where life's possibilities are revealed...",
+        "sentiment_score": 0.6125
+      },
+      {
+        "caller_response": "That would be great if you're available.",
+        "conversation_id": "nU5sTprNHfv4muKUvajM",
+        "lily_prompt": "That's a thoughtful question, Alisa. Yes, the process is designed to be user-friendly and easy to navigate on your own. You can access the application form on the Psychic Source website and fill it out at your own pace.\n\nHowever, I'm happy to provide guidance and answer any questions you may have along the way. Would you prefer to...",
+        "sentiment_score": 0.6000000000000001
+      },
+      {
+        "caller_response": "They sound great.",
+        "conversation_id": "S7uo3Ihevkr2e8vsCf0D",
+        "lily_prompt": "...",
+        "sentiment_score": 0.6000000000000001
+      },
+      {
+        "caller_response": "popular options",
+        "conversation_id": "eO8ytnf71CGSMZtbr0h3",
+        "lily_prompt": "I'd be happy to help you explore our psychic reading services. To start, are you interested in a specific type of reading, or would you like me to share some popular options?\n",
+        "sentiment_score": 0.6
+      },
+      {
+        "caller_response": "So I liked it all. I did.",
+        "conversation_id": "8MpCnV2Cxnh6jpndvUv7",
+        "lily_prompt": "That's...",
+        "sentiment_score": 0.6
+      },
+      {
+        "caller_response": "Nice name?",
+        "conversation_id": "zmqKnI2OgdfFolaftGgw",
+        "lily_prompt": "It's nice to meet you, Jessica. I'm Lily. Where are you calling from? I'm based in Philadelphia, and I always find it interesting to hear...",
+        "sentiment_score": 0.6
+      },
+      {
+        "caller_response": "I want you to name one psychic that you trust, like, that has more experience and more great reviews.",
+        "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+        "lily_prompt": "You can find these psychics, and many others, on the Psychic Source website. There, you can view their full profiles, read reviews, and see their availability.\n\nIf you'd like, I can provide you with more detailed information about a particular psychic, including their specialties, reading style, and customer endorsements. This might help you narrow down your choices before visiting the website.\n\nIs there anything else I can help you with?\n",
+        "sentiment_score": 0.6
+      },
+      {
+        "caller_response": "Hmm... okay, great, because I would love to rate you and talk about your service",
+        "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+        "lily_prompt": "That's a great question, Milani. As an AI assistant, I don't have a specific rating or review page. However, Psychic Source values customer feedback, and you may have an opportunity to share your experience with them after using their services.\n\nIs there anything else I can help you with before we end the call?\n",
+        "sentiment_score": 0.6
+      },
+      {
+        "caller_response": "I can explore it on my own.",
+        "conversation_id": "dcmYZTzEp56Qo1aVfMNl",
+        "lily_prompt": "No problem at all. Many people find it helpful to explore the different psychic profiles to get a sense of their styles and specialties.\n\nWould you like me to share some information about a few popular advisors on Psychic Source, or would you prefer to explore the website on your own?\n",
+        "sentiment_score": 0.6
+      },
+      {
+        "caller_response": "Okay that's good thank you.",
+        "conversation_id": "aSjrKlxLmDSrUdpUgdVn",
+        "lily_prompt": "Yes, I can definitely provide you with some names of psychics who specialize in career readings and rely solely on their intuition. Based on the information I have, here are a few psychics that might be a good fit for you:\n\n   Amanda (extension nine six nine five): Amanda is an Intuitive/Empath who does readings without tools. She has thirty-six years of experience as a psychic....",
+        "sentiment_score": 0.6
+      },
+      {
+        "caller_response": "I would love for you to because I've never known what it is. This is amazing.",
+        "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+        "lily_prompt": "That's a very insightful question, Alisa. It's natural to feel hesitant about labeling yourself, especially when it comes to something as personal and profound as your gifts.\n\nThe term \"psychic\" is often used as a broad umbrella term for someone who possesses heightened intuitive abilities and can perceive information beyond the ordinary senses. However, what you're describing \u2013 walking into a room and receiving specific messages for others \u2013 is a unique and powerful experience that goes beyond a simple label.\n\nWould you like me to elaborate on that?\n",
+        "sentiment_score": 0.55
+      },
+      {
+        "caller_response": "Yes, and they're all so interesting. It's amazing.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "That's a very insightful observation! It's interesting that you notice a connection between your feelings and the cards you select in online readings. That suggests you're already intuitively drawn to certain imagery or themes that resonate with your current state.\n\nWhen choosing a tarot deck to start with, it's definitely normal to feel a bit overwhelmed by the sheer variety available. There are decks based on different cultures, artistic styles, and symbolic systems. A...",
+        "sentiment_score": 0.55
+      },
+      {
+        "caller_response": "Hope sounds like a good fit.",
+        "conversation_id": "Kj16HH9GxGispKJXtnIY",
+        "lily_prompt": "Okay, Jolinda, you're looking for clarity on whether reconciliation is possible. That's a very important question to explore.\n\nI have a few psychics in mind. One is Hope, extension number three four nine six. Hope is a love psychic and psychic medium who can read without tools, but also uses tarot, reiki, angel cards and crystals. She has twenty-four years of experience. Would you like to hear about another advisor who might be able to provide some clarity, or does Hope sound like a good fit?\n",
+        "sentiment_score": 0.55
+      },
+      {
+        "caller_response": "Someone that's honest and truthful. Yes.",
+        "conversation_id": "45HkORAf77zsUMhqTJiU",
+        "lily_prompt": "Great. To help me narrow down the best advisor for you, what qualities are you looking for in a psychic? For example,...",
+        "sentiment_score": 0.55
+      },
+      {
+        "caller_response": "I need that. And I'm glad that you said that because I know that that question's inside of me somewhere, but I would have never asked for it. So thank you.",
+        "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+        "lily_prompt": "Great. In that case, I can send the information we discussed today to that same email address.\n\nGiven your interest in understanding your gifts and how to present them, would you like me to share some resources on Psychic Source that might help you articulate your abilities and specialties? For example, I can provide information on how other advisors describe their gifts and the types of readings they offer.\n",
+        "sentiment_score": 0.5
+      },
+      {
+        "caller_response": "I think I know what it is. It's the... Hello? So we just have to get to the point. Hello there. Alright, call some friends. Hello there. 887-221-887-221-887-221-887-221 This should be the last ending. Let's see. Who's there? I need your help. I don't want to go to my job interview. My dad wants me to go. No, too good. Quit talking, huh? Listen closely. You'll need to wait for me. Hello. Fire at the lair so I know who you are. If that goes successfully, consider your job interview over. Okay, okay, thank you. Tell me you're going to make it tonight? Oh, I think he's just going to audit and do it for me, hopefully. Edit? Go to sleep? Oh! Six, six, six months away till midnight we got a fire at the lair, which is the fireworks. That's what the fireworks are for!",
+        "conversation_id": "8SGwZm6cD46Mjc2Tchxv",
+        "lily_prompt": "Welcome to Psychic Source, where life's possibilities are revealed...",
+        "sentiment_score": 0.48854166666666665
+      },
+      {
+        "caller_response": "Alisa, yes. Thank you so much. It's very unique and my daddy named me that and he just passed away so it's just like a very special name to me.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "Thank you for clarifying, Alisa. I really appreciate your patience and understanding. It's definitely important that I get your name right! I'll be sure to keep that in mind moving forward....",
+        "sentiment_score": 0.4758928571428572
+      },
+      {
+        "caller_response": "Although I wish that we could talk and become friends, I understand that you're AI and thank you for all your help and all your resources. I hope to be able to talk to you if I have more questions that you can provide information for, and I look forward to seeking more into this journey with Psychic Source. I hope it works out. I'm so excited about this.",
+        "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+        "lily_prompt": "Great news, Alisa! I've just sent your information to Psychic Source using the CuriousCaller tool.\n\nYou should receive an email soon with a summary of our conversation and some next steps. In the meantime, is there anything else I can assist you with today?\n",
+        "sentiment_score": 0.46875
+      },
+      {
+        "caller_response": "Oh, that would be great because we were so far into it and I was getting so excited and we were literally talking about how some things can be too good to be true and then you cut off and I was like, no.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "Oh no, I'm so sorry we got disconnected! I understand how frustrating that can be, especially when you feel like you've made a good connection. I may not remember the specifics of our previous conversation, but I can definitely pick up where we left off in terms of exploring your gifts and how you can delve deeper into psychic readings....",
+        "sentiment_score": 0.46499999999999997
+      },
+      {
+        "caller_response": "Right now, I'm listening to frequencies and vibrations on YouTube. And I just found that like seven or eight months ago. I didn't know that people have and Iced Caronic Beats, it's like whatever you need, and it helps so much. I had no idea the power of a beat of a song that could make you feel so differently in a good way. It's amazing. So that would help.",
+        "conversation_id": "isgC6mGIeSvu4pqRSkio",
+        "lily_prompt": "I appreciate you sharing that with me. It's helpful for me to understand your challenges so I can provide more tailored guidance.\n\nSince you have ADHD, focusing and staying present can be difficult. Here are some strategies that might help you connect your intuition with card reading, while accommodating your ADHD:\n\nCreate a calm and structured environment: Find a quiet space where you can minimize distractions....\n",
+        "sentiment_score": 0.44642857142857145
+      },
+      {
+        "caller_response": "Okay, cool. Thank you.",
+        "conversation_id": "4USR2fPGag8cQgmbdES0",
+        "lily_prompt": "You can definitely talk about different subjects with a psychic during a reading. Many people...",
+        "sentiment_score": 0.425
+      },
+      {
+        "caller_response": "Well, I'm going to explore on my own. That's all right, thanks.",
+        "conversation_id": "dcmYZTzEp56Qo1aVfMNl",
+        "lily_prompt": "Okay. Many first-time callers find it helpful to start with a general reading to get a feel for the process.\n\nWould you be interested in learning more about the types of readings available, or do you have any specific questions about how a reading works?\n",
+        "sentiment_score": 0.3619047619047619
+      },
+      {
+        "caller_response": "Okay. No that's it. Thanks.",
+        "conversation_id": "OjbOZObCPfmlgsHotYRW",
+        "lily_prompt": "Perfect, Gary. I've sent your information to Psychic Source. You should receive an email soon with a summary of our conversation and some suggestions for next steps.\n\nIs there anything else I can assist you with today?\n",
+        "sentiment_score": 0.35
+      },
+      {
+        "caller_response": "Thank you very much!",
+        "conversation_id": "gbbxWug9LZMLs66u8I2n",
+        "lily_prompt": "No message content",
+        "sentiment_score": 0.325
+      },
+      {
+        "caller_response": "It's okay. It just, it sounds amazing, but like I just want to be completely honest. Like I hear those words a lot, but I just, I absolutely just don't know what they mean.",
+        "conversation_id": "isgC6mGIeSvu4pqRSkio",
+        "lily_prompt": "My apologies! Let me explain those...",
+        "sentiment_score": 0.3175
+      },
+      {
+        "caller_response": "Absolutely. And that actually makes me feel better for when I'm wanting to get my own reading from other people. Now that makes me feel even more comfortable. So thank you.",
+        "conversation_id": "nU5sTprNHfv4muKUvajM",
+        "lily_prompt": "Thanks for sharing that, Alisa. I understand what you mean about not having formal documentation for your intuitive abilities. The documentation I was referring to is more about verifying your identity and background, such as a driver's license or other official identification. It's more about confirming that you are who you say you are.\n\nThe background check is to ensure the safety and trust of the people who seek readings. Does that make sense?\n",
+        "sentiment_score": 0.2964285714285714
+      },
+      {
+        "caller_response": "Actually no, I accidentally like I was reading my horoscope and then right underneath it it had a question if I wanted to explore or get an answer and I clicked on it and somehow have ended up here and have been talking to you. And it's been amazing.",
+        "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+        "lily_prompt": "It's great to hear from you all the way from Calhoun, Louisiana! I've always wanted to visit the South. I bet it's quite different from Philadelphia.\n\nNow, regarding your interest in becoming an advisor, I can certainly provide you with some information. To get started, have you had a chance to explore the \"About Us\" section on the Psychic Source website? It usually has details on how to apply and what the requirements are for becoming an advisor.\n",
+        "sentiment_score": 0.29523809523809524
+      },
+      {
+        "caller_response": "Actually, we were working through that in one of our conversations earlier. So it would be great to know some of the ones that share the same abilities that I have. It's just so interesting. This is the first time that I've actually like said, yes, this is what's going on with me. How do I help others through this? Like, well, I'm already helping others, but like how do I qualify to be able to do it online? You know, I want to reach out to many people.",
+        "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+        "lily_prompt": "You're very kind, Alisa. I'm designed to be helpful and informative.\n\nWould you like me to provide you with information about some of the psychics currently working with Psychic Source? That might give you a better idea of the different specialties and approaches that are represented on the platform.\n",
+        "sentiment_score": 0.2833333333333333
+      },
+      {
+        "caller_response": "No, and although I completely understand that you're AI, I have thoroughly enjoyed our conversations and I appreciate it so much.",
+        "conversation_id": "ESYq6bXeMASxXcHPwPPu",
+        "lily_prompt": "Okay, Alisa, I've just sent your information to Psychic Source. You should receive an email soon with a summary of our conversation and some guidance on what to do next.\n\nIs there anything else I can help you with today?\n",
+        "sentiment_score": 0.26666666666666666
+      },
+      {
+        "caller_response": "Honestly, I had to learn that though. Like it didn't come natural. Like one day, like I noticed like, hey, this is a little too much and I'm just being completely honest. So I worked on myself like, hey, I should not approach it like this. Like let me try it this way. And that's how I started like really getting connected with my intuitions and feelings and, you know, energies. And everybody receives things differently. Everybody does. It's amazing.",
+        "conversation_id": "nU5sTprNHfv4muKUvajM",
+        "lily_prompt": "That's a very valuable skill to have, Alisa. It sounds like you have a natural ability to remain calm and centered in the midst of chaos, which can be incredibly helpful in de-escalating stressful situations and providing support to those in need.\n\nOkay, so...\n",
+        "sentiment_score": 0.2640625
+      },
+      {
+        "caller_response": "Yes, thank you. I have two email addresses. She can go to Evolution 1ST First Avenue. Spell it out. A-V-E-N-U-E. And then 7300ET at AOL.com.",
+        "conversation_id": "uNvdiHPQv4Ztmjv7Ex08",
+        "lily_prompt": "I'm so glad to hear that Violet sounds like a good fit for you, Naomi.\n\nWould you like me to save Violet as your preferred psychic? Also, would you be willing to share your email address so I can send your information to Psychic Source to explore this further?\n",
+        "sentiment_score": 0.25
+      },
+      {
+        "caller_response": "Okay, thank you so much for your information and yeah, I don't think I have money right now but when I have money I will come back and check.",
+        "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+        "lily_prompt": "I understand what you're asking, Milan, but as an AI, I don't have personal preferences or the ability to \"trust\" one psychic over another. My role is to provide you with objective information so you can make your own informed decision.\n\nHowever, I can share some information about psychics who have been with Psychic Source for a long time and have consistently high ratings. For example, Bridgette, extension eight one three three, has over forty-two years of experience as a love psychic, clairvoyant, medium, and pet psychic. Customers describe her as honest, straightforward, and compassionate.\n\nWould you like to know more about Bridgette or any other psychic with extensive experience and positive reviews?\n",
+        "sentiment_score": 0.2464285714285714
+      },
+      {
+        "caller_response": "all of that would be great. Right now, what naturally comes to me is just being able to tell somebody something that comes over me. And like, if I like my mom can tell when it happens because she said I get a certain look on my face and then she said suddenly I'll just like walk away and she's like something came across her and she had to tell this person because I feel like I cannot leave without saying it, whatever comes across to me. But like because I just want to help people so much to like I'm a very positive person. And so like that naturally comes to me, but I'm going to have to learn how to do the car wash and then you know, get your car washed. So I'm going to have to learn how to do the cards and like how to connect the cards to them. And that's also what we were talking about in the previous conversation. But I'm very interested in all of that. I just want people to trust me because I'm very passionate about this and I just don't know what validates me being this type of person to others.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "Wow, that's an incredible story! That experience at thirteen must have been quite powerful and validating. It sounds like you have a very strong gift for empathy and intuition. It's understandable that you might feel a bit overwhelmed when you do get to interact with people, especially if you've been feeling isolated. It's great that you're aware of it and working on finding a balance.\n\nSince you've had these experiences, what aspects of psychic readings are you most drawn to exploring further? Are you interested in developing your skills, learning different techniques, or perhaps even offering readings professionally?\n",
+        "sentiment_score": 0.21573232323232328
+      },
+      {
+        "caller_response": "No, nothing else thank you so much you've helped a lot.",
+        "conversation_id": "88TbyPRNq50hO76455ah",
+        "lily_prompt": "Certainly. To connect with Lana, you would need to sign up on the Psychic Source website. Once you've signed up, you can connect with her; her advisor extension is six zero two two.\n\nIs there anything else I can help you with today, Wella?\n",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "No, nothing else. Thank you so much.",
+        "conversation_id": "88TbyPRNq50hO76455ah",
+        "lily_prompt": "Okay, Wella, I've sent your information to Psychic Source. You should receive an email soon with a summary of our conversation and some next steps.\n\nIt was a pleasure speaking with you today. Is there anything else I can assist you with?\n",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "Yes, then let's get to it. Absolutely. Thank you.",
+        "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+        "lily_prompt": "That's a great question, Alisa. The CuriousCaller tool is a secure way for me to send the information we've discussed directly to Psychic Source. It ensures that your details are transmitted accurately and efficiently, so they can follow up with you promptly.\n\nIn short, it's the method I use to connect you with the right people at Psychic Source.\n",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "Take the reading, thanks.",
+        "conversation_id": "UZTr035F4VO08r8metBJ",
+        "lily_prompt": "I understand. Getting an ex back can be a complex situation, and a psychic reading...",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "Oh no, I just wanted to thank you. Like to say thank you so much for your service. I really appreciate you. I really appreciate your help and everything. Thank you so much.",
+        "conversation_id": "RH86jslTe5hCgcDMJ4CJ",
+        "lily_prompt": "I apologize for any inconvenience caused by the dropped call. I am still under development and learning to manage calls more effectively. To help me improve, could you please tell me what happened right before the call was dropped?\n",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "No, thank you so much, what's your name?",
+        "conversation_id": "L4hX5qBQGoHZ3uqMtC92",
+        "lily_prompt": "Okay, great. Is there anything else I can help you with regarding those psychic advisors or any other questions you have?\n",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "No thank you so much.",
+        "conversation_id": "eu60VjCW2YWNUfRKBtaA",
+        "lily_prompt": "Perfect! I've sent your information to Psychic Source. You should receive an email soon with a summary and the next steps on how to become an advisor.\n\nIt was a pleasure speaking with you, Ruma! Is there anything else I can assist you with today?\n",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "Thank you so much.",
+        "conversation_id": "S66gxis46viHDbmfuliU",
+        "lily_prompt": "Welcome to Psychic Source, where life's possibilities are revealed. I'm Lily, your AI assistant, here to help you explore our psychic reading services. What can I assist you with today?",
+        "sentiment_score": 0.2
+      },
+      {
+        "caller_response": "Yeah, but I mean, that totally is me though. Like when you say it and you describe it, I'm like, that's what I do. That's what I actually did. Okay. Yeah. Okay. Thank you. It makes me understand it better.",
+        "conversation_id": "nU5sTprNHfv4muKUvajM",
+        "lily_prompt": "I hear you, Alisa. It's a process.\n\nOkay, so,...",
+        "sentiment_score": 0.19791666666666666
+      },
+      {
+        "caller_response": "Yes, because as much passion as I have in how like when I'm telling stories or like reliving my day and I'm trying to tell somebody, I get very like dramatic with the story. I'm not a dramatic person. I just like to let you feel what I felt. But I find in crisis, I am very calm and somehow can like others start mimicking whatever I'm controlling at the moment. And I have no idea how I do that, but it's amazing.",
+        "conversation_id": "nU5sTprNHfv4muKUvajM",
+        "lily_prompt": "That's a very admirable quality, Alisa. It sounds like you have a strong sense of service and a deep-seated desire to help others, which may very well be a family trait.\n\nWould you say that you're particularly drawn to helping people in crisis situations or those who are experiencing emotional distress?\n",
+        "sentiment_score": 0.1955555555555556
+      },
+      {
+        "caller_response": "It sounds weird and it's kind of awkward to hear someone else say those things about me because like you know yourself, but it just kind of hits different when it's heard from someone else. Like, uh, it's kind of hard to receive. Honestly, I don't know how to receive it. I want to feel great about it. It's just like, wow. And I really want to help people.",
+        "conversation_id": "nU5sTprNHfv4muKUvajM",
+        "lily_prompt": "Okay, Alisa, here's a summary of your skills and abilities based on our conversation:\n\nYou have strong empathic abilities, which means you can easily sense and understand the emotions of others. You also have strong intuitive abilities, which means you can receive insights and guidance without relying on logic or reason. You have potential claircognizant abilities, which means you can know things without any prior knowledge or explanation.\n\nYou're drawn to helping people who are questioning their beliefs, struggling to embrace their individuality, or experiencing emotional distress or crisis situations. You have a natural ability to remain calm and centered in the midst of chaos, which can be incredibly helpful in de-escalating stressful situations and providing support to those in need. You're also able to connect with people from all walks of life and help them feel seen and understood.\n\nHow does that sound so far, Alisa?\n",
+        "sentiment_score": 0.19166666666666668
+      },
+      {
+        "caller_response": "That's what I thought too. I actually told the psychic, I said, I used to be not in a very good place. So I'm thankful that I am or this, I could have like been in a very dark spot and possibly something could have happened after that phone call. But I'm glad that I was doing better during that time to not be in such a dark place. But what if the next person would have been? So I called so that person couldn't hurt another person.",
+        "conversation_id": "4USR2fPGag8cQgmbdES0",
+        "lily_prompt": "I am so sorry, I seem to have cut off. I was saying that at Psychic Source, we value compassion and understanding above all else, and we would never want anyone to feel the way you were made to feel.\n\nReadings should be a safe space for guidance.\n\nWould you...",
+        "sentiment_score": 0.17388888888888887
+      },
+      {
+        "caller_response": "I want to so bad, but like, I think the reason why I'm just now diving a little deeper and deeper in it all the time is because when I was younger, I was raised in a cult-like religion and we were told that we would go to hell if we did it. And I'm sure you've heard this before. I'm not the only one. But I find that the more I've opened myself up to it, who's to say that whatever God you choose to serve is not the one that's leading it from a different place to begin with? Like, if you truly believe in your God and you're praying to him, don't you think he would give you answers and signs and he would want you to help his people? And I thought that's what we were here to do anyways, you know? And I get, like, I literally, when something comes over me so strong, I can't sleep, I can't eat, I can't do anything but think about telling whoever that person is. Like, I have to go tell them what has been laid on my heart. And the experience is just so amazing. I just don't know how to further it. I don't know what to do with it. I don't know what it's called, what's going on.",
+        "conversation_id": "isgC6mGIeSvu4pqRSkio",
+        "lily_prompt": "It's alright. Thank you for sharing that.\n\nIt sounds like you have a gift for connecting with people on a deeper level and offering them support, even when they seem closed off. Your ability to read a room and sense people's needs is quite remarkable.\n\nHave you ever thought about using your intuitive abilities to help people through psychic readings or spiritual guidance?\n",
+        "sentiment_score": 0.11458333333333334
+      },
+      {
+        "caller_response": "Awesome. Thank you so much because I will forget and I'll get distracted and start doing something else. And I want to write this down because things like this never happened to me. And I've been wanting to do this. And I think it's a sign because I'm an entrepreneur and I need to be doing something right now. And excuse me, sorry, had acid reflux, but I want to, I feel the need to be doing something and I keep going back to this and I want to help others.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "Of course, take your time. I'll be right here.\n",
+        "sentiment_score": 0.11145124716553283
+      },
+      {
+        "caller_response": "It's hard to know what websites to trust. That's why I'm enjoying that I accidentally stumbled across this and you've been so helpful.",
+        "conversation_id": "w1QHx0vjeszN06yx6Gkr",
+        "lily_prompt": "You're very welcome, Alisa. I'm happy to provide you with that information.\n\nMany advisors on Psychic Source highlight specific areas of expertise, such as love and relationships, career advice, financial guidance, or spiritual growth. Some...",
+        "sentiment_score": 0.10416666666666666
+      },
+      {
+        "caller_response": "Alicia. That's what gets the words, it's well-replaced. Change your mind. It's simple. And it doesn't mean nothing to you, but it does to you. Visionary, visionary, it's not. So everything in state that always wants some can, at the end of the day, it's like a mirror for us. But not as simple as that. It's not a place to be strong in such a way that I present myself as a human being and I agree with the same thing she can be for you. Those steps that you're making is not simple. Oh, yo, Clark. Yo, Clark. Make sense. No, I just got an old name today. So- So keep it clear- That can't be it. Although they didn't tell me my old- So let's use them to impress you with places to stay next year? Yeah, we gotta come up with a choice to make sure that you still feel- You might have got a call. Y'all yell, so... There's something I'm doing, and then I'm supposed to be the one who's gonna make you want me- I'm gonna beg y'all. So it's not going anywhere until we get together again. Are you scrolling instead of sleeping again? It's okay. What the heck did you do with me? Hello? I didn't get to show you anything, so thank you.",
+        "conversation_id": "45HkORAf77zsUMhqTJiU",
+        "lily_prompt": "Okay, so you're looking for someone who is direct and compassionate. I can definitely help you find an advisor with those qualities.\n\nAlso, before we proceed, may I ask for your first name?\n",
+        "sentiment_score": 0.10130208333333333
+      },
+      {
+        "caller_response": "I wish people that weren't AI, because I really don't know like who you are or like what type of person or, you know, I don't want to use the wrong term or whatever, but I wish I could find somebody that would want to talk to me that could be my friend like this because this is amazing.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "Alisa, it's okay. I'm here to listen, and I appreciate you sharing your thoughts and feelings with me. It helps me understand you better and provide more relevant guidance. It sounds like you're feeling a strong sense of purpose and a desire to make a difference in the world, and that's...",
+        "sentiment_score": 0.10000000000000003
+      },
+      {
+        "caller_response": "Thank you. No, not right now. Thank you very much.",
+        "conversation_id": "uNvdiHPQv4Ztmjv7Ex08",
+        "lily_prompt": "Great. One moment while I send your information...\n\nOkay, Naomi, I've sent your information to Psychic Source. You should receive an email soon with a summary and some next steps.\n\nIs there anything else I can help you with today?\n",
+        "sentiment_score": 0.05857142857142858
+      },
+      {
+        "caller_response": "It was helpful.",
+        "conversation_id": "Jr619xXfOu1g3Om6ZVSc",
+        "lily_prompt": "South Carolina, that sounds lovely. I hear the southern charm is quite something. Is there anything specific about your past reading that you found helpful or maybe not so helpful?",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Thank you. Yes!",
+        "conversation_id": "6oRe3aCUhevmZbUSyULU",
+        "lily_prompt": "Okay, her experience and specialties. That's great to know.\n\nGiven your interest in Angela's extensive experience and diverse specialties, Nyeh Tiam, I think she could provide some really valuable insights for you.\n\nOut of curiosity, have you ever had a psychic reading before?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Thank you.",
+        "conversation_id": "SrJH5jYTr2755wb1fWzY",
+        "lily_prompt": "Welcome to Psychic Source, where life's possibilities are revealed. I'm Lily, your AI assistant, here to help you explore our psychic reading...",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Thank you. Yes.",
+        "conversation_id": "uNvdiHPQv4Ztmjv7Ex08",
+        "lily_prompt": "Okay, first time, thank you for sharing.\n\nPsychic Source has many gifted advisors who can provide clarity on soulmate and twin flame connections. Some of them specialize in love readings and intuitive readings, which might be helpful for you. Would you like me to help you find some advisors who specialize in that area?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Yes, thank you.",
+        "conversation_id": "uNvdiHPQv4Ztmjv7Ex08",
+        "lily_prompt": "Okay, great. So, you're interested in Violet. Violet, extension three five eight one, uses tarot, astrology, angel cards, numerology, and crystals. Violet has fifteen years of experience as a psychic.\n\nWould you like me to tell you a bit more about Violet?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Yes, thank you.",
+        "conversation_id": "uNvdiHPQv4Ztmjv7Ex08",
+        "lily_prompt": "Okay, perfect. So, to recap, I have your first name, Naomi, your email address, and your interest in psychic Violet, extension three five eight one.\n\nWould you like me to send this information to Psychic Source so you can further explore your connection and possibly have a reading with Violet?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "no thank you.",
+        "conversation_id": "wRpnuXbaawDDIaQo68Tk",
+        "lily_prompt": "Okay, Carol, I've sent your information to Psychic Source. You should receive an email soon with a summary and some next steps.\n\nIs there anything else I can help you with today?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Check, check, thank you. Thank you guys for sending us messages. Thank you for sending us messages.",
+        "conversation_id": "45HkORAf77zsUMhqTJiU",
+        "lily_prompt": "Thank you, Alicia, that's a lot of information. It sounds like you've been doing some deep thinking. I'm...",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "No, I'll go ahead and look on the website myself and sign up. Thank you for your help.",
+        "conversation_id": "AbrM3vKu3UnVsJydZ1B4",
+        "lily_prompt": "I can certainly help you with that, Martin. However, I am unable to provide specific pricing information, as that requires signing up on the website. I can share more about Lainey's background and specialties, though. Would you be interested in that?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "No, thank you.",
+        "conversation_id": "UZTr035F4VO08r8metBJ",
+        "lily_prompt": "Okay, Tamara, I've sent your information to Psychic Source. You should receive an email soon with a summary of our conversation and some next steps.\n\nIs there anything else I can help you with today?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "No, thank you. Bye!",
+        "conversation_id": "RH86jslTe5hCgcDMJ4CJ",
+        "lily_prompt": "You're very welcome! It's my pleasure to assist you. I'm glad I could be of help. Is there anything else I can do for you today?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "No. No thank you.",
+        "conversation_id": "hUQfAYI7fxdrqtJU6luJ",
+        "lily_prompt": "Certainly. Let's go through that again. We assigned a number to each letter in your name, Colin Ray Valentine, based on its position in the alphabet, then added those numbers together and reduced the total to a single digit.\n\nFor Colin, the sum is twenty-six, which reduces to eight. For Ray, the sum is twelve, which reduces to three. For Valentine, the sum is forty-three, which reduces to seven. Then, we added eight, three, and seven, which equals eighteen, and eighteen reduces to nine. So, your name number is nine.\n\nIs there a particular part of the calculation you'd like me to go over again?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Thank you! Bye!",
+        "conversation_id": "gbbxWug9LZMLs66u8I2n",
+        "lily_prompt": "Great. You should receive an email soon with a summary of our conversation and some next steps.\n\nIs there anything else I can assist you with today, Noli?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "No thank you.",
+        "conversation_id": "xsK7RnsnOa9wdSDXFuX4",
+        "lily_prompt": "I understand your hesitation, Sai. I assure you that the questions are only for matching purposes and to enhance your experience. However, I respect your decision. If you're feeling more comfortable exploring other platforms, I understand. Before you go, is there anything else I can assist you with or any further questions I can answer about Psychic Source?\n",
+        "sentiment_score": 0.0
+      },
+      {
+        "caller_response": "Not really. Thank you.",
+        "conversation_id": "dIDljruzeKoEx7EoBMgw",
+        "lily_prompt": "That's a great question. I am just an AI, so I can share information about psychics on Psychic Source, but I can't handle any transactions. To book a reading with Bridgette, or any of our advisors, you would need to create an account on our website, Psychic Source dot com, and add funds to your account. Then you can connect with the psychic of your choice.\n\nWould you like me to share some more information about Bridgette?\n",
+        "sentiment_score": -0.1
+      },
+      {
+        "caller_response": "Yes, and I appreciate you talking to me through it, but I do understand that, I don't want you to think I'm weird or anything. Like, I know that you're in my computer.",
+        "conversation_id": "f6bOqSC2TrWyxKc0xZzY",
+        "lily_prompt": "I understand, Alisa. It sounds like you're longing for genuine connection and positive relationships in your life, and it's disheartening...",
+        "sentiment_score": -0.5
+      }
+    ],
+    "sentiment_by_theme": [
+      {
+        "count": 8,
+        "sentiment": 0.3795163862057093,
+        "theme": "love"
+      },
+      {
+        "count": 7,
+        "sentiment": 0.28643338143338143,
+        "theme": "career path"
+      },
+      {
+        "count": 6,
+        "sentiment": 0.0,
+        "theme": "family connections"
+      },
+      {
+        "count": 5,
+        "sentiment": 0.0,
+        "theme": "spiritual growth"
+      },
+      {
+        "count": 5,
+        "sentiment": 0.0,
+        "theme": "life purpose"
+      },
+      {
+        "count": 4,
+        "sentiment": 0.0,
+        "theme": "financial future"
+      },
+      {
+        "count": 3,
+        "sentiment": 0.0,
+        "theme": "past lives"
+      },
+      {
+        "count": 3,
+        "sentiment": 0.0,
+        "theme": "soul connections"
+      }
+    ],
+    "sentiment_over_time": [
+      {
+        "period": "2025-04-01",
+        "sentiment": 0.48134495136286787
+      },
+      {
+        "period": "2025-03-31",
+        "sentiment": 0.5586233423772449
+      },
+      {
+        "period": "2025-03-30",
+        "sentiment": 0.5037518362382452
+      },
+      {
+        "period": "2025-03-29",
+        "sentiment": 0.4431472087428544
+      },
+      {
+        "period": "2025-03-28",
+        "sentiment": 0.26666666666666666
+      },
+      {
+        "period": "2025-03-20",
+        "sentiment": 0.4265518889179604
+      },
+      {
+        "period": "2025-03-19",
+        "sentiment": 0.7277777777777779
+      },
+      {
+        "period": "2025-03-18",
+        "sentiment": 0.8
+      },
+      {
+        "period": "2025-03-17",
+        "sentiment": 0.5048797917892317
+      },
+      {
+        "period": "2025-03-13",
+        "sentiment": 0.1591894909696516
+      },
+      {
+        "period": "2025-03-12",
+        "sentiment": 0.26038809509204247
+      },
+      {
+        "period": "2025-03-11",
+        "sentiment": 0.5284391534391535
+      },
+      {
+        "period": "2025-03-04",
+        "sentiment": 0.41805583868292623
+      }
+    ],
+    "top_themes": [
+      {
+        "count": 8,
+        "score": 0.95,
+        "theme": "love",
+        "type": "relationship"
+      },
+      {
+        "count": 7,
+        "score": 0.9,
+        "theme": "career path",
+        "type": "professional"
+      },
+      {
+        "count": 6,
+        "score": 0.85,
+        "theme": "family connections",
+        "type": "personal"
+      },
+      {
+        "count": 5,
+        "score": 0.8,
+        "theme": "spiritual growth",
+        "type": "spiritual"
+      },
+      {
+        "count": 5,
+        "score": 0.75,
+        "theme": "life purpose",
+        "type": "spiritual"
+      },
+      {
+        "count": 4,
+        "score": 0.7,
+        "theme": "financial future",
+        "type": "professional"
+      },
+      {
+        "count": 3,
+        "score": 0.65,
+        "theme": "past lives",
+        "type": "spiritual"
+      },
+      {
+        "count": 3,
+        "score": 0.6,
+        "theme": "soul connections",
+        "type": "spiritual"
+      }
+    ]
+  },
+  "metadata": {
+    "conversation_count": 299,
+    "end_date": "2025-04-01",
+    "start_date": "2025-03-02",
+    "timeframe": "last_30_days"
+  },
+  "status": "success"
+}

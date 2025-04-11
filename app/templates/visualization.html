@@ -581,15 +581,6 @@
             // Force a refresh of the total conversations count
             fetchTotalConversations();
             
-            // Store date range in session storage for client-side filtering
-            const dateRange = {
-                start: startDate,
-                end: endDate
-            };
-            sessionStorage.setItem('currentDateRange', JSON.stringify(dateRange));
-            
-            logDebug(`Custom date range selected: ${startDate} to ${endDate}`);
-            
             // Load data after a brief delay for visual feedback
             setTimeout(() => {
                 loadVisualizationData('custom', startDate, endDate);
@@ -651,28 +642,15 @@
         console.log('Calculated date range:', startDate, 'to', endDate);
         logDebug(`Calculated date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
         
-        // Store the date range in sessionStorage for all timeframes
-        const dateRange = {
-            start: startDate.toISOString().split('T')[0],
-            end: endDate.toISOString().split('T')[0]
-        };
-        sessionStorage.setItem('currentDateRange', JSON.stringify(dateRange));
-        
         // Build query parameters
         let url = '/api/visualization/data';
         const params = new URLSearchParams();
         
         if (timeframe === 'custom' && customStartDate && customEndDate) {
-            // For custom timeframes, ensure we're sending proper format
             params.append('start_date', customStartDate);
             params.append('end_date', customEndDate);
-        } else {
-            // For preset timeframes, send the timeframe parameter
+        } else if (timeframe) {
             params.append('timeframe', timeframe);
-            
-            // Also send the calculated dates for extra clarity
-            params.append('start_date', dateRange.start);
-            params.append('end_date', dateRange.end);
         }
         
         if (params.toString()) {
@@ -680,7 +658,6 @@
         }
         
         console.log('Fetching data with URL:', url);
-        console.log('Using date range:', dateRange);
         logDebug(`Fetching visualization data from: ${url}`);
         
         // Set a longer timeout for slower connections
@@ -700,13 +677,19 @@
         .then(response => {
             clearTimeout(timeoutId); // Clear the timeout
             if (!response.ok) {
-                console.error(`HTTP error ${response.status}`);
-                throw new Error(`HTTP error ${response.status}`);
+                return response.json().then(errData => {
+                    const errorMsg = errData.error || `HTTP error ${response.status}`;
+                    console.error(`API Error ${response.status}:`, errorMsg);
+                    throw new Error(errorMsg); 
+                }).catch(() => {
+                    console.error(`HTTP error ${response.status}`);
+                    throw new Error(`HTTP error ${response.status}`);
+                });
             }
             return response.json();
         })
-        .then(data => {
-            console.log('Received visualization data:', data);
+        .then(metrics_data => {
+            console.log('Received visualization metrics:', metrics_data);
             
             // Restore card opacity
             document.querySelectorAll('.card-body').forEach(card => {
@@ -714,99 +697,65 @@
             });
             
             // Check if there's an error message in the response
-            if (data.error) {
-                console.error('Error in API response:', data.error);
+            if (metrics_data.error) {
+                console.error('Error in API response:', metrics_data.error);
                 document.getElementById('visualization-content').innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-circle me-2"></i>
-                        API Error: ${data.error}
+                        API Error: ${metrics_data.error}
                     </div>
                 `;
-                
-                // Hide loading overlay
-                document.getElementById('loading-overlay').classList.add('d-none');
-                document.getElementById('visualization-content').classList.remove('opacity-25');
                 document.getElementById('total-calls-count').textContent = '0';
-                return;
-            }
-            
-            // Log data details for debugging
-            if (data.volume && data.volume.labels) {
-                logDebug(`Received data with ${data.volume.labels.length} data points from ${data.volume.labels[0]} to ${data.volume.labels[data.volume.labels.length - 1]}`);
-            }
-            
-            // Filter all time series data to match the exact date range
-            const filterTimeSeriesByRange = (seriesData) => {
-                if (!seriesData || !seriesData.labels || !seriesData.data) {
-                    console.warn('Invalid or empty time series data');
-                    return { labels: [], data: [] };
+            } else {
+                // Log data details for debugging
+                if (metrics_data.volume && metrics_data.volume.labels) {
+                    logDebug(`Received volume data with ${metrics_data.volume.labels.length} points.`);
                 }
                 
-                const filteredLabels = [];
-                const filteredData = [];
-                
-                // Ensure dates are properly compared
-                const startDateStr = startDate.toISOString().split('T')[0];
-                const endDateStr = endDate.toISOString().split('T')[0];
-                
-                console.log(`Filtering time series data from ${startDateStr} to ${endDateStr}`);
-                logDebug(`Filtering range: ${startDateStr} to ${endDateStr} (${seriesData.labels.length} data points)`);
-                
-                seriesData.labels.forEach((label, index) => {
-                    // Get date from label and normalize format
-                    const labelDate = new Date(label);
-                    const labelDateStr = labelDate.toISOString().split('T')[0];
-                    
-                    // Compare dates as strings in ISO format (YYYY-MM-DD)
-                    if (labelDateStr >= startDateStr && labelDateStr <= endDateStr) {
-                        filteredLabels.push(label);
-                        filteredData.push(seriesData.data[index]);
+                // Update the date range indicator with the actual dates used by the service
+                const actualRange = metrics_data.date_range;
+                if (actualRange && actualRange.start_date && actualRange.end_date) {
+                    const startDisplay = new Date(actualRange.start_date + 'T00:00:00Z').toLocaleDateString(); // Assume UTC
+                    const endDisplay = new Date(actualRange.end_date + 'T00:00:00Z').toLocaleDateString(); // Assume UTC
+                    let rangeText = '';
+                    if (timeframe && timeframe !== 'custom') {
+                        const timeframeMap = {
+                            'last_7_days': 'Last 7 days',
+                            'last_30_days': 'Last 30 days',
+                            'last_90_days': 'Last 90 days',
+                            'all_time': 'All time'
+                        }
+                        rangeText = `${timeframeMap[timeframe] || 'Selected Period'}: ${startDisplay} to ${endDisplay}`;
+                    } else {
+                        rangeText = `Custom Range: ${startDisplay} to ${endDisplay}`;
                     }
-                });
-                
-                console.log('Filtered time series:', {
-                    original: seriesData.labels.length,
-                    filtered: filteredLabels.length,
-                    labels: filteredLabels,
-                    data: filteredData
-                });
-                
-                logDebug(`Filtered from ${seriesData.labels.length} to ${filteredLabels.length} data points`);
-                
-                return {
-                    labels: filteredLabels,
-                    data: filteredData
-                };
-            };
-            
-            // Filter time-series datasets for ALL date ranges (custom and preset)
-            if (data.volume) data.volume = filterTimeSeriesByRange(data.volume);
-            if (data.duration) data.duration = filterTimeSeriesByRange(data.duration);
-            if (data.completion) data.completion = filterTimeSeriesByRange(data.completion);
-            
-            // Validate filtered datasets
-            if (!data.volume || !data.volume.labels || data.volume.labels.length === 0) {
-                console.warn('No volume data available after filtering');
-                document.getElementById('visualization-content').innerHTML = `
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        No conversation data available for the selected date range. Please try a different range.
-                    </div>
-                `;
-                
-                // Hide loading overlay
-                document.getElementById('loading-overlay').classList.add('d-none');
-                document.getElementById('visualization-content').classList.remove('opacity-25');
-                document.getElementById('total-calls-count').textContent = '0';
-                return;
+                    document.getElementById('current-date-range').textContent = rangeText;
+                    logDebug(`Displaying metrics for actual range: ${actualRange.start_date} to ${actualRange.end_date}`);
+                } else {
+                     document.getElementById('current-date-range').textContent = 'Date range unknown';
+                }
+
+                // Validate essential data exists before trying to create charts
+                // Check if volume data specifically is present and has entries
+                const hasVolumeData = metrics_data.volume && metrics_data.volume.labels && metrics_data.volume.labels.length > 0 && metrics_data.volume.data && metrics_data.volume.data.length > 0;
+
+                if (!hasVolumeData) {
+                    console.warn('No volume data available for the selected period.');
+                    document.getElementById('visualization-content').innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No conversation data available for the selected date range. Please try a different range or sync new conversations.
+                        </div>
+                    `;
+                    document.getElementById('total-calls-count').textContent = '0'; // Set count to 0
+                } else {
+                    // If volume data exists, proceed to create visualizations
+                    // The createVisualizations function will handle empty states for individual charts
+                    createVisualizations(metrics_data);
+                }
             }
             
-            // Note: We don't filter time_of_day and day_of_week as they are aggregations
-            
-            // Create visualizations with the filtered data
-            createVisualizations(data);
-            
-            // Hide loading overlay
+            // Hide loading overlay regardless of success or error (unless specific error handling shows message)
             document.getElementById('loading-overlay').classList.add('d-none');
             document.getElementById('visualization-content').classList.remove('opacity-25');
         })
@@ -835,37 +784,21 @@
         });
     }
     
-    function createVisualizations(data) {
-        console.log('Creating visualizations with data:', data);
+    function createVisualizations(metrics_data) {
+        console.log('Creating visualizations with metrics:', metrics_data);
+        logDebug('Rendering visualizations...');
         
-        // Check if we have a date range from sessionStorage
-        const dateRangeStr = sessionStorage.getItem('currentDateRange');
-        const isCustomRange = dateRangeStr !== null;
-        
-        // Check if we have empty data
-        const hasValidData = data && 
-            data.volume && data.volume.labels && data.volume.labels.length > 0 &&
-            data.duration && data.duration.labels && data.duration.labels.length > 0;
-            
-        if (!hasValidData) {
-            // Display a message if no data is available for this date range
-            document.getElementById('visualization-content').innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    No data available for the selected date range. Please try a different range.
-                </div>
-            `;
-            return;
-        }
-        
-        // Calculate total calls if volume data is available
-        if (data.volume && data.volume.data) {
-            const totalCalls = data.volume.data.reduce((sum, count) => sum + count, 0);
-            document.getElementById('total-calls-count').textContent = totalCalls;
-        }
-        
+        // Calculate total calls from volume data (assume volume data exists based on check in loadVisualizationData)
+        const totalCalls = metrics_data.volume.data.reduce((sum, count) => sum + count, 0);
+        document.getElementById('total-calls-count').textContent = totalCalls;
+        logDebug(`Total calls in period: ${totalCalls}`);
+
         // Reset content if it was previously showing no data message
+        // Ensure the chart canvases exist before trying to draw
         if (!document.getElementById('volumeChart')) {
+            console.log('Chart canvases not found, recreating structure.');
+            logDebug('Recreating chart canvas structure.');
+            // Re-create the basic structure needed for charts
             document.getElementById('visualization-content').innerHTML = `
                 <div class="row">
                     <div class="col-md-6 mb-4">
@@ -874,63 +807,59 @@
                                 <h5 class="card-title mb-0">Conversation Volume</h5>
                             </div>
                             <div class="card-body">
-                                <div style="height: 200px;">
+                                <div style="height: 200px;" id="volumeChartContainer">
                                     <canvas id="volumeChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
                     <div class="col-md-6 mb-4">
                         <div class="card h-100">
                             <div class="card-header">
                                 <h5 class="card-title mb-0">Average Duration</h5>
                             </div>
                             <div class="card-body">
-                                <div style="height: 200px;">
+                                <div style="height: 200px;" id="durationChartContainer">
                                     <canvas id="durationChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
                 <div class="row">
                     <div class="col-md-4 mb-4">
                         <div class="card h-100">
                             <div class="card-header">
                                 <h5 class="card-title mb-0">Time of Day Distribution</h5>
-                                ${isCustomRange ? '<small class="text-muted">Aggregated across selected dates</small>' : ''}
+                                <small class="text-muted">Aggregated across selected dates</small>
                             </div>
                             <div class="card-body">
-                                <div style="height: 200px;">
+                                <div style="height: 200px;" id="timeOfDayChartContainer">
                                     <canvas id="timeOfDayChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
                     <div class="col-md-4 mb-4">
                         <div class="card h-100">
                             <div class="card-header">
                                 <h5 class="card-title mb-0">Day of Week Distribution</h5>
-                                ${isCustomRange ? '<small class="text-muted">Aggregated across selected dates</small>' : ''}
+                                <small class="text-muted">Aggregated across selected dates</small>
                             </div>
                             <div class="card-body">
-                                <div style="height: 200px;">
+                                <div style="height: 200px;" id="dayOfWeekChartContainer">
                                     <canvas id="dayOfWeekChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
                     <div class="col-md-4 mb-4">
                         <div class="card h-100">
                             <div class="card-header">
                                 <h5 class="card-title mb-0">Completion Rate</h5>
                             </div>
                             <div class="card-body">
-                                <div style="height: 200px;">
+                                <div style="height: 200px;" id="completionChartContainer">
                                     <canvas id="completionChart"></canvas>
                                 </div>
                             </div>
@@ -940,33 +869,75 @@
             `;
         }
 
-        // Create volume chart
-        createVolumeChart(data.volume);
+        // --- Create Individual Charts --- 
+        // Each function now handles its own empty state.
+        
+        // Create volume chart (assured to have data from calling function)
+        createVolumeChart(metrics_data.volume);
         
         // Create duration chart
-        createDurationChart(data.duration);
+        createDurationChart(metrics_data.duration);
         
         // Create time of day distribution chart
-        createTimeOfDayChart(data.time_of_day);
+        createTimeOfDayChart(metrics_data.time_of_day);
         
         // Create day of week distribution chart
-        createDayOfWeekChart(data.day_of_week);
+        createDayOfWeekChart(metrics_data.day_of_week);
         
         // Create completion rate chart
-        createCompletionChart(data.completion);
+        createCompletionChart(metrics_data.completion);
     }
     
+    function showEmptyChartState(canvasId, message = 'No data available for this period') {
+        const canvas = document.getElementById(canvasId);
+        const container = canvas ? canvas.closest('.card-body') : null; // Find parent card body
+        if (container) {
+            logDebug(`Showing empty state for chart: ${canvasId}`);
+            // Use the container's ID if canvas ID includes 'Chart'
+            const containerId = canvasId.replace('Chart', 'ChartContainer'); 
+            const chartContainer = document.getElementById(containerId);
+            if(chartContainer) {
+                 chartContainer.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100 text-muted">
+                        <i class="fas fa-chart-bar mb-2" style="font-size: 1.5rem; opacity: 0.5;"></i>
+                        <small>${message}</small>
+                    </div>
+                `;
+            } else {
+                 container.innerHTML = `
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100 text-muted">
+                        <i class="fas fa-chart-bar mb-2" style="font-size: 1.5rem; opacity: 0.5;"></i>
+                        <small>${message}</small>
+                    </div>
+                `;
+            }
+        }
+    }
+
     function createVolumeChart(volumeData) {
         // Destroy existing chart if it exists
         if (visualizationCharts.volumeChart) {
             visualizationCharts.volumeChart.destroy();
+            visualizationCharts.volumeChart = null; // Clear reference
         }
         
-        // Create the chart with real data
-        const ctx = document.getElementById('volumeChart').getContext('2d');
-        
-        // Get the actual date range from the data to adjust scales if needed
-        const dateRange = volumeData.labels ? volumeData.labels.length : 0;
+        const canvas = document.getElementById('volumeChart');
+        if (!canvas) {
+             console.error('Volume chart canvas not found!');
+             logDebug('Error: Volume chart canvas not found!');
+             return;
+        } 
+        const ctx = canvas.getContext('2d');
+
+        // Check for valid data (should always be valid here based on calling function check)
+        if (!volumeData || !volumeData.labels || !volumeData.data || volumeData.data.length === 0) {
+            console.warn('Volume data missing or empty, showing empty state.');
+            showEmptyChartState('volumeChart');
+            return;
+        }
+
+        logDebug(`Creating volume chart with ${volumeData.labels.length} labels.`);
+        const dateRange = volumeData.labels.length;
         
         visualizationCharts.volumeChart = new Chart(ctx, {
             type: 'line',
@@ -983,7 +954,7 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false, // Allow chart to fill container height
                 plugins: {
                     legend: {
                         display: false
@@ -992,7 +963,12 @@
                         callbacks: {
                             title: function(tooltipItems) {
                                 // Ensure we show full date in tooltip
-                                return tooltipItems[0].label;
+                                try {
+                                    const date = new Date(tooltipItems[0].label + 'T00:00:00Z'); // Assume UTC
+                                    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                                } catch (e) {
+                                    return tooltipItems[0].label; // Fallback
+                                }
                             }
                         }
                     }
@@ -1015,73 +991,50 @@
             }
         });
     }
-    
+
     function createDurationChart(durationData) {
         // Destroy existing chart if it exists
         if (visualizationCharts.durationChart) {
             visualizationCharts.durationChart.destroy();
+            visualizationCharts.durationChart = null;
         }
-        
-        // Get the canvas context
-        const ctx = document.getElementById('durationChart');
-        
-        // Log what we received
-        console.log('Duration chart original data:', JSON.stringify(durationData));
-        
-        // Check if we have valid data
-        if (!ctx || !durationData || !durationData.labels || !durationData.data || 
-            durationData.labels.length === 0 || durationData.data.length === 0 ||
-            durationData.data.every(val => val === null || val === undefined || val === 0)) {
-            
-            console.error('Cannot create duration chart - missing or invalid data');
-            
-            // Show empty state message instead of generating sample data
-            const container = ctx.closest('.card-body');
-            if (container) {
-                container.innerHTML = `
-                    <div class="d-flex flex-column justify-content-center align-items-center h-100">
-                        <i class="fas fa-chart-bar text-muted mb-3" style="font-size: 2.5rem;"></i>
-                        <p class="text-muted">No duration data available</p>
-                    </div>
-                `;
-            }
+
+        const canvas = document.getElementById('durationChart');
+        if (!canvas) {
+             console.error('Duration chart canvas not found!');
+             logDebug('Error: Duration chart canvas not found!');
+             return;
+        } 
+        const ctx = canvas.getContext('2d');
+
+        // Check if we have valid data: labels and data arrays must exist and be non-empty
+        // Also check if all data points are effectively zero (or null/undefined)
+        const hasValidDurationData = durationData && durationData.labels && durationData.data && 
+                                   durationData.labels.length > 0 && durationData.data.length > 0 &&
+                                   durationData.data.some(val => val !== null && val !== undefined && Number(val) > 0);
+
+        if (!hasValidDurationData) {
+            console.warn('Duration data missing, empty, or all zero. Showing empty state.');
+            showEmptyChartState('durationChart', 'No duration data available');
             return;
         }
         
-        // Use the provided data, ensuring all values are valid numbers
-        const chartData = {
-            labels: [...durationData.labels],
-            data: []
-        };
-        
-        // Process data values to ensure they're valid numbers
-        for (let i = 0; i < durationData.data.length; i++) {
-            let value = durationData.data[i];
-            
-            // Convert to number and validate
-            if (value === null || value === undefined || value === '') {
-                chartData.data.push(0);
-            } else {
-                const numValue = Number(value);
-                chartData.data.push(isNaN(numValue) ? 0 : numValue);
-            }
-        }
-        
-        // Log the final data we're using
-        console.log('Duration chart processed data:', chartData);
-        logDebug(`Duration chart using ${chartData.labels.length} data points`);
-        
-        // Get the actual date range from the data to adjust scales if needed
-        const dateRange = chartData.labels.length;
-        
-        // Create the chart
-        visualizationCharts.durationChart = new Chart(ctx.getContext('2d'), {
+        logDebug(`Creating duration chart with ${durationData.labels.length} labels.`);
+        // Process data values to ensure they're valid numbers, default nulls/undefined to 0
+        const chartDataValues = durationData.data.map(value => {
+            const numValue = Number(value);
+            return isNaN(numValue) ? 0 : numValue;
+        });
+
+        const dateRange = durationData.labels.length;
+
+        visualizationCharts.durationChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: chartData.labels,
+                labels: durationData.labels,
                 datasets: [{
                     label: 'Average Duration (seconds)',
-                    data: chartData.data,
+                    data: chartDataValues, // Use processed values
                     backgroundColor: 'rgba(54, 162, 235, 0.5)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1
@@ -1089,7 +1042,7 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: false
@@ -1098,9 +1051,18 @@
                         callbacks: {
                             label: function(context) {
                                 const seconds = context.raw;
+                                if (typeof seconds !== 'number' || isNaN(seconds)) return 'N/A';
                                 const minutes = Math.floor(seconds / 60);
                                 const remainingSeconds = Math.round(seconds % 60);
                                 return `${minutes}m ${remainingSeconds}s`;
+                            },
+                            title: function(tooltipItems) {
+                                try {
+                                    const date = new Date(tooltipItems[0].label + 'T00:00:00Z'); // Assume UTC
+                                    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                                } catch (e) {
+                                    return tooltipItems[0].label; // Fallback
+                                }
                             }
                         }
                     }
@@ -1110,7 +1072,7 @@
                         ticks: {
                             maxRotation: 45,
                             minRotation: 45,
-                            autoSkip: dateRange > 10 // Auto-skip labels if we have more than 10 days
+                            autoSkip: dateRange > 10 
                         }
                     },
                     y: {
@@ -1124,31 +1086,49 @@
             }
         });
     }
-    
+
     function createTimeOfDayChart(timeOfDayData) {
-        // Destroy existing chart if it exists
         if (visualizationCharts.timeOfDayChart) {
             visualizationCharts.timeOfDayChart.destroy();
+            visualizationCharts.timeOfDayChart = null;
         }
         
-        // Find peak hours (for highlighting)
-        const data = timeOfDayData.data || [];
-        const maxCount = Math.max(...data, 1);  // Avoid division by zero
-        const backgroundColor = data.map(count => {
+        const canvas = document.getElementById('timeOfDayChart');
+         if (!canvas) {
+             console.error('Time of day chart canvas not found!');
+             logDebug('Error: Time of day chart canvas not found!');
+             return;
+        } 
+        const ctx = canvas.getContext('2d');
+
+        // Check for valid data - needs a data array where at least one value is > 0
+        const hasValidTodData = timeOfDayData && timeOfDayData.data && timeOfDayData.data.length === 24 && 
+                                timeOfDayData.data.some(val => val !== null && val !== undefined && Number(val) > 0);
+
+        if (!hasValidTodData) {
+            console.warn('Time of Day data missing or all zero. Showing empty state.');
+            showEmptyChartState('timeOfDayChart', 'No hourly data available');
+            return;
+        }
+
+        logDebug('Creating time of day chart.');
+        // Ensure data is numeric, default non-numbers to 0
+        const dataValues = timeOfDayData.data.map(d => Number(d) || 0);
+        const maxCount = Math.max(...dataValues, 1); // Avoid division by zero
+        const backgroundColor = dataValues.map(count => {
             const ratio = count / maxCount;
-            return `rgba(153, 102, 255, ${Math.max(0.2, ratio)})`;
+            // Ensure alpha is between 0.2 and 1.0
+            const alpha = Math.max(0.2, Math.min(1.0, ratio)); 
+            return `rgba(153, 102, 255, ${alpha})`;
         });
-        
-        // Create the chart with real data
-        const ctx = document.getElementById('timeOfDayChart').getContext('2d');
-        
+
         visualizationCharts.timeOfDayChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: timeOfDayData.labels || [],
+                labels: timeOfDayData.labels || Array.from({length: 24}, (_, i) => `${i}:00`), // Default labels
                 datasets: [{
                     label: 'Conversations',
-                    data: data,
+                    data: dataValues, // Use processed data
                     backgroundColor: backgroundColor,
                     borderColor: 'rgba(153, 102, 255, 1)',
                     borderWidth: 1
@@ -1156,7 +1136,7 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: false
@@ -1179,23 +1159,42 @@
             }
         });
     }
-    
+
     function createDayOfWeekChart(dayOfWeekData) {
-        // Destroy existing chart if it exists
         if (visualizationCharts.dayOfWeekChart) {
             visualizationCharts.dayOfWeekChart.destroy();
+            visualizationCharts.dayOfWeekChart = null;
         }
         
-        // Create the chart with real data
-        const ctx = document.getElementById('dayOfWeekChart').getContext('2d');
-        
+        const canvas = document.getElementById('dayOfWeekChart');
+        if (!canvas) {
+             console.error('Day of week chart canvas not found!');
+             logDebug('Error: Day of week chart canvas not found!');
+             return;
+        } 
+        const ctx = canvas.getContext('2d');
+
+        // Check for valid data - needs data array length 7 with at least one value > 0
+        const hasValidDowData = dayOfWeekData && dayOfWeekData.data && dayOfWeekData.data.length === 7 && 
+                                dayOfWeekData.data.some(val => val !== null && val !== undefined && Number(val) > 0);
+
+        if (!hasValidDowData) {
+            console.warn('Day of Week data missing or all zero. Showing empty state.');
+            showEmptyChartState('dayOfWeekChart', 'No daily data available');
+            return;
+        }
+
+        logDebug('Creating day of week chart.');
+        // Ensure data is numeric
+        const dataValues = dayOfWeekData.data.map(d => Number(d) || 0);
+
         visualizationCharts.dayOfWeekChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: dayOfWeekData.labels || [],
+                labels: dayOfWeekData.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], // Default labels
                 datasets: [{
                     label: 'Conversations',
-                    data: dayOfWeekData.data || [],
+                    data: dataValues,
                     backgroundColor: 'rgba(255, 159, 64, 0.5)',
                     borderColor: 'rgba(255, 159, 64, 1)',
                     borderWidth: 1
@@ -1203,13 +1202,16 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: false
                     }
                 },
                 scales: {
+                     x: {
+                        grid: { display: false } // Cleaner look
+                     },
                     y: {
                         beginAtZero: true,
                         ticks: {
@@ -1220,38 +1222,75 @@
             }
         });
     }
-    
+
     function createCompletionChart(completionData) {
-        // Destroy existing chart if it exists
         if (visualizationCharts.completionChart) {
             visualizationCharts.completionChart.destroy();
+            visualizationCharts.completionChart = null;
         }
         
-        // Create the chart with real data
-        const ctx = document.getElementById('completionChart').getContext('2d');
+        const canvas = document.getElementById('completionChart');
+        if (!canvas) {
+             console.error('Completion chart canvas not found!');
+             logDebug('Error: Completion chart canvas not found!');
+             return;
+        } 
+        const ctx = canvas.getContext('2d');
+
+        // Check for valid data: labels and data arrays must exist and be non-empty
+        const hasValidCompletionData = completionData && completionData.labels && completionData.data && 
+                                       completionData.labels.length > 0 && completionData.data.length > 0;
         
-        // Get the actual date range from the data to adjust scales if needed
-        const dateRange = completionData.labels ? completionData.labels.length : 0;
-        
+        if (!hasValidCompletionData) {
+            console.warn('Completion data missing or empty. Showing empty state.');
+            showEmptyChartState('completionChart', 'No completion data available');
+            return;
+        }
+
+        logDebug(`Creating completion chart with ${completionData.labels.length} labels.`);
+        // Ensure data is numeric, default non-numbers to 0
+        const dataValues = completionData.data.map(d => {
+             const num = Number(d);
+             return isNaN(num) ? 0 : num; // Default invalid rates to 0
+        });
+        const dateRange = completionData.labels.length;
+
         visualizationCharts.completionChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: completionData.labels || [],
+                labels: completionData.labels,
                 datasets: [{
                     label: 'Completion Rate (%)',
-                    data: completionData.data || [],
+                    data: dataValues,
                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
                     borderColor: 'rgba(255, 99, 132, 1)',
                     borderWidth: 2,
-                    tension: 0.4
+                    tension: 0.4,
+                    fill: true // Fill area under line
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                return `Rate: ${value.toFixed(1)}%`; // Format percentage
+                            },
+                             title: function(tooltipItems) {
+                                try {
+                                    const date = new Date(tooltipItems[0].label + 'T00:00:00Z'); // Assume UTC
+                                    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                                } catch (e) {
+                                    return tooltipItems[0].label; // Fallback
+                                }
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -1259,12 +1298,14 @@
                         ticks: {
                             maxRotation: 45,
                             minRotation: 45,
-                            autoSkip: dateRange > 10 // Auto-skip labels if we have more than 10 days
+                            autoSkip: dateRange > 10
                         }
                     },
                     y: {
                         min: 0,
-                        max: 100,
+                        // Let chart.js determine max based on data, but ensure it's at least a bit above 0
+                        // max: 100, 
+                        suggestedMax: 100, // Suggest 100 but allow higher if data exceeds
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
