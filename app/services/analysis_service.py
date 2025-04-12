@@ -43,17 +43,16 @@ class AnalysisService:
             self.analyzer = ConversationAnalyzer(lightweight_mode=self.lightweight_mode)
             logging.info(f"AnalysisService initialized (Lightweight: {self.lightweight_mode})")
             
-            # >>> ADD CHECK for successful OpenAI client init within analyzer <<<
-            if not self.lightweight_mode and (not hasattr(self.analyzer, 'openai_client') or self.analyzer.openai_client is None):
-                logging.warning("ConversationAnalyzer initialized, but its OpenAI client failed. Forcing limited mode.")
-                # Set analyzer to None to indicate failure for full analysis capabilities
-                self.analyzer = None 
-                # Optionally, could re-init in lightweight mode: 
-                # self.analyzer = ConversationAnalyzer(lightweight_mode=True)
+            # >>> Check for successful OpenAI client init within analyzer <<<
+            # Use the analyzer's own 'use_llm' flag which indicates successful init
+            if not self.lightweight_mode and (not hasattr(self.analyzer, 'use_llm') or not self.analyzer.use_llm):
+                logging.warning("ConversationAnalyzer indicates LLM is not usable (failed init or no key). Service limited.")
+                # Keep the analyzer instance, but recognize its LLM capabilities are off
+                # self.analyzer = None # Don't set to None, let it use fallback methods if needed
                 
         except Exception as e:
             logging.error(f"Error initializing ConversationAnalyzer in AnalysisService: {e}", exc_info=True)
-            self.analyzer = None
+            self.analyzer = None # Set to None if the whole class init fails
             logging.warning(f"AnalysisService running in limited mode due to analyzer init error (Lightweight: {self.lightweight_mode})")
         
         # Removed manual cache dictionary and TTL
@@ -536,319 +535,89 @@ class AnalysisService:
     # --- NEW Method for Comprehensive Analysis --- 
     def get_full_themes_sentiment_analysis(self, start_date: str, end_date: str) -> Dict[str, Any]:
         """
-        Performs a comprehensive analysis including themes, sentiment, trends,
-        common questions, concerns, and positive interactions for conversations
-        within a specified date range. Fetches conversations directly using the conversation service.
-
-        Args:
-            start_date: Start date string (YYYY-MM-DD).
-            end_date: End date string (YYYY-MM-DD).
-
-        Returns:
-            Dictionary containing the full analysis results.
-        """
-        logging.info(f"Starting full themes/sentiment analysis from {start_date} to {end_date}")
+        Fetches conversations for the date range and performs full analysis,
+        returning a structure suitable for the themes/sentiment page.
         
-        # >>> ADD Check if analyzer is None early on <<<
-        if self.analyzer is None:
-            logging.error("AnalysisService cannot perform full analysis because ConversationAnalyzer is not available (failed to initialize?).")
-            # Return default empty structure
-            return {
-                'sentiment_overview': { 'caller_avg': 0, 'agent_avg': 0, 'distribution': {'positive': 0, 'negative': 0, 'neutral': 0} },
-                'top_themes': [],
-                'sentiment_trends': [],
-                'common_questions': [],
-                'concerns_skepticism': [],
-                'positive_interactions': []
-            }
-
-        # Define the structure for results, including keys for all expected analyses
-        results = {
-            'sentiment_overview': { # Placeholder for averages and ratios
-                'avg_caller_sentiment': 0,
-                'avg_agent_sentiment': 0,
-                'positive_ratio': 0,
-                'negative_ratio': 0,
-                'neutral_ratio': 0
-            },
-            'top_themes': [],
-            'sentiment_trends': [],
-            'common_questions': [],
-            'concerns_skepticism': [],
-            'positive_interactions': []
-            # Add other keys if more analyses are included
-        }
-        
-        # Ensure the analyzer is available before proceeding
-        if not self.analyzer:
-            logging.error("Cannot perform full analysis: ConversationAnalyzer is not initialized.")
-            return results # Return default empty results
-
-        try:
-            # Fetch conversations with transcripts directly using the conversation service
-            # Limit to 100 conversations for performance, adjust as needed
-            conversation_data = self.conversation_service.get_conversations(
-                start_date=start_date, 
-                end_date=end_date, 
-                limit=100 # TODO: Make limit configurable?
-            )
-            
-            conversations_with_transcripts = conversation_data.get('conversations', [])
-            total_found = conversation_data.get('total_count', 0)
-            
-            logging.info(f"Fetched {len(conversations_with_transcripts)} conversations (out of {total_found} total) for analysis.")
-
-            if not conversations_with_transcripts:
-                logging.warning(f"No conversations with transcripts found between {start_date} and {end_date}")
-                return results # Return empty results if no data
-            
-            # --- Start Analysis --- 
-            logging.info("--- Starting analysis steps ---")
-            
-            # Calculate sentiment overview (uses helper method)
-            sentiment_data = self._calculate_sentiment_overview(conversations_with_transcripts)
-            logging.info(f"Step 1: Sentiment Overview calculated: {sentiment_data}")
-            results['sentiment_overview'] = sentiment_data
-            
-            # Extract top themes (using ConversationAnalyzer)
-            themes = self.analyzer.extract_themes(conversations_with_transcripts)
-            logging.info(f"Step 2: Top Themes extracted: Count={len(themes) if themes else 0}")
-            results['top_themes'] = themes[:20] if themes else []  # Limit to top 20 themes
-            
-            # Generate basic sentiment trends over time (uses helper method)
-            trends = self._generate_sentiment_trends(conversations_with_transcripts)
-            logging.info(f"Step 3: Sentiment Trends generated: Count={len(trends) if trends else 0}")
-            results['sentiment_trends'] = trends
-            
-            # Extract common questions (using ConversationAnalyzer)
-            questions = self.analyzer.extract_common_questions(conversations_with_transcripts)
-            logging.info(f"Step 4: Common Questions extracted: Count={len(questions) if questions else 0}")
-            results['common_questions'] = questions
-            
-            # Extract concerns and skepticism (using ConversationAnalyzer)
-            concerns = self.analyzer.extract_concerns(conversations_with_transcripts)
-            logging.info(f"Step 5: Concerns extracted: Count={len(concerns) if concerns else 0}")
-            results['concerns_skepticism'] = concerns
-            
-            # Extract positive interactions (using ConversationAnalyzer)
-            positive = self.analyzer.extract_positive_interactions(conversations_with_transcripts)
-            logging.info(f"Step 6: Positive Interactions extracted: Count={len(positive) if positive else 0}")
-            results['positive_interactions'] = positive
-            
-            logging.info("--- Finished analysis steps ---")
-            
-        except Exception as e:
-            logging.error(f"Error during get_full_themes_sentiment_analysis: {str(e)}", exc_info=True)
-            # Don't re-raise, return the partially filled results or empty structure
-        
-        logging.info(f"Completed full themes/sentiment analysis from {start_date} to {end_date}")
-        return results
-    
-    def _calculate_sentiment_overview(self, conversations):
-        """Helper to calculate sentiment overview statistics"""
-        try:
-            total_caller = 0
-            total_agent = 0
-            caller_count = 0
-            agent_count = 0
-            positive_count = 0
-            negative_count = 0
-            neutral_count = 0
-            
-            for conv in conversations:
-                transcript = conv.get('transcript', [])
-                for msg in transcript:
-                    # Determine if this is a user/caller message
-                    is_user = False
-                    if 'role' in msg:
-                        is_user = msg['role'] == 'user'
-                    elif 'speaker' in msg:
-                        is_user = msg['speaker'] in ['User', 'Curious Caller']
-                    
-                    # Get the text content from the message, flexible key lookup
-                    text = None
-                    for key in ['content', 'text', 'message']:
-                        if key in msg and msg[key]:
-                            text = msg[key]
-                            break
-                            
-                    if not text:
-                        continue
-                        
-                    # Use analyze_sentiment_for_text instead of analyze_sentiment for string input
-                    sentiment = self.analyzer.analyze_sentiment_for_text(text)
-                    
-                    # Update counters based on sentiment
-                    if sentiment > 0.1:
-                        positive_count += 1
-                    elif sentiment < -0.1:
-                        negative_count += 1
-                    else:
-                        neutral_count += 1
-                        
-                    # Update speaker-specific sentiment
-                    if is_user:
-                        total_caller += sentiment
-                        caller_count += 1
-                    else:
-                        total_agent += sentiment
-                        agent_count += 1
-            
-            # Calculate averages and ratios
-            total_messages = caller_count + agent_count
-            if total_messages == 0:
-                return {
-                    'avg_caller_sentiment': 0,
-                    'avg_agent_sentiment': 0,
-                    'positive_ratio': 0,
-                    'negative_ratio': 0,
-                    'neutral_ratio': 0
-                }
-                
-            return {
-                'avg_caller_sentiment': total_caller / caller_count if caller_count > 0 else 0,
-                'avg_agent_sentiment': total_agent / agent_count if agent_count > 0 else 0,
-                'positive_ratio': positive_count / total_messages,
-                'negative_ratio': negative_count / total_messages,
-                'neutral_ratio': neutral_count / total_messages
-            }
-            
-        except Exception as e:
-            logging.error(f"Error in _calculate_sentiment_overview: {e}", exc_info=True)
-            return {
-                'avg_caller_sentiment': 0,
-                'avg_agent_sentiment': 0,
-                'positive_ratio': 0,
-                'negative_ratio': 0,
-                'neutral_ratio': 0
-            }
-        
-    def _generate_sentiment_trends(self, conversations):
-        """Helper to generate basic sentiment trends over time"""
-        try:
-            # Group conversations by day
-            conversations_by_day = {}
-            
-            for conv in conversations:
-                # Handle various date formats
-                start_time = None
-                if 'start_time' in conv and conv['start_time']:
-                    start_time = conv['start_time']
-                elif 'created_at' in conv and conv['created_at']:
-                    start_time = conv['created_at']
-                    
-                if not start_time:
-                    continue
-                    
-                # Convert string date to 'YYYY-MM-DD' format
-                if isinstance(start_time, str):
-                    if 'T' in start_time:  # ISO format
-                        day = start_time.split('T')[0]
-                    elif ' ' in start_time:  # Some other format with space
-                        day = start_time.split(' ')[0]
-                    else:
-                        day = start_time[:10]  # Take first 10 chars
-                else:
-                    # Handle datetime object
-                    day = start_time.strftime('%Y-%m-%d')
-                
-                if day not in conversations_by_day:
-                    conversations_by_day[day] = []
-                conversations_by_day[day].append(conv)
-            
-            # Calculate average sentiment for each day
-            trends = []
-            for day, convs in conversations_by_day.items():
-                total_sentiment = 0
-                message_count = 0
-                
-                for conv in convs:
-                    # Get transcript safely
-                    transcript = conv.get('transcript', [])
-                    
-                    for msg in transcript:
-                        # Extract text content flexibly
-                        text = None
-                        for key in ['content', 'text', 'message']:
-                            if key in msg and msg[key]:
-                                text = msg[key]
-                                break
-                                
-                        if text:
-                            sentiment = self.analyzer.analyze_sentiment_for_text(text)
-                            total_sentiment += sentiment
-                            message_count += 1
-                
-                # Only add if we have messages
-                if message_count > 0:
-                    avg_sentiment = total_sentiment / message_count
-                    trends.append({
-                        'date': day,
-                        'sentiment': float(avg_sentiment)
-                    })
-            
-            # Sort by date
-            trends.sort(key=lambda x: x['date'])
-            
-            return trends
-            
-        except Exception as e:
-            logging.error(f"Error in _generate_sentiment_trends: {e}", exc_info=True)
-            return []
-
-    def analyze_themes_and_sentiment(self, start_date, end_date, max_conversations=500):
-        """
-        Analyze themes and sentiment across conversations within a date range.
-        
-        Args:
-            start_date: Start date in ISO format string (e.g., "2023-10-26")
-            end_date: End date in ISO format string (e.g., "2023-10-27")
-            max_conversations: Maximum number of conversations to analyze (default: 500)
-            
-        Returns:
-            Dict containing analysis results
+        Handles caching: 
+            - Uses Flask-Caching with a FileSystemCache.
+            - Cache key is based on start/end dates.
+            - Default timeout is 3600 seconds (1 hour).
+            - Returns cached result immediately if available.
         """
         start_time = time.time()
+        logging.info(f"Starting full themes & sentiment analysis for {start_date} to {end_date}")
         
-        # Removed manual cache check
-        logging.warning("analyze_themes_and_sentiment is NOT currently cached.")
-                
-        logging.info(f"Performing themes and sentiment analysis for date range: {start_date} to {end_date}")
+        # Define cache key based on dates
+        cache_key = f'themes_sentiment_{start_date}_{end_date}'
         
-        # Use the injected conversation service directly
-        try:
-             conversation_ids_result = self.conversation_service.get_conversation_ids(start_date=start_date, end_date=end_date, limit=max_conversations)
-             # Assuming the service returns a list of IDs directly or under a key like 'conversation_ids'
-             if isinstance(conversation_ids_result, list):
-                  conversation_ids = conversation_ids_result
-             elif isinstance(conversation_ids_result, dict) and 'conversation_ids' in conversation_ids_result:
-                  conversation_ids = conversation_ids_result['conversation_ids']
-             else:
-                  logging.error(f"Unexpected format from conversation_service.get_conversation_ids: {type(conversation_ids_result)}")
-                  conversation_ids = []
-        except Exception as e:
-             logging.error(f"Error getting conversation IDs via service: {e}", exc_info=True)
-             conversation_ids = []
+        # Try fetching from cache first
+        if self.cache:
+            cached_result = self.cache.get(cache_key)
+            if cached_result:
+                logging.info(f"Returning cached themes/sentiment data for {start_date}-{end_date}")
+                # Ensure model name is present in cached status, but don't overwrite if already there
+                if 'analysis_status' not in cached_result:
+                     cached_result['analysis_status'] = {}
+                if 'model_name' not in cached_result['analysis_status']:
+                    cached_result['analysis_status']['model_name'] = getattr(self.analyzer, 'model_name', 'N/A') if self.analyzer else 'N/A'
+                return cached_result
 
-        # Get conversations with transcripts using the injected service
+        # --- Data Fetching using injected conversation_service ---
         try:
-             # Adapt based on the actual method name and expected return format of the injected service
-             # Example: Assuming get_conversations_by_ids exists and returns {'conversations': [...]}
-             conversations_result = self.conversation_service.get_conversations_by_ids(conversation_ids)
-             if isinstance(conversations_result, list):
-                 conversations = conversations_result
-             elif isinstance(conversations_result, dict) and 'conversations' in conversations_result:
-                 conversations = conversations_result['conversations']
-             else:
-                  logging.error(f"Unexpected format from conversation_service method for getting transcripts: {type(conversations_result)}")
-                  conversations = []
+            logging.info(f"Fetching conversations via service for {start_date} to {end_date}")
+            fetch_result = self.conversation_service.get_conversations(
+                start_date=start_date, 
+                end_date=end_date,   
+                limit=10000 
+            )
+            conversations = fetch_result.get('conversations', [])
+            original_total_count = fetch_result.get('total_count', len(conversations))
+            logging.info(f"Fetched {len(conversations)} conversations (out of {original_total_count} total) for analysis.")
+            
         except Exception as e:
-             logging.error(f"Error getting transcripts via service: {e}", exc_info=True)
-             conversations = []
-             
-        # ... (rest of analysis logic) ...
-
-        # Removed manual cache set
+            logging.error(f"Error fetching conversation data via service: {e}", exc_info=True)
+            # Return the standard empty structure on fetch error
+            return self.analyzer._empty_analysis_result(start_date, end_date, f"Data Fetch Error: {str(e)}", 0) if self.analyzer else {"error": "Data Fetch Error and Analyzer unavailable"}
         
-        logging.info(f"Completed themes and sentiment analysis in {time.time() - start_time:.2f}s")
-        return analysis_results 
+        # --- Analysis ---
+        if not self.analyzer:
+            logging.error("ConversationAnalyzer not initialized, cannot perform analysis.")
+            # Return the standard empty structure
+            return self.analyzer._empty_analysis_result(start_date, end_date, "Analyzer Not Available", original_total_count)
+            
+        try:
+            # The analyzer's unified method now returns the full structure including model name
+            # This is the main analysis call, potentially long-running if not cached.
+            analysis_result = self.analyzer.unified_llm_analysis(conversations, start_date, end_date, original_total_count)
+            logging.info(f"Received analysis results from ConversationAnalyzer.")
+            
+            # Error check (unified_llm_analysis returns {'error':...} on failure)
+            if 'error' in analysis_result:
+                 logging.error(f"Analysis returned an error: {analysis_result.get('details', analysis_result['error'])}")
+                 # Return the error structure (which includes status) from the analyzer
+                 return analysis_result 
+
+        except Exception as e:
+            logging.error(f"Unexpected error calling unified LLM analysis: {e}", exc_info=True)
+            # Return the standard empty structure on unexpected error
+            return self.analyzer._empty_analysis_result(start_date, end_date, f"Unexpected Analysis Error: {str(e)}", original_total_count)
+
+        # Cache the successful result
+        if self.cache:
+            cache_timeout = 3600 
+            self.cache.set(cache_key, analysis_result, timeout=cache_timeout)
+            logging.info(f"Cached themes/sentiment data for {start_date}-{end_date} with timeout {cache_timeout}s")
+            
+        end_time = time.time()
+        logging.info(f"Successfully completed full themes & sentiment analysis in {end_time - start_time:.2f} seconds.")
+        return analysis_result
+
+    # Comment out or remove the old helper methods if they are no longer needed
+    # def _calculate_sentiment_overview(self, conversations):
+    #     ...
+
+    # def _generate_sentiment_trends(self, conversations):
+    #     ...
+
+    # def analyze_themes_and_sentiment(self, start_date, end_date, max_conversations=500):
+    #     ... 

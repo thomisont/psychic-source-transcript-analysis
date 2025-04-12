@@ -211,141 +211,75 @@ def get_themes_sentiment_data():
         }
         return jsonify(empty_result), 500
 
-# Endpoint for the full Themes & Sentiment page analysis (Reverted Name)
-@api.route('/themes-sentiment/full-analysis') # Reverted route
-@timeout(60)
-def get_full_themes_sentiment_data(): # Reverted function name
-    # REMOVED UNIQUE ENTRY LOGGING
-    # current_app.logger.critical("***** ENTERING ... V2 ... *****") 
-    
+# Endpoint for the full Themes & Sentiment page analysis (Temporary Renamed Route)
+@api.route('/themes-sentiment/full-analysis-v2') # Renamed route
+@timeout(60) # Keeping the timeout decorator, 60 seconds might be needed for LLM
+def get_full_themes_sentiment_data_v2(): # Renamed function
     request_start_time = time.time()
+    # Define standard no-cache headers
     response_headers = {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
     }
-    
-    # REMOVED OLD CACHE CHECK LOGIC
-    # cache_key = f\"themes_full_{start_date}_{end_date}\"
-    # cached_result = current_app.cache.get(cache_key)
-    # if cached_result:
-    #     current_app.logger.info(f\"Returning cached themes/sentiment result for key: {cache_key}\")
-    #     return jsonify(cached_result), 200, response_headers
 
-    # TEMPORARILY COMMENT OUT NEW CACHE LOGIC (already done)
-    # ... (lines related to new cache check) ...
-    
     try:
-        # >>> Clear Flask-Caching specific cache if needed <<<
-        # if hasattr(current_app, 'cache') and hasattr(current_app.cache, 'clear'):
-        #     current_app.cache.clear()
-        #     current_app.logger.info("Cleared Flask-Caching application-level cache")
-        
-        # Clear the analysis service's internal cache (if any - might be redundant)
-        # if hasattr(current_app.analysis_service, 'clear_cache'):
-        #     current_app.analysis_service.clear_cache()
-        #     current_app.logger.info("Cleared analysis service internal cache")
-
-        # Generate a unique cache key for this request (for logging/tracking)
-        request_id = f"themes_full_{int(time.time())}"
-        current_app.logger.info(f"Generating fresh analysis for request_id: {request_id}")
-        
-        # Get date parameters
+        # 1. Get date range parameters from request
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
-        
-        current_app.logger.info(f"Full themes/sentiment analysis requested for date range: {start_date} to {end_date}")
-        
-        # Validate date parameters
+
+        # Basic validation for date parameters (can be enhanced)
         if not start_date or not end_date:
-            current_app.logger.warning("Missing date parameters for themes/sentiment analysis")
-            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            current_app.logger.info(f"Using default date range: {start_date} to {end_date}")
-        
-        # Create a new database session to avoid transaction conflicts
-        try:
-            from app.extensions import db
-            db.session.remove()  # Clear any existing session
-        except Exception as db_err:
-            current_app.logger.warning(f"Could not clear database session: {db_err}")
-        
-        try:
-            # >>> Use the high-level AnalysisService method <<< 
-            analysis_service = current_app.analysis_service 
-            
-            # Ensure the service is available
-            if not analysis_service:
-                raise Exception("AnalysisService is not available in the application context.")
+            current_app.logger.error("Missing start_date or end_date parameter for full analysis.")
+            return jsonify({"error": "Missing required date parameters (start_date, end_date)"}), 400, response_headers
 
-            # Call the comprehensive analysis method directly
-            analysis_result = analysis_service.get_full_themes_sentiment_analysis(
-                start_date=start_date, 
-                end_date=end_date
-            )
-            
-            # >>> REMOVE redundant data fetching and lower-level analysis calls <<<
-            # conversation_service = current_app.conversation_service
-            # conversation_data = conversation_service.get_conversations(...)
-            # if 'error' in conversation_data:
-            #     ...
-            # conversations = conversation_data.get('conversations', [])
-            # if not conversations:
-            #     ...
-            # analysis_result = analysis_service.analyzer.analyze_sentiment_over_time(...)
-            
-            current_app.logger.info(f"Analysis completed by AnalysisService.get_full_themes_sentiment_analysis for request_id: {request_id}")
+        current_app.logger.info(f"API Request: /themes-sentiment/full-analysis-v2 - Start: {start_date}, End: {end_date}")
 
-            # The analysis_result dictionary should now contain all necessary keys
-            # Example: analysis_result.get('top_themes', [])
-            
-            # Format response (ensure keys match what the service method returns)
-            response = {
-                'sentiment_overview': analysis_result.get('sentiment_overview', {}), # Get the whole overview dict
-                'top_themes': analysis_result.get('top_themes', []),
-                'sentiment_trends': analysis_result.get('sentiment_trends', []),
-                'common_questions': analysis_result.get('common_questions', []),
-                'concerns_skepticism': analysis_result.get('concerns_skepticism', []),
-                'positive_interactions': analysis_result.get('positive_interactions', []),
-                # Add total conversations if the service method provides it, otherwise calculate if needed
-                # 'total_conversations_in_range': analysis_result.get('total_conversations_in_range', 0), 
-                'request_id': request_id
-            }
-            
-            # Log success and return
-            # The log message below might need adjustment based on what the service returns
-            # current_app.logger.info(f"Successfully generated themes-sentiment analysis with {len(conversations)} conversations for request_id: {request_id}")
-            current_app.logger.info(f"Successfully generated themes-sentiment analysis for request_id: {request_id}")
-            return jsonify(response), 200, response_headers
-            
-        except Exception as analysis_err:
-            current_app.logger.error(f"Error during analysis: {str(analysis_err)}", exc_info=True)
-            # Return default empty structure matching the expected keys
-            return jsonify({
-                'error': f"Analysis error: {str(analysis_err)}",
-                'sentiment_overview': {'caller_avg': 0, 'agent_avg': 0, 'distribution': {'positive': 0, 'negative': 0, 'neutral': 100}},
-                'top_themes': [],
-                'sentiment_trends': [],
-                'common_questions': [],
-                'concerns_skepticism': [],
-                'positive_interactions': [],
-                # 'total_conversations_in_range': 0,
-                'request_id': request_id
-            }), 500, response_headers # Return 500 on internal error
-                
-    except Exception as e:
-        current_app.logger.error(f"Unhandled error in themes/sentiment endpoint: {str(e)}", exc_info=True)
+        # 2. Get the AnalysisService instance
+        analysis_service = current_app.analysis_service
+        if not analysis_service:
+             current_app.logger.critical("AnalysisService not found on current_app!")
+             return jsonify({"error": "Analysis service is unavailable."}), 500, response_headers
+
+        # 3. Call the service method
+        analysis_results = analysis_service.get_full_themes_sentiment_analysis(
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # 4. Check for errors from the service
+        if isinstance(analysis_results, dict) and 'error' in analysis_results:
+             current_app.logger.error(f"Analysis service returned an error: {analysis_results['error']}")
+             # Determine appropriate status code based on error type if possible
+             status_code = 500 # Default to internal server error
+             if "not found" in analysis_results.get('error','').lower():
+                 status_code = 404
+             elif "unavailable" in analysis_results.get('error','').lower():
+                  status_code = 503 # Service Unavailable
+             # Return the error from the service
+             return jsonify(analysis_results), status_code, response_headers
+        
+        # Log success and timing
+        duration = time.time() - request_start_time
+        current_app.logger.info(f"Successfully generated full themes/sentiment analysis in {duration:.2f} seconds.")
+
+        # 5. Return the successful result
+        return jsonify(analysis_results), 200, response_headers
+
+    except TimeoutException as te:
+        # This exception is raised by the @timeout decorator context manager
+        duration = time.time() - request_start_time
+        current_app.logger.warning(f"Request timed out after {duration:.2f} seconds for /themes-sentiment/full-analysis-v2")
         return jsonify({
-            'error': f"Server error: {str(e)}",
-            'sentiment_overview': {'caller_avg': 0, 'agent_avg': 0, 'distribution': {'positive': 0, 'negative': 0, 'neutral': 100}},
-            'top_themes': [],
-            'sentiment_trends': [],
-            'common_questions': [],
-            'concerns_skepticism': [],
-            'positive_interactions': [],
-            'total_conversations_in_range': 0,
-            'request_id': request_id
-        }), 200, response_headers # Return 200 even on error to show empty state
+            "error": "Analysis request timed out. Please try a smaller date range or try again later.",
+            "timeout": True
+        }), 504, response_headers # 504 Gateway Timeout
+
+    except Exception as e:
+        # Catch any other unexpected errors
+        duration = time.time() - request_start_time
+        current_app.logger.error(f"Unexpected error in /themes-sentiment/full-analysis-v2 after {duration:.2f}s: {str(e)}", exc_info=True)
+        return jsonify({"error": f"An unexpected server error occurred: {str(e)}"}), 500, response_headers
 
 def get_conversation_count(start_date=None, end_date=None):
     """Helper function to efficiently get conversation count for date range"""

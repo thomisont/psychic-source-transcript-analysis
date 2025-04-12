@@ -156,13 +156,8 @@ def analysis_page():
 
 @main_bp.route('/themes-sentiment')
 def themes_sentiment_page():
-    """Page for analyzing themes and sentiment trends across conversations"""
-    return render_template('themes_sentiment.html')
-
-@main_bp.route('/visualization')
-def visualization_page():
-    """Page for visualizing conversation data"""
-    return render_template('visualization.html')
+    """Renders the refactored Themes & Sentiment analysis page."""
+    return render_template('themes_sentiment_refactored.html')
 
 @main_bp.route('/api/total_conversations')
 def total_conversations():

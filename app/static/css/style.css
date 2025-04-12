@@ -79,6 +79,38 @@ body {
     color: var(--primary-color);
 }
 
+/* Chart Container Constraints */
+.chart-card-body {
+    position: relative; /* Needed for Chart.js responsiveness */
+    /* Set a reasonable default height, adjust as needed */
+    /* Option 1: Fixed height 
+    height: 300px; 
+    */
+    /* Option 2: Min/Max height */
+    min-height: 250px;
+    max-height: 400px; 
+    display: flex; /* Use flex to help center canvas */
+    justify-content: center;
+    align-items: center;
+    padding: 1rem; /* Add some padding */
+}
+
+.chart-card-body canvas {
+    max-width: 100%; /* Ensure canvas doesn't overflow */
+    max-height: 100%; /* Ensure canvas doesn't overflow */
+}
+
+/* Specific overrides if needed */
+/* Example for smaller donut chart */
+#sentiment-overview-content .chart-card-body {
+    /* max-height: 250px; */ /* If donut needs less space */
+}
+
+/* Example for taller trends chart */
+#sentiment-trends-chart-container .chart-card-body {
+     /* min-height: 300px; */
+}
+
 /* Conversation transcript styling */
 .conversation-transcript {
     max-height: 60vh;

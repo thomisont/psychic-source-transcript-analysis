@@ -896,3 +896,29 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
     *   Fixed chart sizing issues with CSS constraints.
 *   **Environment:** Added rule to use `python run.py` for server startup.
 *   **Current Status:** Dashboard KPIs and charts load data, but the `total_conversations_period` count is inconsistent and illogical across different date ranges, indicating an ongoing issue in the backend calculation within `SupabaseConversationService.get_dashboard_stats`. 
+
+## Agent Session Learnings (Dashboard Fix & Cleanup - 2025-04-11)
+
+*   **Dashboard Data Source:** Dashboard (`/`) statistics are entirely driven by the Supabase RPC function `get_message_activity_in_range` and a subsequent query within `SupabaseConversationService.get_dashboard_stats` specifically for average cost.
+*   **Frontend Dependencies (`dashboard.js`):** Relies heavily on `utils.js` for `Formatter` (date, duration, hour, cost), `API`, and `UI` objects. It also relies on `main.js` for the `initializeGlobalDateRangeSelector` function. Correct HTML IDs are crucial for selectors.
+*   **Chart Initialization (`dashboard.js`):** Chart instances must be created *before* `updateChart` is called. Initializing them within the data loading function (`loadDashboardStats`) just before updating the UI (`updateDashboardUI`) proved robust. The helper `initializeChart` provides a common creation pattern.
+*   **Formatting (`utils.js`):** The `Formatter` object in `utils.js` is the central place for formatting data for display (dates, durations, hours, costs). Ensure methods exist here before using them elsewhere (e.g., `Formatter.hour`, `Formatter.cost` were added).
+*   **Backend Service (`supabase_conversation_service.py`):** The `get_dashboard_stats` method now cleanly separates fetching core stats via RPC and fetching supplemental data (like cost) via a separate query based on IDs from the RPC result.
+*   **Supabase Function (`get_message_activity_in_range`):** Requires careful structuring, particularly `WITH` clauses (CTEs), to ensure all parts of the query can access necessary intermediate results. Using a single, large `WITH` clause resolved visibility issues. 
+
+## Project Update: April 11, 2025 - Engagement Metrics Consolidation & Dashboard Fixes
+
+*   **Goal:** Consolidate useful features from the redundant `Engagement Metrics` page into the main `Dashboard` and remove the old page.
+*   **Dashboard Enhancements:**
+    *   Added "Completion Rate" KPI, calculated in `SupabaseConversationService` based on conversation status.
+    *   Applied chart styles (filled lines, colors, tension) from the old page to the Dashboard's "Call Volume Trends" and "Call Duration Trends" charts.
+    *   Added Y-axis titles ("Messages") to the Hourly and Weekday activity bar charts.
+    *   Rearranged KPI cards to a 3-over-2 layout for better readability.
+*   **Date Range Fix:** Corrected the Supabase function `get_message_activity_in_range` to properly handle the end date boundary, ensuring accurate data for all timeframes.
+*   **Code Cleanup:**
+    *   Removed the `Engagement Metrics` page (`/visualization` route, `visualization.html` template, `engagement_metrics.js` script).
+    *   Removed the associated navigation link.
+    *   Removed the unused `get_engagement_metrics` method from the old `conversation_service.py`.
+*   **Development Workflow:** Identified `python run.py` as the correct server start command for the Replit environment and documented it in `STARTUP.md`.
+
+**Outcome:** The Dashboard now incorporates key metrics and styles from the old Engagement Metrics page, which has been successfully removed. Date range filtering is accurate. Codebase is cleaner. 

@@ -20,31 +20,38 @@ let currentConversationId = null;
 
 /**
  * Initializes the global date range selector buttons.
- * NOTE: This might be moved to specific page scripts if only used there.
+ * Assumes buttons with class .date-range-btn and data-timeframe attribute exist.
+ * Calls the callback with the selected timeframe key.
  * @param {Function} onDateChangeCallback - Function to call when a timeframe button is clicked.
  */
 function initializeGlobalDateRangeSelector(onDateChangeCallback) {
-    console.log("Initializing global date range selector...");
+    console.log("Initializing global date range selector [Listeners Only]...");
     const timeframeButtons = document.querySelectorAll('.date-range-btn');
-    const dateRangeDisplay = document.getElementById('date-range-display');
+    const dateRangeDisplay = document.getElementById('date-range-display'); // Optional
 
     if (!timeframeButtons.length) {
-        console.warn("Date range buttons (.date-range-btn) not found. Skipping initialization.");
+        console.warn("Date range buttons (.date-range-btn) not found. Skipping date range initialization.");
         return;
     }
 
     timeframeButtons.forEach(button => {
         button.addEventListener('click', function() {
+            // Update visual state
             timeframeButtons.forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
             const timeframe = this.dataset.timeframe;
             console.log("Date range button clicked:", timeframe);
 
+            // Store in session storage
+            sessionStorage.setItem('selectedTimeframe', timeframe);
+
+            // Update optional display
             if (dateRangeDisplay) {
                 const friendlyName = this.textContent;
                 dateRangeDisplay.textContent = friendlyName;
             }
 
+            // Call the page-specific callback
             if (typeof onDateChangeCallback === 'function') {
                 onDateChangeCallback(timeframe);
             } else {
@@ -53,12 +60,12 @@ function initializeGlobalDateRangeSelector(onDateChangeCallback) {
         });
     });
 
-    const activeButton = document.querySelector('.date-range-btn.active');
-    if (activeButton && typeof onDateChangeCallback === 'function') {
-        console.log("Triggering initial date load based on active button...");
-        onDateChangeCallback(activeButton.dataset.timeframe);
-    }
+    // --- Removed logic for triggering initial load --- 
+    // The page-specific script is now responsible for its own initial load.
+
+    console.log("Global date range listeners attached.");
 }
+
 window.initializeGlobalDateRangeSelector = initializeGlobalDateRangeSelector;
 
 // ==========================================

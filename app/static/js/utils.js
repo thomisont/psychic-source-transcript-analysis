@@ -78,6 +78,30 @@ const Formatter = {
             console.error('Error formatting cost:', cost, error);
             return '--'; // Fallback
         }
+    },
+
+    /**
+     * Format a number as a percentage (e.g., 0.75 -> '75%')
+     * @param {number} value - The fractional value (0 to 1)
+     * @param {number} decimalPlaces - Number of decimal places for the percentage (default 0)
+     * @returns {string} Formatted percentage string or '--%' if invalid
+     */
+    percentage(value, decimalPlaces = 0) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '--%'; // Placeholder for invalid input
+        }
+        try {
+            const numberValue = Number(value);
+            if (numberValue < 0 || numberValue > 1) {
+                 console.warn(`Formatter.percentage received value outside expected 0-1 range: ${value}`);
+            } // Proceed anyway, but warn
+            
+            const percent = (numberValue * 100).toFixed(decimalPlaces);
+            return `${percent}%`;
+        } catch (error) {
+            console.error('Error formatting percentage:', value, error);
+            return '--%'; // Fallback
+        }
     }
 };
 
@@ -196,10 +220,11 @@ const API = {
      */
     async fetch(url, options = {}) {
         const loadingIndicator = document.getElementById('loading-indicator'); // General page loader
-         if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+        // Use classList add/remove for hiding/showing loader (assuming d-none class)
+        if (loadingIndicator) loadingIndicator.classList.remove('d-none');
 
         try {
-            // Set default options
+            // Set default options (original state)
             const defaultOptions = {
                 headers: {
                     'Content-Type': 'application/json',
@@ -207,10 +232,10 @@ const API = {
                 }
             };
 
-            // Merge options
+            // Merge options (original state)
             const fetchOptions = { ...defaultOptions, ...options };
 
-            // Fetch data
+            // Fetch data (original state - no special param handling)
             const response = await fetch(url, fetchOptions);
 
             // Check if response is ok
@@ -247,7 +272,7 @@ const API = {
             UI.showToast(`API Error: ${error.message}`, 'danger');
             throw error; // Re-throw to allow caller to handle
         } finally {
-            // Hide loading state
+            // Hide loading state (original state)
              if (loadingIndicator) loadingIndicator.classList.add('d-none');
         }
     }
@@ -320,7 +345,7 @@ function getDatesFromTimeframe(timeframe) {
             break;
     }
 
-    // Format and return
+    // Format and return with the original keys
     return {
         startDate: formatDate(startDate),
         endDate: formatDate(endDate)

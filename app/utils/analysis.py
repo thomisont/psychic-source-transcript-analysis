@@ -13,6 +13,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import os
 import time
 import pandas as pd
+from openai import OpenAI, RateLimitError, APIError
+import tiktoken
 
 # Initialize NLTK resources
 try:
@@ -25,31 +27,53 @@ class ConversationAnalyzer:
     def __init__(self, lightweight_mode=False):
         """Initialize the analyzer with required API keys if available"""
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
+        # Anthropic key is no longer used in this version
+        # self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
         self.lightweight_mode = lightweight_mode
-        self.use_llm = not lightweight_mode and bool(self.openai_api_key or self.anthropic_api_key)
+        self.use_llm = not lightweight_mode and bool(self.openai_api_key)
+        self.openai_client = None
+        self.tokenizer = None # For estimating token counts
+        # Define the primary OpenAI model to be used for analysis
+        self.model_name = "gpt-4o" 
         
-        # Initialize OpenAI client
+        # Initialize OpenAI client and tokenizer
         if self.openai_api_key and not lightweight_mode:
             try:
-                from openai import OpenAI
                 self.openai_client = OpenAI(api_key=self.openai_api_key)
-                logging.info("OpenAI client initialized for advanced analysis")
+                self.tokenizer = tiktoken.get_encoding("cl100k_base") # Common encoder for gpt-3.5/4
+                logging.info("OpenAI client and tokenizer initialized for advanced analysis")
             except Exception as e:
-                logging.error(f"Failed to initialize OpenAI client: {e}")
+                logging.error(f"Failed to initialize OpenAI client or tokenizer: {e}")
                 self.openai_client = None
-        else:
-            self.openai_client = None
+                self.tokenizer = None
+                self.use_llm = False # Force disable LLM if init fails
             
+        # Initialize NLTK resources if needed
         try:
             nltk.data.find('corpora/stopwords')
         except LookupError:
-            nltk.download('stopwords')
-            nltk.download('punkt')
+            try:
+                nltk.download('stopwords', quiet=True)
+                nltk.download('punkt', quiet=True)
+            except Exception as e:
+                 logging.error(f"Failed to download NLTK data: {e}")
 
     def set_openai_api_key(self, api_key):
-        """Set the OpenAI API key for analysis"""
+        """Set the OpenAI API key and re-initialize the client"""
         self.openai_api_key = api_key
+        self.use_llm = not self.lightweight_mode and bool(self.openai_api_key)
+        if self.openai_api_key and not self.lightweight_mode:
+            try:
+                self.openai_client = OpenAI(api_key=self.openai_api_key)
+                self.tokenizer = tiktoken.get_encoding("cl100k_base")
+                logging.info("OpenAI client and tokenizer re-initialized with new key")
+            except Exception as e:
+                logging.error(f"Failed to re-initialize OpenAI client or tokenizer: {e}")
+                self.openai_client = None
+                self.tokenizer = None
+        else:
+             self.openai_client = None
+             self.tokenizer = None
 
     def extract_common_questions(self, conversations=None):
         """Extract common questions from conversations"""
@@ -462,123 +486,80 @@ class ConversationAnalyzer:
 
     def analyze_sentiment_over_time(self, conversations_df, conversations_with_transcripts):
         """
-        Analyze sentiment trends over time for a set of conversations
-        
-        Args:
-            conversations_df (DataFrame): DataFrame with conversation metadata
-            conversations_with_transcripts (list): List of conversation objects with transcripts
-            
-        Returns:
-            list: Sentiment data points over time periods
+        Analyzes sentiment trends over time from conversation data.
+        This is a placeholder and will likely be replaced by LLM-driven analysis.
         """
-        if (conversations_df is None or conversations_df.empty) or not conversations_with_transcripts:
-            logging.warning("No valid conversation data or transcripts provided for sentiment over time analysis.")
-            return self._empty_analysis_result() # Use helper for empty results
+        # ... (Keep existing implementation for now, or replace with LLM logic later) ...
+        # For now, return structure matching expected output if possible
+        if conversations_df is None or conversations_df.empty:
+             return {'labels': [], 'average_sentiment_scores': []}
 
-        # Create a mapping of conversation_id to full conversation data
-        conv_map = {c.get('conversation_id'): c for c in conversations_with_transcripts}
-        
-        # Check necessary columns exist
-        required_cols = ['start_time', 'duration', 'sentiment_score']
-        if not all(col in conversations_df.columns for col in required_cols):
-            logging.warning(f"DataFrame missing required columns for analysis: {required_cols}")
-            # Return empty structure
-            return {}
-            
-        # >>> FIX: Convert start_time to datetime objects BEFORE calculations <<<
+        # Assuming conversations_df has 'date' and 'sentiment_score' columns
+        # Group by date and calculate average sentiment
         try:
-            # Use errors='coerce' to turn unparseable dates into NaT (Not a Time)
-            conversations_df['start_time_dt'] = pd.to_datetime(conversations_df['start_time'], errors='coerce', utc=True)
-            # Drop rows where conversion failed
-            original_count = len(conversations_df)
-            conversations_df.dropna(subset=['start_time_dt'], inplace=True)
-            if len(conversations_df) < original_count:
-                 logging.warning(f"Dropped {original_count - len(conversations_df)} rows due to unparseable start_time during analysis.")
-            
-            if conversations_df.empty:
-                logging.warning("DataFrame became empty after handling unparseable dates.")
-                return {}
-                
-        except Exception as dt_err:
-            logging.error(f"Error converting 'start_time' column to datetime: {dt_err}", exc_info=True)
-            return {} # Return empty on conversion error
+            # Ensure 'date' is datetime
+            conversations_df['date'] = pd.to_datetime(conversations_df['date'])
+            sentiment_trends = conversations_df.groupby(conversations_df['date'].dt.date)['sentiment_score'].mean().reset_index()
+            sentiment_trends = sentiment_trends.sort_values(by='date')
 
-        # --- Proceed with analysis using the new 'start_time_dt' column --- 
-        
-        # Determine date range for analysis
-        # Use the converted datetime column
-        min_date = conversations_df['start_time_dt'].min().date()
-        max_date = conversations_df['start_time_dt'].max().date()
-        date_list = pd.date_range(start=min_date, end=max_date, freq='D')
-        
-        # Calculate daily sentiment average
-        # Use 'start_time_dt' for grouping
-        sentiment_trends = conversations_df.set_index('start_time_dt')['sentiment_score']\
-                                        .resample('D').mean().dropna().reset_index()
-        
-        # Format for response
-        sentiment_trends_data = [
-            {'date': row['start_time_dt'].strftime('%Y-%m-%d'), 'sentiment': row['sentiment_score']}
-            for index, row in sentiment_trends.iterrows()
-        ]
-
-        return sentiment_trends_data
+            labels = sentiment_trends['date'].dt.strftime('%Y-%m-%d').tolist()
+            scores = sentiment_trends['sentiment_score'].round(2).tolist()
+            return {'labels': labels, 'average_sentiment_scores': scores}
+        except Exception as e:
+             logging.error(f"Error calculating sentiment trends: {e}")
+             return {'labels': [], 'average_sentiment_scores': []}
 
     def analyze_aggregate_sentiment(self, conversations):
         """
-        Analyze aggregate sentiment across multiple conversations
-        
-        Args:
-            conversations (list): List of conversation objects with transcripts
-            
-        Returns:
-            dict: Aggregate sentiment analysis
+        Analyzes aggregate sentiment scores from conversation data.
+        This is a placeholder and will likely be replaced by LLM-driven analysis.
         """
-        if not conversations:
-            return {
-                'overall_score': 0,
-                'user_sentiment': 0,
-                'agent_sentiment': 0,
-                'sentiment_distribution': {'positive': 0, 'neutral': 0, 'negative': 0}
-            }
-        
-        # Collect sentiment scores
-        overall_scores = []
-        user_scores = []
-        agent_scores = []
-        
-        # Process each conversation
-        for conversation in conversations:
-            transcript = conversation.get('transcript', [])
-            if not transcript:
-                continue
-                
-            sentiment = self.analyze_sentiment(transcript)
-            overall_scores.append(sentiment['overall'])
-            user_scores.append(sentiment['user_sentiment'])
-            agent_scores.append(sentiment['agent_sentiment'])
-        
-        # Calculate averages
-        avg_overall = sum(overall_scores) / len(overall_scores) if overall_scores else 0
-        avg_user = sum(user_scores) / len(user_scores) if user_scores else 0
-        avg_agent = sum(agent_scores) / len(agent_scores) if agent_scores else 0
-        
-        # Count distribution
-        positive_count = sum(1 for score in overall_scores if score > 0.1)
-        negative_count = sum(1 for score in overall_scores if score < -0.1)
-        neutral_count = len(overall_scores) - positive_count - negative_count
-        
-        total = len(overall_scores) if overall_scores else 1  # Avoid division by zero
+        # ... (Keep existing implementation for now, or replace with LLM logic later) ...
+        # For now, return structure matching expected output if possible
+        caller_sentiments = []
+        agent_sentiments = []
+        all_sentiments = []
+
+        for conv in conversations:
+            transcript = conv.get('transcript', [])
+            for msg in transcript:
+                try:
+                    sentiment = TextBlob(msg.get('content', '')).sentiment.polarity
+                    all_sentiments.append(sentiment)
+                    if msg.get('role') == 'user':
+                        caller_sentiments.append(sentiment)
+                    elif msg.get('role') == 'agent':
+                        agent_sentiments.append(sentiment)
+                except Exception:
+                    continue # Skip messages that fail sentiment analysis
+
+        # Calculate averages, handling empty lists
+        avg_caller = sum(caller_sentiments) / len(caller_sentiments) if caller_sentiments else 0
+        avg_agent = sum(agent_sentiments) / len(agent_sentiments) if agent_sentiments else 0
+        avg_overall = sum(all_sentiments) / len(all_sentiments) if all_sentiments else 0
+
+        # Determine overall label based on average score
+        if avg_overall > 0.2:
+            overall_label = "Positive"
+        elif avg_overall < -0.2:
+            overall_label = "Negative"
+        else:
+            overall_label = "Neutral"
+
+        # Basic distribution (can be enhanced)
+        distribution = {
+            "very_positive": sum(1 for s in all_sentiments if s > 0.6),
+            "positive": sum(1 for s in all_sentiments if 0.2 < s <= 0.6),
+            "neutral": sum(1 for s in all_sentiments if -0.2 <= s <= 0.2),
+            "negative": sum(1 for s in all_sentiments if -0.6 <= s < -0.2),
+            "very_negative": sum(1 for s in all_sentiments if s < -0.6)
+        }
         
         return {
-            'overall_score': avg_overall,
-            'user_sentiment': avg_user,
-            'agent_sentiment': avg_agent,
-            'sentiment_distribution': {
-                'positive': positive_count / total,
-                'neutral': neutral_count / total,
-                'negative': negative_count / total
-            }
+            "overall_sentiment_label": overall_label,
+            "sentiment_distribution": distribution,
+            "caller_average_sentiment": round(avg_caller, 2),
+            "agent_average_sentiment": round(avg_agent, 2)
         }
 
     def analyze_conversation_flow(self, transcript):
@@ -632,174 +613,6 @@ class ConversationAnalyzer:
             'avg_response_time': avg_response_time,
             'flow_pattern': flow_pattern
         }
-
-    def initialize_openai(self):
-        """Initialize or reinitialize the OpenAI client"""
-        if self.lightweight_mode:
-            logging.info("Lightweight mode is enabled, not initializing OpenAI client")
-            return
-            
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        if not self.openai_api_key:
-            logging.warning("No OpenAI API key found in environment for initialization")
-            self.openai_client = None
-            return
-            
-        try:
-            from openai import OpenAI
-            self.openai_client = OpenAI(api_key=self.openai_api_key)
-            logging.info("Successfully (re)initialized OpenAI client")
-        except Exception as e:
-            logging.error(f"Failed to initialize OpenAI client: {e}")
-            logging.error(traceback.format_exc())
-            self.openai_client = None
-
-    def unified_theme_sentiment_analysis(self, conversations):
-        """
-        Performs a unified analysis of themes and sentiment for a list of conversations.
-        
-        Args:
-            conversations: List of conversation data dictionaries
-            
-        Returns:
-            Dict containing 'themes', 'correlations', 'common_questions', 'concerns_skepticism'
-        """
-        # Set up default return structure with empty lists
-        result = {
-            'themes': [],
-            'correlations': [],
-            'common_questions': [],
-            'concerns_skepticism': [],
-            'positive_interactions': []
-        }
-        
-        # Early return if no conversations
-        if not conversations:
-            logging.warning("No conversations provided for unified theme analysis")
-            return result
-            
-        try:
-            # Track start time for timeout detection
-            start_time = time.time()
-            timeout_seconds = 10  # Set a 10-second timeout for this method
-            
-            # Extract themes and calculate sentiment
-            theme_dict = {}
-            logging.info(f"Processing {len(conversations)} conversations for theme extraction")
-            
-            # Process each conversation, with timeout checking
-            for i, conversation in enumerate(conversations):
-                # Check for timeout every 5 conversations
-                if i % 5 == 0 and time.time() - start_time > timeout_seconds:
-                    logging.warning(f"Timeout detected in unified_theme_sentiment_analysis after {time.time() - start_time:.2f} seconds")
-                    # Return partial results if we've processed some data, otherwise empty result
-                    if theme_dict:
-                        # Process what we have so far
-                        return self._finalize_theme_analysis_results(theme_dict, result)
-                    return result
-                
-                transcript = conversation.get('transcript', [])
-                if not transcript:
-                    continue
-                    
-                # Extract topics from this conversation
-                topics = self.extract_topics(transcript)
-                for topic in topics:
-                    theme = topic.get('theme')
-                    if not theme:
-                        continue
-                        
-                    # Initialize theme entry if it doesn't exist
-                    if theme not in theme_dict:
-                        theme_dict[theme] = {
-                            'count': 0,
-                            'sentiment_values': [],
-                            'conversation_ids': set()
-                        }
-                    
-                    # Add to the theme count
-                    theme_dict[theme]['count'] += 1
-                    
-                    # Add conversation ID to the set of conversations with this theme
-                    conversation_id = conversation.get('conversation_id')
-                    if conversation_id:
-                        theme_dict[theme]['conversation_ids'].add(conversation_id)
-                    
-                    # Add sentiment for this topic
-                    sentiment = topic.get('sentiment', 0)
-                    theme_dict[theme]['sentiment_values'].append(sentiment)
-            
-            # Return final results
-            return self._finalize_theme_analysis_results(theme_dict, result)
-            
-        except Exception as e:
-            logging.error(f"Error in unified_theme_sentiment_analysis: {e}", exc_info=True)
-            return result
-    
-    def _finalize_theme_analysis_results(self, theme_dict, result):
-        """Helper to finalize the theme analysis results from the accumulated data"""
-        try:
-            # Convert to lists for the response format
-            themes = []
-            correlations = []
-            
-            # Sort themes by count (descending)
-            sorted_themes = sorted(theme_dict.items(), key=lambda x: x[1]['count'], reverse=True)
-            
-            for theme, data in sorted_themes:
-                # Calculate average sentiment for this theme
-                avg_sentiment = sum(data['sentiment_values']) / len(data['sentiment_values']) if data['sentiment_values'] else 0
-                
-                # Add to themes list
-                themes.append({
-                    'theme': theme,
-                    'count': data['count'],
-                    'sentiment': round(avg_sentiment, 2)
-                })
-                
-                # Add to correlations list
-                correlations.append({
-                    'theme': theme,
-                    'count': data['count'],
-                    'sentiment': round(avg_sentiment, 2)
-                })
-            
-            # Update the result with themes and correlations
-            result['themes'] = themes[:10]  # Limit to top 10 themes
-            result['correlations'] = correlations[:10]  # Limit to top 10 correlations
-            
-            # Return empty lists for questions, concerns, and interactions if no themes were found
-            # This ensures we never use sample/fallback data
-            conversation_count = len(theme_dict.keys())
-            if conversation_count == 0:
-                result['common_questions'] = []
-                result['concerns_skepticism'] = []
-                result['positive_interactions'] = []
-                logging.info("No themes found, returning empty lists for questions, concerns, and interactions")
-                return result
-            
-            # Get first 20 conversation IDs for further analysis
-            all_conversation_ids = set()
-            for _, data in sorted_themes:
-                all_conversation_ids.update(data['conversation_ids'])
-            
-            # Extract conversation IDs to use for the other analyses
-            conversation_ids = list(all_conversation_ids)[:20]  # Use at most 20 conversations
-            
-            # Log the number of conversations being used for further analysis
-            logging.info(f"Using {len(conversation_ids)} conversations for questions/concerns/interactions analysis")
-            
-            # Extract questions and concerns based on actual conversations
-            # Will return empty lists if no conversations are available
-            result['common_questions'] = self.extract_common_questions([]) 
-            result['concerns_skepticism'] = self.extract_concerns_and_skepticism([])
-            result['positive_interactions'] = self.extract_positive_interactions([])
-            
-            return result
-            
-        except Exception as e:
-            logging.error(f"Error in _finalize_theme_analysis_results: {e}", exc_info=True)
-            return result
 
     def analyze_sentiment_for_text(self, text):
         """
@@ -1041,19 +854,316 @@ class ConversationAnalyzer:
         # Only return categories with examples
         return [cat for cat in results if cat['count'] > 0]
 
-    # --- ADD HELPER FOR EMPTY RESULTS ---
-    def _empty_analysis_result(self):
-        """Returns a dictionary with the default empty structure for analysis results."""
+    # ==========================================================================
+    # NEW Unified LLM Analysis Method
+    # ==========================================================================
+    def unified_llm_analysis(self, conversations, start_date_iso, end_date_iso, original_total_count=None):
+        """
+        Performs a comprehensive analysis using a single OpenAI API call.
+        This is designed to get all required data for the Themes & Sentiment page.
+
+        Args:
+            conversations: List of conversation data dictionaries (including transcript).
+            start_date_iso: ISO format start date of the analysis period.
+            end_date_iso: ISO format end date of the analysis period.
+            original_total_count: The total number of conversations found in the date range
+                                  before applying limits for LLM input.
+
+        Returns:
+            Dict containing the full analysis results structured as defined previously,
+            or a dictionary with an 'error' key if analysis fails.
+        """
+        if not self.use_llm or not self.openai_client or not self.tokenizer:
+            logging.warning("LLM analysis skipped: OpenAI client not available or lightweight mode enabled.")
+            # Pass the original count if available
+            result = self._empty_analysis_result(start_date_iso, end_date_iso, "LLM Not Available", original_total_count)
+            result['analysis_status']['model_name'] = "N/A"
+            return result
+
+        if not conversations:
+            logging.warning("No conversations provided for unified LLM analysis.")
+             # Pass the original count if available
+            result = self._empty_analysis_result(start_date_iso, end_date_iso, "No Conversations", original_total_count)
+            result['analysis_status']['model_name'] = "N/A"
+            return result
+
+        # --- 1. Prepare Input Data for LLM ---
+        # Note: _prepare_llm_input now returns the prepared data and the count *actually processed*
+        prepared_input_result = self._prepare_llm_input(conversations)
+        if not prepared_input_result:
+             # Pass the original count if available
+             result = self._empty_analysis_result(start_date_iso, end_date_iso, "Input Preparation Failed", original_total_count)
+             result['analysis_status']['model_name'] = "N/A"
+             return result
+
+        analysis_input = prepared_input_result["input_data"]
+        processed_count = prepared_input_result["processed_count"]
+
+        # --- 2. Construct the Prompt ---
+        # Pass the *original* total count to the prompt builder
+        prompt = self._build_llm_prompt(analysis_input, start_date_iso, end_date_iso, original_total_count)
+
+        # --- 3. Call OpenAI API ---
+        try:
+            logging.info(f"Calling OpenAI API ({self.model_name}) for unified analysis ({processed_count} conversations processed)...")
+            response = self.openai_client.chat.completions.create(
+                model=self.model_name, # Use the configured model name
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "You are an expert conversation analyst specializing in psychic readings. Analyze the provided conversation data and return the results strictly in the requested JSON format. Be thorough and accurate."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.2, 
+                max_tokens=4096 
+            )
+            logging.info("Received response from OpenAI API.")
+
+            llm_output_raw = response.choices[0].message.content
+
+            # --- 4. Parse and Validate LLM Response ---
+            # Pass the model name used so it can be included in the final result's status.
+            analysis_result = self._parse_and_validate_llm_output(
+                llm_output_raw, 
+                start_date_iso, 
+                end_date_iso, 
+                original_total_count, 
+                self.model_name 
+            )
+            return analysis_result
+
+        except RateLimitError as rle:
+            logging.error(f"OpenAI Rate Limit Error: {rle}")
+            # Use empty result structure for consistency
+            result = self._empty_analysis_result(start_date_iso, end_date_iso, f"Rate Limit Error: {str(rle)}", original_total_count)
+            result['error'] = "Rate limit exceeded. Please try again later." # Add specific error key
+            return result
+        except APIError as apie:
+             logging.error(f"OpenAI API Error: {apie}")
+             result = self._empty_analysis_result(start_date_iso, end_date_iso, f"OpenAI API Error: {str(apie)}", original_total_count)
+             result['error'] = "An error occurred with the OpenAI API." # Add specific error key
+             return result
+        except Exception as e:
+            logging.error(f"Error during unified LLM analysis: {e}", exc_info=True)
+            result = self._empty_analysis_result(start_date_iso, end_date_iso, f"Unexpected Analysis Error: {str(e)}", original_total_count)
+            result['error'] = "An unexpected error occurred during analysis." # Add specific error key
+            return result
+
+    def _prepare_llm_input(self, conversations):
+        """Prepares a simplified data structure for the LLM prompt, handling potential size limits.
+           Returns a dict: {"input_data": {...}, "processed_count": int} or None on failure.
+        """
+        input_data_list = []
+        MAX_INPUT_TOKENS = 100000 # Leave ~30k tokens for prompt and response for a 131k model
+        estimated_tokens = 0
+        processed_count = 0
+
+        if not self.tokenizer:
+            logging.warning("Tokenizer not available, cannot estimate token count accurately. Proceeding without check.")
+            max_conversations_for_llm = 100
+            conversations_to_process = conversations[:max_conversations_for_llm]
+            logging.warning(f"Processing max {max_conversations_for_llm} conversations due to missing tokenizer.")
+        else:
+            conversations_to_process = []
+            for conv in conversations:
+                transcript_text = ""
+                for msg in conv.get('transcript', []):
+                    speaker = "Caller" if msg.get('role') == 'user' else "Psychic"
+                    transcript_text += f"{speaker}: {msg.get('content', '')}\\n"
+
+                # Estimate tokens for this conversation (simple approach)
+                conv_data_for_estimation = {
+                    "conversation_id": conv.get("external_id", conv.get("id")),
+                    "timestamp": conv.get("created_at", "").isoformat() if conv.get("created_at") else "N/A",
+                    "transcript_summary": transcript_text.strip()
+                }
+                current_conv_tokens = len(self.tokenizer.encode(json.dumps(conv_data_for_estimation)))
+
+                if estimated_tokens + current_conv_tokens < MAX_INPUT_TOKENS:
+                    estimated_tokens += current_conv_tokens
+                    conversations_to_process.append(conv)
+                else:
+                    logging.warning(f"Approaching token limit... Stopping addition of conversations.")
+                    logging.warning(f"Processing {len(conversations_to_process)} conversations out of {len(conversations)} provided.")
+                    break
+            
+            if not conversations_to_process:
+                 logging.error("No conversations fit within the token limit.")
+                 return None
+
+        # Now build the final input data list
+        for conv in conversations_to_process:
+            transcript_text = ""
+            for msg in conv.get('transcript', []):
+                speaker = "Caller" if msg.get('role') == 'user' else "Psychic"
+                transcript_text += f"{speaker}: {msg.get('content', '')}\\n"
+
+            input_data_list.append({
+                "conversation_id": conv.get("external_id", conv.get("id")), 
+                "timestamp": conv.get("created_at", "").isoformat() if conv.get("created_at") else "N/A",
+                "transcript_summary": transcript_text.strip() 
+            })
+        
+        processed_count = len(input_data_list)
+        logging.info(f"Prepared LLM input with {processed_count} conversations, estimated tokens: {estimated_tokens}")
+        # Return both the input for the prompt and the count processed
+        return {"input_data": {"conversations": input_data_list}, "processed_count": processed_count}
+
+    def _build_llm_prompt(self, analysis_input, start_date_iso, end_date_iso, total_conversations_in_range):
+        """Constructs the detailed prompt for the OpenAI API, including the original total count."""
+        # Use the provided total_conversations_in_range in the metadata description
+        # Ensure total_conversations_in_range is an int or default to 0
+        total_count_int = total_conversations_in_range if isinstance(total_conversations_in_range, int) else 0
+
+        # Escape literal curly braces for f-string by doubling them {{ }}
+        output_json_structure = f"""
+        {{
+          "metadata": {{
+            "start_date": "{start_date_iso}",
+            "end_date": "{end_date_iso}",
+            "total_conversations_in_range": {total_count_int} // Total conversations FOUND in this date range (before token limits)
+          }},
+          "sentiment_overview": {{
+            "overall_sentiment_label": "string (Positive/Neutral/Negative)",
+            "sentiment_distribution": {{ "very_positive": int, "positive": int, "neutral": int, "negative": int, "very_negative": int }},
+            "caller_average_sentiment": float, // Scale -1 to 1
+            "agent_average_sentiment": float // Scale -1 to 1
+          }},
+          "top_themes": {{
+            "themes": [{{ "theme": "string", "count": int }}] // Sorted descending by count, max 10
+          }},
+          "sentiment_trends": {{ // Analyze daily average sentiment across the period
+            "labels": ["YYYY-MM-DD", ...], // Dates within the range with conversations
+            "average_sentiment_scores": [float, ...] // Corresponding avg sentiment scores (-1 to 1)
+          }},
+          "theme_sentiment_correlation": [
+            {{ "theme": "string", "mentions": int, "sentiment_label": "string (e.g., Positive, Slightly Negative)" }} // Match top_themes, sorted
+          ]}},
+          "categorized_quotes": {{
+            "common_questions": [
+              {{ "category_name": "string", "count": int, "quotes": [{{ "quote_text": "string", "conversation_id": "string" }}] }} // Max 3 quotes per category example
+            ],
+            "concerns_skepticism": [
+              {{ "category_name": "string", "count": int, "quotes": [{{ "quote_text": "string", "conversation_id": "string" }}] }} // Max 3 quotes per category example
+            ],
+            "positive_interactions": {{
+              "count": int,
+              "quotes": [{{ "quote_text": "string", "conversation_id": "string", "sentiment_score": float }}] // Sorted by score, max 10 examples
+            }}
+          }},
+          "analysis_status": {{ // Added for clarity
+              "mode": "Full",
+              "message": "Analysis complete using LLM."
+          }}
+        }}
+        """
+
+        prompt = f"""
+        Analyze the following psychic reading conversation data covering the period from {start_date_iso} to {end_date_iso}.
+        A total of {total_count_int} conversations were found in this date range, but only a subset might be included below due to processing limits.
+        Analyze *only* the conversations provided in the Input Data section below.
+
+        Input Data:
+        ```json
+        {json.dumps(analysis_input, indent=2)}
+        ```
+
+        **Analysis Tasks & Output Format:**
+        
+        Based *only* on the provided conversation data below, perform the following analysis and return the results *strictly* in the following JSON format. Do NOT include explanations or commentary outside the JSON structure.
+        Crucially, the `metadata.total_conversations_in_range` field in your output JSON MUST be exactly {total_count_int}.
+        All other analysis (sentiment, themes, quotes, etc.) must be based *only* on the conversations present in the Input Data.
+
+        **Required JSON Output Structure:**
+        ```json
+        {output_json_structure}
+        ```
+
+        **Detailed Instructions:**
+        1.  **metadata:** Fill with the provided date range and ensure `total_conversations_in_range` is exactly {total_count_int}.
+        2.  **sentiment_overview:** Calculate based *only* on messages in the Input Data.
+        3.  **top_themes:** Identify themes based *only* on conversations in the Input Data.
+        4.  **sentiment_trends:** Calculate daily averages based *only* on messages in the Input Data for dates within the requested range.
+        5.  **theme_sentiment_correlation:** Correlate themes found in the Input Data.
+        6.  **categorized_quotes:** Extract quotes *only* from conversations present in the Input Data.
+
+        Ensure the output is a single, valid JSON object adhering exactly to the structure specified.
+        """
+        return prompt.strip()
+
+    def _parse_and_validate_llm_output(self, llm_output_raw, start_date_iso, end_date_iso, original_total_count, model_name="N/A"):
+        """
+        Parses the LLM JSON output, validates structure, and enriches metadata.
+        Includes adding the provided `model_name` to the `analysis_status`.
+        """
+        try:
+            logging.debug(f"Raw LLM Output:\n{llm_output_raw[:500]}...")
+            parsed_output = json.loads(llm_output_raw)
+            logging.info("Successfully parsed LLM JSON response.")
+
+            # --- Basic Structure Validation ---
+            required_top_keys = ["metadata", "sentiment_overview", "top_themes", "sentiment_trends", 
+                               "theme_sentiment_correlation", "categorized_quotes", "analysis_status"]
+            if not all(key in parsed_output for key in required_top_keys):
+                logging.error(f"LLM output missing required top-level keys. Found: {list(parsed_output.keys())}")
+                raise ValueError("LLM output structure validation failed (top keys)")
+            
+            # --- Enrich/Validate Metadata ---
+            # Ensure the LLM used the provided total count
+            if 'metadata' not in parsed_output or not isinstance(parsed_output['metadata'], dict):
+                 parsed_output['metadata'] = {}
+                 
+            parsed_output['metadata']['start_date'] = start_date_iso
+            parsed_output['metadata']['end_date'] = end_date_iso
+            parsed_output['metadata']['total_conversations_in_range'] = original_total_count if original_total_count is not None else 0
+            
+            # --- Enrich/Validate Analysis Status ---
+            if 'analysis_status' not in parsed_output or not isinstance(parsed_output['analysis_status'], dict):
+                 parsed_output['analysis_status'] = {}
+                 
+            parsed_output['analysis_status']['mode'] = "Full"
+            parsed_output['analysis_status']['message'] = "Analysis complete using LLM."
+            # Ensure the model name used for the analysis is included in the status
+            parsed_output['analysis_status']['model_name'] = model_name 
+
+            # --- Add deeper validation here if needed (e.g., check types, list lengths) ---
+            # Example: Validate top_themes format
+            if not isinstance(parsed_output.get('top_themes', {}).get('themes', []), list):
+                 logging.warning("LLM output for top_themes.themes is not a list. Attempting recovery or defaulting.")
+                 # Attempt recovery or set a default empty list
+                 parsed_output['top_themes'] = {"themes": []}
+                 
+            # Add more validation checks for other sections...
+            
+            logging.info("Successfully parsed and validated LLM response structure.")
+            return parsed_output
+
+        except json.JSONDecodeError as json_err:
+            logging.error(f"Failed to parse LLM JSON response: {json_err}")
+            logging.error(f"Problematic JSON string (first 500 chars): {llm_output_raw[:500]}")
+            raise ValueError(f"Invalid JSON format received from LLM: {json_err}")
+        except ValueError as val_err:
+             # Re-raise validation errors
+             raise val_err
+        except Exception as e:
+            logging.error(f"Unexpected error parsing/validating LLM output: {e}", exc_info=True)
+            raise ValueError(f"Unexpected error processing LLM output: {str(e)}")
+
+    def _empty_analysis_result(self, start_date_iso, end_date_iso, status_message="No Data", total_conversations=0):
+        """Generates a default empty analysis result structure."""
         return {
-            'sentiment_overview': { # Consistent with API return structure
-                'caller_avg': 0, 
-                'agent_avg': 0, 
-                'distribution': {'positive': 0, 'negative': 0, 'neutral': 0}
+            "metadata": {
+                "start_date": start_date_iso,
+                "end_date": end_date_iso,
+                "total_conversations_in_range": total_conversations if total_conversations is not None else 0
             },
-            'top_themes': [],
-            'sentiment_trends': [],
-            'common_questions': [],
-            'concerns_skepticism': [],
-            'positive_interactions': [],
-            'sentiment_by_theme': [] # Ensure all expected keys are present
+            "sentiment_overview": None,
+            "top_themes": None,
+            "sentiment_trends": None,
+            "theme_sentiment_correlation": None,
+            "categorized_quotes": None,
+            "analysis_status": {
+                "mode": "Unavailable" if status_message != "LLM Not Available" else "Lightweight",
+                "message": status_message,
+                "model_name": "N/A" # Default model name for empty/error results
+            }
         }

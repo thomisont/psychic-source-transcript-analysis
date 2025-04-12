@@ -46,12 +46,15 @@
                             <i class="fas fa-comments me-1"></i>Transcript Viewer
                         </a>
                     </li>
+                    {# Removed Engagement Metrics link #}
+                    {# 
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.visualization_page' %}active{% endif %}" 
                             href="{{ url_for('main.visualization_page') }}" aria-current="{% if request.endpoint == 'main.visualization_page' %}page{% endif %}">
                             <i class="fas fa-chart-bar me-1"></i>Engagement Metrics
                         </a>
                     </li>
+                    #}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.themes_sentiment_page' %}active{% endif %}" 
                             href="{{ url_for('main.themes_sentiment_page') }}" aria-current="{% if request.endpoint == 'main.themes_sentiment_page' %}page{% endif %}">

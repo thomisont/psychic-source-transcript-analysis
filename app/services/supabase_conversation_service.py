@@ -334,7 +334,14 @@ class SupabaseConversationService:
         Fetches aggregated dashboard statistics by calling the Supabase RPC function
         'get_message_activity_in_range'.
 
-        This function handles the core data aggregation on the database side.
+        Core Logic:
+        1. Calls Supabase RPC `get_message_activity_in_range(start_iso, end_iso)`
+           - This function filters messages based on `messages.timestamp`.
+           - It aggregates most stats (hourly/daily activity, volume, avg duration, peak time) 
+             based on the messages within the filtered range.
+           - It returns the distinct `conversation_id`s found within the range.
+        2. Calculates `avg_cost_credits` via a separate query using the distinct IDs.
+        3. Calculates `completion_rate` via a separate query using the distinct IDs.
 
         Args:
             start_date: Optional start date in 'YYYY-MM-DD' format.
@@ -456,6 +463,46 @@ class SupabaseConversationService:
 
             # Add the calculated (or default 0.0) average cost to the results
             stats_data['avg_cost_credits'] = avg_cost_credits
+
+            # --- Calculate Completion Rate (Requires another query using existing IDs) ---
+            # Added April 2025 to replace metric from removed Engagement page.
+            # Uses the distinct conversation IDs returned by the main RPC call.
+            completed_count = 0
+            completion_rate = 0.0
+            total_conversations_in_period = stats_data.get('total_conversations_period', 0)
+
+            if distinct_ids_for_cost and total_conversations_in_period > 0:
+                try:
+                    logging.debug(f"Fetching count of completed conversations for {len(distinct_ids_for_cost)} IDs.")
+                    # Count completed conversations among those identified by the RPC
+                    # ASSUMPTION: 'completed' is the status for completed conversations
+                    completed_response = self.supabase.client.table('conversations') \
+                        .select('id', count='exact') \
+                        .in_('id', distinct_ids_for_cost) \
+                        .eq('status', 'completed') \
+                        .execute()
+
+                    if completed_response.count is not None:
+                        completed_count = completed_response.count
+                        completion_rate = (completed_count / total_conversations_in_period) # Keep as fraction 0.0-1.0
+                        logging.info(f"Calculated completion rate: {completion_rate} ({completed_count}/{total_conversations_in_period})")
+                    else:
+                         logging.warning("Could not retrieve count of completed conversations.")
+
+                except APIError as e:
+                     logging.error(f"Supabase API error fetching completed conversation count: {e}", exc_info=True)
+                     # Keep completion_rate as 0.0 if count fetch fails
+                except Exception as e:
+                     logging.error(f"Unexpected error fetching completed conversation count: {e}", exc_info=True)
+                     # Keep completion_rate as 0.0
+            elif total_conversations_in_period == 0:
+                 logging.info("Total conversations period is 0, completion rate is 0.")
+            else: # distinct_ids_for_cost is empty
+                logging.warning("No distinct conversation IDs returned from RPC, cannot calculate completion rate.")
+
+            # Add the calculated (or default 0.0) completion rate to the results
+            stats_data['completion_rate'] = completion_rate
+
 
             logging.debug(f"Processed stats data being returned: {stats_data}")
             return stats_data

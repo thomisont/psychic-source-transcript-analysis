@@ -6,7 +6,20 @@ console.log("DASHBOARD.JS LOADED - V1");
 // This script handles fetching statistics for the main dashboard,
 // initializing charts, and updating the UI elements (KPIs and charts)
 // based on the selected date range.
-// Depends on: utils.js (API, Formatter, UI), main.js (initializeGlobalDateRangeSelector)
+// 
+// Key Data Source: /api/dashboard/stats endpoint, which calls the 
+//                  Supabase RPC function 'get_message_activity_in_range'.
+//                  This function uses message timestamps for filtering and aggregation.
+// 
+// KPIs Added (April 2025):
+//  - Completion Rate (calculated in SupabaseConversationService)
+// 
+// Chart Style Changes (April 2025):
+//  - Volume/Duration charts styled to match old Engagement Metrics page (filled, curved line)
+//  - Y-axis titles added to bar charts.
+// 
+// Dependencies: utils.js (API, Formatter, UI, getDatesFromTimeframe), 
+//               main.js (initializeGlobalDateRangeSelector)
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     // Check if we are on the dashboard page using a reliable element ID
@@ -88,7 +101,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     hourlyChartInstance = new Chart(ctxHourly, {
                         type: 'bar',
                         data: { labels: [], datasets: [{ label: 'Messages', data: [], backgroundColor: '#17a2b8' }] }, // Changed label
-                        options: chartOptions
+                        options: { // Add y-axis title
+                            ...chartOptions, // Spread existing common options
+                            scales: { 
+                                ...chartOptions.scales, // Spread existing scale options
+                                y: { 
+                                    ...chartOptions.scales?.y, // Spread existing y-axis options
+                                    beginAtZero: true, 
+                                    title: { display: true, text: 'Messages' } // Add Y-axis title
+                                } 
+                            }
+                        }
                     });
                     console.log("Hourly chart initialized");
                 } catch (e) {
@@ -104,7 +127,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     weekdayChartInstance = new Chart(ctxWeekday, {
                         type: 'bar',
                         data: { labels: [], datasets: [{ label: 'Messages', data: [], backgroundColor: '#ffc107' }] }, // Changed label
-                        options: chartOptions
+                        options: { // Add y-axis title
+                            ...chartOptions, // Spread existing common options
+                            scales: { 
+                                ...chartOptions.scales, // Spread existing scale options
+                                y: { 
+                                    ...chartOptions.scales?.y, // Spread existing y-axis options
+                                    beginAtZero: true, 
+                                    title: { display: true, text: 'Messages' } // Add Y-axis title
+                                } 
+                            }
+                        }
                     });
                     console.log("Weekday chart initialized");
                 } catch (e) {
@@ -112,36 +145,105 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Initialize Call Volume Trend chart if needed (uses helper)
-            if (!callVolumeChartInstance && document.getElementById('callVolumeChart')) {
-                callVolumeChartInstance = initializeChart('callVolumeChart', 'line', {
-                    scales: {
-                        y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Conversations'} },
-                        x: { title: { display: true, text: 'Date'}, ticks: { autoSkip: true, maxTicksLimit: 15 } } // Auto-skip labels for readability
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: (ctx) => `${ctx.raw} conversations` } }
-                    },
-                    elements: { line: { tension: 0.1 } } // Slight curve to the line
-                });
-                console.log("Call Volume chart initialized");
+            // --- Initialize Line Charts Directly (Replacing initializeChart helper calls) ---
+
+            // Initialize Call Volume Trend chart if needed
+            const ctxVolume = document.getElementById('callVolumeChart')?.getContext('2d');
+            if (ctxVolume && !callVolumeChartInstance) {
+                try {
+                    callVolumeChartInstance = new Chart(ctxVolume, {
+                        type: 'line',
+                        data: {
+                            labels: [], // Initially empty
+                            datasets: [{
+                                label: 'Conversations',
+                                data: [],
+                                backgroundColor: 'rgba(54, 162, 235, 0.2)', // Style from engagement
+                                borderColor: 'rgba(54, 162, 235, 1)',   // Style from engagement
+                                borderWidth: 2,                      // Style from engagement
+                                tension: 0.4,                      // Style from engagement
+                                fill: true                           // Style from engagement
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } }, // Keep tooltip default
+                            scales: {
+                                y: { 
+                                    beginAtZero: true, 
+                                    ticks: { precision: 0 }, 
+                                    title: { display: true, text: 'Conversations'} 
+                                },
+                                x: { 
+                                    title: { display: true, text: 'Date'}, 
+                                    ticks: { 
+                                        autoSkip: true,          // Style from engagement (adapted)
+                                        maxRotation: 45,         // Style from engagement
+                                        minRotation: 45          // Style from engagement
+                                    } 
+                                } 
+                            }
+                        }
+                    });
+                    console.log("Call Volume chart initialized directly with new styles");
+                } catch (e) {
+                    console.error("Error creating call volume chart:", e);
+                }
             }
 
-            // Initialize Call Duration Chart
-            if (!callDurationChartInstance && document.getElementById('callDurationChart')) {
-                callDurationChartInstance = initializeChart('callDurationChart', 'line', {
-                    scales: {
-                        y: { beginAtZero: true, ticks: { precision: 0, callback: (value) => Formatter.duration(value, true) }, title: { display: true, text: 'Avg Duration (mm:ss)' } }, // Format Y-axis as duration
-                        x: { title: { display: true, text: 'Date' }, ticks: { autoSkip: true, maxTicksLimit: 15 } }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { callbacks: { label: (ctx) => `Avg: ${Formatter.duration(ctx.raw)}` } } // Format tooltip
-                    },
-                    elements: { line: { tension: 0.1, borderColor: '#28a745', backgroundColor: 'rgba(40, 167, 69, 0.1)' } } // Green color
-                });
-                console.log("Call Duration chart initialized");
+            // Initialize Call Duration Chart if needed
+            const ctxDuration = document.getElementById('callDurationChart')?.getContext('2d');
+            if (ctxDuration && !callDurationChartInstance) {
+                try {
+                    callDurationChartInstance = new Chart(ctxDuration, {
+                        type: 'line',
+                        data: {
+                            labels: [], // Initially empty
+                            datasets: [{
+                                label: 'Avg Duration (s)', // Label matches old chart
+                                data: [],
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)', // Style from engagement
+                                borderColor: 'rgba(75, 192, 192, 1)',   // Style from engagement
+                                borderWidth: 2,                      // Style from engagement
+                                tension: 0.4,                      // Style from engagement
+                                fill: true                           // Style from engagement
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { 
+                                legend: { display: false },
+                                tooltip: { 
+                                    callbacks: { 
+                                        // Keep custom tooltip from dashboard/engagement
+                                        label: (ctx) => `Avg: ${Formatter.duration(ctx.raw)}` 
+                                    } 
+                                } 
+                            },
+                            scales: {
+                                y: { 
+                                    beginAtZero: true, 
+                                    // Keep custom Y-axis ticks from dashboard/engagement
+                                    ticks: { precision: 0, callback: (value) => Formatter.duration(value, true) }, 
+                                    title: { display: true, text: 'Avg Duration (mm:ss)' } 
+                                },
+                                x: { 
+                                    title: { display: true, text: 'Date' }, 
+                                    ticks: { 
+                                        autoSkip: true,          // Style from engagement (adapted)
+                                        maxRotation: 45,         // Style from engagement
+                                        minRotation: 45          // Style from engagement
+                                    } 
+                                } 
+                            }
+                        }
+                    });
+                    console.log("Call Duration chart initialized directly with new styles");
+                } catch (e) {
+                    console.error("Error creating call duration chart:", e);
+                }
             }
         } catch (error) {
             console.error('General error during chart initialization:', error);
@@ -190,11 +292,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * Updates all dashboard UI elements (KPI cards and charts) with new data.
      * Handles potential errors by displaying 'Error' or default values.
      * @param {object} data - The statistics object received from the API or {error: true} on failure.
-     * Expected data structure:
+     * Expected data structure (from /api/dashboard/stats):
      * {
      *   total_conversations_period: number,
      *   avg_duration_seconds: number,
      *   avg_cost_credits: number,
+     *   completion_rate: number (0.0 to 1.0),
      *   peak_time_hour: number | null,
      *   activity_by_hour: { '0': count, '1': count, ... },
      *   activity_by_day: { '0': count, '1': count, ... }, // Monday=0
@@ -242,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateText('total-conversations', data.total_conversations_period);
         updateText('average-duration', data.avg_duration_seconds, Formatter.duration);
         updateText('average-cost', data.avg_cost_credits, Formatter.cost);
+        updateText('completion-rate', data.completion_rate, Formatter.percentage);
         updateText('peak-time', data.peak_time_hour, Formatter.hour);
 
         // --- Update Charts ---
