@@ -139,6 +139,25 @@ const Formatter = {
             console.error('Error formatting percentage:', value, error);
             return '--%'; // Fallback
         }
+    },
+    // ADD Sentiment Label/Class Helpers
+    sentimentLabel(score) {
+        if (score === null || score === undefined || isNaN(score)) return 'N/A';
+        score = Number(score);
+        if (score > 0.6) return 'Very Positive';
+        if (score > 0.2) return 'Positive';
+        if (score >= -0.2) return 'Neutral';
+        if (score >= -0.6) return 'Negative';
+        return 'Very Negative';
+    },
+    sentimentColorClass(score) {
+        if (score === null || score === undefined || isNaN(score)) return 'secondary'; // Default badge class
+        score = Number(score);
+        if (score > 0.6) return 'success'; // Very Positive
+        if (score > 0.2) return 'success'; // Positive (use success too)
+        if (score >= -0.2) return 'warning'; // Neutral
+        if (score >= -0.6) return 'danger'; // Negative 
+        return 'danger'; // Very Negative (use danger too)
     }
 };
 

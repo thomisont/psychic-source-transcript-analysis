@@ -51,11 +51,11 @@
             <div class="col-lg-6 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-header bg-primary text-white">
-                        <i class="bi bi-heart-pulse-fill me-2"></i>Sentiment Overview
+                        <h5 class="mb-0"><i class="bi bi-heart-pulse-fill me-2"></i>Sentiment Overview</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-4">
                         <div id="sentiment-overview-content">
-                            <p><strong>Overall Sentiment:</strong> <span id="overall-sentiment-label">N/A</span></p>
+                            <p class="text-muted mb-2"><strong>Overall Sentiment:</strong> <span id="overall-sentiment-label">N/A</span></p>
                             <div class="mb-3 chart-container" id="sentiment-distribution-chart-container">
                                 <canvas id="sentiment-distribution-chart" height="150"></canvas>
                                 <div class="empty-chart-message" style="display: none;">No sentiment data available.</div>
@@ -77,9 +77,9 @@
             <div class="col-lg-6 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-header bg-info text-white">
-                        <i class="bi bi-bar-chart-line-fill me-2"></i>Top Conversation Themes
+                        <h5 class="mb-0"><i class="bi bi-bar-chart-line-fill me-2"></i>Top Conversation Themes</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-4">
                         <div class="row">
                             <div class="col-md-7">
                                 <div class="chart-container" id="top-themes-chart-container">
@@ -89,7 +89,7 @@
                             </div>
                             <div class="col-md-5">
                                 <h6>Most Frequent Topics</h6>
-                                <ul class="list-group list-group-flush" id="top-themes-list">
+                                <ul class="list-group list-group-flush small" id="top-themes-list">
                                     <!-- Theme list items will be populated here -->
                                     <li class="list-group-item">Loading...</li>
                                 </ul>
@@ -106,9 +106,9 @@
             <div class="col-lg-7 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-header">
-                       <i class="bi bi-graph-up me-2"></i>Sentiment Trends Over Time
+                       <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Sentiment Trends Over Time</h5>
                     </div>
-                    <div class="card-body chart-container" id="sentiment-trends-chart-container">
+                    <div class="card-body p-4 chart-container" id="sentiment-trends-chart-container">
                          <canvas id="sentiment-trends-chart" height="120"></canvas>
                          <div class="empty-chart-message" style="display: none;">No sentiment trend data available.</div>
                          <p class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Shows how average sentiment has changed over the selected time period.</p>
@@ -118,10 +118,10 @@
              <div class="col-lg-5 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-header">
-                        <i class="bi bi-link-45deg me-2"></i>Theme & Sentiment Correlation
+                        <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Theme & Sentiment Correlation</h5>
                     </div>
-                    <div class="card-body">
-                        <table class="table table-sm table-hover">
+                    <div class="card-body p-4">
+                        <table class="table table-sm table-hover small">
                             <thead>
                                 <tr>
                                     <th>Theme</th>
@@ -145,9 +145,9 @@
             <div class="col-lg-6 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-header">
-                         <i class="bi bi-question-circle-fill me-2"></i>Common Questions
+                         <h5 class="mb-0"><i class="bi bi-question-circle-fill me-2"></i>Common Questions</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-4">
                         <div class="accordion" id="common-questions-accordion">
                             <!-- Accordion items will be populated here -->
                             <div class="text-center p-3">Loading categories...</div>
@@ -158,9 +158,9 @@
             <div class="col-lg-6 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-header">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Concerns & Skepticism
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Concerns & Skepticism</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-4">
                          <div class="accordion" id="concerns-skepticism-accordion">
                              <!-- Accordion items will be populated here -->
                              <div class="text-center p-3">Loading categories...</div>
@@ -175,10 +175,10 @@
             <div class="col-lg-8 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-header">
-                         <i class="bi bi-star-fill me-2"></i>Most Positive Caller Interactions (<span id="positive-interactions-count">0</span>)
+                         <h5 class="mb-0"><i class="bi bi-star-fill me-2"></i>Most Positive Caller Interactions (<span id="positive-interactions-count">0</span>)</h5>
                     </div>
-                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                        <ul class="list-group list-group-flush" id="positive-interactions-list">
+                    <div class="card-body p-4">
+                        <ul class="list-group list-group-flush small" id="positive-interactions-list">
                              <!-- Positive interaction items will be populated here -->
                              <li class="list-group-item text-center">Loading interactions...</li>
                         </ul>
@@ -187,7 +187,7 @@
             </div>
              <div class="col-lg-4 mb-4">
                 <div class="card h-100 shadow-sm bg-light">
-                    <div class="card-body d-flex align-items-center">
+                    <div class="card-body p-4 d-flex align-items-center">
                         <div>
                              <i class="bi bi-robot h1 me-3 text-primary"></i>
                         </div>

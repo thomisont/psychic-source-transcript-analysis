@@ -96,6 +96,12 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--white) !important; 
 }
 
+.card-header.bg-primary .card-title,
+.card-header.bg-primary h5,
+.card-header.bg-primary h5 i {
+    color: var(--white) !important; /* Ensure title text and icons are white */
+}
+
 .card-header.bg-primary .card-title {
     color: var(--white) !important; /* Ensure title text is also white */
 }
@@ -134,19 +140,84 @@ h1, h2, h3, h4, h5, h6 {
     min-height: 200px; /* Ensure accordion containers have enough initial height */
 }
 
-/* Dashboard widgets */
-/* .stat-card {  -- Remove or adjust old rules -- */
-    /* transition: transform 0.3s; */
-/* } */
+/* === NEW Dashboard KPI Card Styles === */
 
-/* .stat-card:hover { -- Remove or adjust old rules -- */
-    /* transform: translateY(-5px); */
-/* } */
+.stats-container .stat-card {
+    border: none; /* Remove default card border */
+    border-radius: 0.75rem; /* Slightly more rounded */
+    background-color: var(--white);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Softer shadow */
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+    overflow: hidden; /* Ensure content respects border-radius */
+    display: flex; /* Use flex for internal layout */
+    flex-direction: column; /* Stack header and body */
+    height: 100%; /* Ensure cards in a row are same height */
+}
 
-/* .stat-icon { -- Remove or adjust old rules -- */
-    /* font-size: 2.5rem; */
-    /* color: var(--primary-color); */
-/* } */
+.stats-container .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.stat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem; /* Adjust padding */
+    border-bottom: 1px solid var(--border-gray);
+    background-color: transparent; /* No background color for header */
+}
+
+.stat-metric-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+.stat-icon-container {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Use specific background colors based on --viz variables */
+}
+
+.stat-icon-container.bg-viz-1 { background-color: var(--viz-color-1); }
+.stat-icon-container.bg-viz-2 { background-color: var(--viz-color-2); }
+.stat-icon-container.bg-viz-3 { background-color: var(--viz-color-3); }
+.stat-icon-container.bg-viz-4 { background-color: var(--viz-color-4); }
+.stat-icon-container.bg-viz-accent { background-color: var(--viz-accent); }
+/* Add more if needed */
+
+.stat-icon {
+    font-size: 1.25rem; /* Adjust icon size */
+    color: var(--white); /* White icon */
+}
+
+.stat-card-body {
+    padding: 1rem; /* Add padding back to body */
+    text-align: right; /* Right-align numbers */
+    flex-grow: 1; /* Allow body to fill space */
+    /* Override the general card-body min-height if needed */
+    min-height: auto; 
+}
+
+.stat-metric-value {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.75rem; /* Larger metric value */
+    font-weight: 700;
+    color: var(--primary-color);
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
+}
+
+.stat-metric-trend {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
 
 /* Chart Container Constraints */
 .chart-card-body {
@@ -393,13 +464,26 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Simple Accordion Scroll Fix */
-.accordion-body .list-group-flush {
+/* REMOVE OLD RULE: .accordion-body .list-group-flush {
+    max-height: 300px; 
+    overflow-y: auto;
+} */
+
+/* NEW Specific Accordion Scroll Fix */
+#common-questions-accordion .accordion-item .accordion-collapse,
+#concerns-skepticism-accordion .accordion-item .accordion-collapse {
     max-height: 300px; /* Adjust as needed */
     overflow-y: auto;
+    /* Ensure direct child list-items don't prevent scrolling */
+    /* (This might not be needed, but adding for robustness) */
+    & > .list-group-item {
+      overflow: hidden; /* Prevent item content itself from breaking layout */
+      text-overflow: ellipsis; /* Optional: if text within item overflows */
+    }
 }
 
 /* Ensure accordion body and collapse don't interfere (optional, remove if Bootstrap default works) */
-/* 
+/* REMOVE THESE COMMENTED LINES 
 .accordion-body {
     overflow: visible !important; 
 }
@@ -823,4 +907,27 @@ h1, h2, h3, h4, h5, h6 {
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   color: var(--white) !important; /* Explicitly ensure white color */
+} 
+
+/* Accordion Content Scrolling for Themes/Sentiment Page */
+/* Apply base styles to .accordion-collapse, JS will ensure they apply after animation */
+#common-questions-accordion .accordion-item .accordion-collapse,
+#concerns-skepticism-accordion .accordion-item .accordion-collapse {
+    max-height: 300px; /* Base height - REMOVED !important */
+    overflow-y: auto; /* Base overflow - REMOVED !important */
+}
+
+/* Ensure body and list group inside don't interfere */
+#common-questions-accordion .accordion-body,
+#concerns-skepticism-accordion .accordion-body {
+    padding: 0; /* Keep padding removed */
+}
+#common-questions-accordion .accordion-body .list-group,
+#concerns-skepticism-accordion .accordion-body .list-group {
+   margin-bottom: 0;
+}
+
+/* Minor style tweak for accordion button badges */
+.accordion-button .badge {
+    font-size: 0.75em; /* Slightly smaller badge */
 } 

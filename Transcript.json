@@ -1,0 +1,214 @@
+{
+  "conversation_id": "vM5w53Gwtr760VuVwsPA",
+  "start_time": "2025-04-11T09:22:18.490381+00:00",
+  "readable_date": "4/11/2025, 4:22:18 AM",
+  "duration_seconds": 545,
+  "formatted_duration": "9:05",
+  "summary": "Michelle contacted Psychic Source seeking clarity on a deceased loved one and her current relationship. The AI agent, Lily, suggested several psychics with a direct reading style, detailing their specialties and tools. Michelle provided her name and email, and Lily confirmed her request to share this information with Psychic Source to connect her with a suitable advisor. The call concluded with Lily sending Michelle's details and intentions to Psychic Source.",
+  "transcript": [
+    {
+      "timestamp": "2025-04-08T01:07:02",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:07:15",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:07:19",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:07:36",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:07:40",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:00",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:03",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:18",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:22",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:36",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:40",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:52",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:08:56",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:09:58",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:10:02",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:10:16",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:10:19",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:10:36",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:10:39",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:10:53",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:10:56",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:11:58",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:02",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:07",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:11",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:22",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:25",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:42",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:56",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:57",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:12:59",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:12",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:15",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:23",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:27",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:34",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:45",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:53",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:13:59",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:14:18",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:14:22",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:14:30",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:14:44",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:14:45",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:14:51",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:14:57",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:15:08",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:15:42",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:15:45",
+      "role": "agent"
+    },
+    {
+      "timestamp": "2025-04-08T01:16:04",
+      "role": "user"
+    },
+    {
+      "timestamp": "2025-04-08T01:16:07",
+      "role": "agent"
+    }
+  ]
+}

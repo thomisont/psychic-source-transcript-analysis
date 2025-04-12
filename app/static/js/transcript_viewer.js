@@ -121,8 +121,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Transcript Export Functionality
     // ==========================================
     function formatTranscriptForExport(format) {
+        // ADD LOGGING HERE to debug the erroneous toast
+        console.log(`>>> formatTranscriptForExport called for format: ${format}`);
+        console.log(`>>> Checking currentTranscriptExportData:`, currentTranscriptExportData);
+        console.log(`>>> Checking transcript presence:`, currentTranscriptExportData ? (currentTranscriptExportData.transcript ? `${currentTranscriptExportData.transcript.length} messages` : 'transcript key missing/null') : 'currentTranscriptExportData is null/undefined');
+        
         if (!currentTranscriptExportData || !currentTranscriptExportData.transcript) {
-            console.error("No transcript data available for export.");
+            console.error("!!! Condition for 'No transcript data' toast met."); // Log specifically when this happens
             if(window.UI) UI.showToast("No transcript data loaded to export.", "warning");
             return null;
         }
@@ -182,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
             transcript.forEach(msg => {
                 const time = msg.timestamp ? Formatter.dateTime(msg.timestamp) : 'Unknown Time';
                 const speakerLabel = msg.role === 'agent' ? 'Lily (Agent)' : (msg.speaker || 'Curious Caller');
-                mdContent += `**${speakerLabel}:** ${msg.text || ''}\\n`;
+                mdContent += `**${speakerLabel}:** ${msg.content || ''}\\n`;
                 mdContent += `_${time}_\\n\\n`;
             });
             return {
@@ -198,6 +203,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleExportClick(event) {
+        // ADD LOGGING HERE to detect multiple calls
+        console.log(`>>> handleExportClick invoked for event target:`, event.target.id);
+
+        // *** ADD EXPLICIT CHECK AT HANDLER START ***
+        if (!currentTranscriptExportData || !currentTranscriptExportData.transcript) {
+            console.error(">>> handleExportClick: Data not ready at the start of handler!");
+             if(window.UI) UI.showToast("Export data is not ready yet. Please wait a moment.", "warning");
+             // Prevent default even on early exit if the link was clicked
+             event.preventDefault();
+             return; // Exit early
+        }
+        
         event.preventDefault();
         const format = event.target.id.split('-')[1]; // e.g., 'export-json' -> 'json'
         console.log(`Export button clicked for format: ${format}`);
@@ -411,6 +428,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const messageTextSpan = document.createElement('span');
             messageTextSpan.className = 'message-text'; // Class for message text
+            // REVERTING to use .content based on previous working state
+            // *** CRITICAL: This rendering logic EXPECTS the message text to be in the 'content' key ***
+            // *** Do not change to '.text' or other keys without verifying the data source ***
             messageTextSpan.textContent = message.content || '(No text content)'; // Handle null/empty text
 
             const timestampSpan = document.createElement('span');
@@ -455,6 +475,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalCost = document.getElementById('modal-cost');
         const modalSummary = document.getElementById('modal-summary');
         const resultsInfo = document.getElementById('results-info'); // Main page info
+        const modalTranscriptContent = document.getElementById('modal-transcript-content');
+        const exportDropdownButton = document.querySelector('#conversationModal .modal-footer .dropdown-toggle'); // Get export button
 
         if (!transcriptContainer || !modalTitle || !modalConvId || !modalConvDate || !modalSummary) { // Check essential elements
             console.error("Transcript modal elements not found.");
@@ -463,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Show simple loading state INITIALLY in the container and modal title
-        modalTitle.textContent = `Loading Transcript: ${conversationId}...`;
+        modalTitle.textContent = `Loading Conversation: ${conversationId}...`;
         transcriptContainer.innerHTML = '<div class="text-center text-muted p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading transcript...</p></div>';
         // Clear overview details
         modalConvId.textContent = 'Loading...';
@@ -479,6 +501,11 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
         transcriptModalInstance.show();
+
+        currentTranscriptExportData = null; // Clear previous export data
+        if (exportDropdownButton) exportDropdownButton.disabled = true; // Disable export button initially
+
+        console.log("Showing modal...");
 
         try {
             // Step 1: Fetch details
@@ -517,6 +544,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Stored data for export:", currentTranscriptExportData);
             // --- End storing export data ---
 
+            if (exportDropdownButton) exportDropdownButton.disabled = false; // Re-enable export button on success
+
         } catch (error) {
             console.error("Error fetching or displaying conversation details:", error);
             if (window.UI) UI.showToast(`Error loading transcript: ${error.message}`, "danger");
@@ -528,6 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  resultsInfo.classList.add('text-danger');
             }
             currentTranscriptExportData = null; // Clear export data on error
+            if (exportDropdownButton) exportDropdownButton.disabled = true; // Ensure export button is disabled on error
         }
     }
 
@@ -643,28 +673,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial call to set correct filter visibility on page load
     toggleFilterSections(); 
 
-    // Add event listeners for export buttons
-    const exportJsonButton = document.getElementById('export-json');
-    const exportCsvButton = document.getElementById('export-csv');
-    const exportMarkdownButton = document.getElementById('export-markdown');
-
-    if (exportJsonButton) {
-        exportJsonButton.addEventListener('click', handleExportClick);
-        console.log("Attached click listener to #export-json");
+    // Add event listener for export buttons using event delegation
+    const exportMenu = document.getElementById('export-options-menu');
+    if (exportMenu) {
+        exportMenu.addEventListener('click', (event) => {
+            // Check if the clicked element is one of the export links
+            if (event.target && event.target.matches('#export-json, #export-csv, #export-markdown')) {
+                // Call the original handler, passing the event object
+                handleExportClick(event); 
+            }
+        });
+        console.log("Attached delegated click listener to #export-options-menu");
     } else {
-        console.warn("#export-json button not found");
-    }
-     if (exportCsvButton) {
-        exportCsvButton.addEventListener('click', handleExportClick);
-        console.log("Attached click listener to #export-csv");
-    } else {
-        console.warn("#export-csv button not found");
-    }
-    if (exportMarkdownButton) {
-        exportMarkdownButton.addEventListener('click', handleExportClick);
-        console.log("Attached click listener to #export-markdown");
-    } else {
-        console.warn("#export-markdown button not found");
+        console.warn("#export-options-menu not found for delegation.");
     }
 
     console.log("Transcript Viewer page scripts initialization complete.");

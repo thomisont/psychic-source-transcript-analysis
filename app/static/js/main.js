@@ -282,54 +282,6 @@ async function updateApiStatus() {
     }
 }
 
-
-// Export button functionality (assuming it might be used globally or on multiple pages)
-// This can stay global if the modal/button is in base.html
-document.addEventListener('click', async (event) => {
-    if (event.target.matches('#export-json, #export-csv, #export-markdown')) {
-        // Use the globally scoped currentConversationId
-        if (!currentConversationId) { 
-            if (window.UI) UI.showToast('No conversation selected for export.', 'warning');
-            return;
-        }
-        
-        const format = event.target.id.split('-')[1]; // json, csv, or markdown
-        const button = event.target;
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = 'Exporting...';
-
-        try {
-            // Use native fetch as API utility might not be needed here unless we want global loading indicator
-            const response = await fetch(`/api/export/${currentConversationId}?format=${format}`);
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
-                throw new Error(errorData.message || `Failed to export conversation`);
-            }
-
-            const blob = await response.blob();
-            const filename = response.headers.get('Content-Disposition')?.split('filename=')[1] || `${currentConversationId}.${format}`;
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = filename.replace(/"/g, ''); // Clean filename
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-            if (window.UI) UI.showToast(`Conversation exported as ${format}`, 'success');
-
-        } catch (error) {
-            console.error(`Export failed for format ${format}:`, error);
-            if (window.UI) UI.showToast(`Export failed: ${error.message}`, 'danger');
-        } finally {
-            button.disabled = false;
-            button.textContent = originalText;
-        }
-    }
-});
-
 // Final check: Ensure DOMContentLoaded listeners inside page-specific files 
 // correctly identify their page and execute.
 

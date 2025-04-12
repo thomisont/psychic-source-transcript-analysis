@@ -943,21 +943,9 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **File Cleanup**: Old template/JS files for this page were removed. Active files are `themes_sentiment_refactored.html` and `themes_sentiment_refactored.js`.
 *   **Backend Dependencies**: API Route (`/api/themes-sentiment/full-analysis-v2`) -> `AnalysisService.get_full_themes_sentiment_analysis` -> `SupabaseConversationService.get_conversations` (for data) & `ConversationAnalyzer.unified_llm_analysis` (for analysis).
 
-## Agent Session Learnings (Transcript Viewer UI Fixes - 2025-04-12)
+## Agent Session Learnings (Themes & Sentiment UI Refinement - April 12, 2025)
 
-*   **Dashboard Fix:** Resolved issue where API/System status icons were not displaying. Added the missing Bootstrap Icons CSS link to `base.html` and fixed a CSS color conflict in `style.css`.
-*   **Transcript Viewer UI Refinements:**
-    *   Removed redundant UI elements (e.g., "Updated UI" badge) and consolidated page title bars.
-    *   Improved contrast on elements with primary backgrounds (card headers, modal titles).
-    *   Fixed date range filter logic: Preset buttons now trigger search automatically, while "Custom Range" requires manual "Search" button press after entering dates.
-    *   Fixed Conversation ID search error (was using incorrect input field ID).
-    *   Fixed custom date range searches returning incorrect datasets by implementing Python-based sorting/pagination in `SupabaseConversationService.get_conversations` after fetching all relevant IDs via RPC.
-*   **Transcript Modal Overhaul:**
-    *   Restructured modal header layout (stacked details left, summary right). Removed redundant "Agent:" field. Bolder summary text.
-    *   Fixed transcript messages always showing as 'agent'. Corrected role assignment logic in `SupabaseConversationService.get_conversation_details` to check both `speaker` and `role` fields from the database.
-    *   Implemented speaker labels ("Lily", "Curious Caller") above message bubbles.
-    *   Updated avatars to use Font Awesome icons (`fas fa-headset`, `fas fa-user`) instead of initials.
-    *   **Resolved alternating left/right message alignment:** Debugging revealed CSS conflicts. The final fix involved making the parent `.agent-message` and `.caller-message` divs flex containers in `style.css` to control `justify-content`, while the child `.caller-message .message-group` retained `flex-direction: row-reverse` for avatar placement.
-*   **Debugging:** Utilized browser developer tools extensively to diagnose CSS issues. Added detailed `DEBUG` level logging in the backend service and confirmed the application log level was set correctly (in `run.py`) to trace data processing errors.
-*   **Code Structure:** Confirmed `SupabaseConversationService` is primary, but `ConversationService` (SQLAlchemy) remains as a fallback configured in `app/__init__.py`.
-*   **Deferred:** "Export Transcript" button functionality remains unimplemented.
+*   **Frontend Complexity (`themes_sentiment_refactored.js`):** This script is sensitive to specific HTML element IDs (`getElementById`) and the exact structure of the JSON data returned by its API endpoint. Debugging requires careful comparison between the HTML template (`themes_sentiment_refactored.html`), the JS rendering logic, and the actual API response logged in the console.
+*   **CSS Specificity (`style.css`):** Overriding Bootstrap's default accordion styles for scrolling proved difficult. Multiple selectors (targeting `.accordion-body`, `.list-group`, and `.accordion-collapse`) were attempted. High specificity or potential structural conflicts with Bootstrap might be preventing the desired `max-height` and `overflow-y` from applying correctly.
+*   **Data Dependency (Links):** Features like the "View" transcript link in accordions rely directly on non-null values (`conversation_id`) in the API data. The current sample/LLM data seems to consistently return `null` for these, preventing link rendering. Verification is needed when real data with IDs is present.
+*   **JS DOM Timing & Null Checks:** Assigning element references via `getElementById` *after* `DOMContentLoaded` is crucial. Adding `if (element)` checks before accessing `.textContent` or `.style` properties, especially within `try...catch` blocks and async callbacks, is essential for preventing runtime errors when elements might be unexpectedly missing or `null`.
