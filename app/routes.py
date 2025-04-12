@@ -527,7 +527,8 @@ def api_status():
         'database': {'status': 'error', 'message': 'Check failed'},
         'elevenlabs': {'status': 'error', 'message': 'Check failed'},
         'analysis': {'status': 'error', 'message': 'Check failed'},
-        'supabase': {'status': 'error', 'message': 'Check failed'}
+        'supabase': {'status': 'error', 'message': 'Check failed'},
+        'openai': {'status': 'error', 'message': 'Check failed'}
     }
 
     try: 
@@ -580,6 +581,29 @@ def api_status():
         except Exception as e:
              status['analysis']['status'] = 'error'
              status['analysis']['message'] = f"Analysis Error: {str(e)[:100]}"
+
+        # --- OpenAI Check (within Analysis Service check is logical) ---
+        # This assumes the analysis service check above succeeded and found the analyzer
+        try:
+            if (status['analysis']['status'] != 'error' and 
+                hasattr(current_app, 'analysis_service') and 
+                current_app.analysis_service and 
+                hasattr(current_app.analysis_service, 'analyzer')):
+                
+                analyzer = current_app.analysis_service.analyzer
+                # Check if analyzer object itself exists AND has the openai_client attribute
+                if analyzer and hasattr(analyzer, 'openai_client') and analyzer.openai_client:
+                    status['openai']['status'] = 'available'
+                    status['openai']['message'] = 'OpenAI client configured'
+                else:
+                    status['openai']['status'] = 'unavailable'
+                    status['openai']['message'] = 'OpenAI client not configured or analysis limited'
+            else:
+                 status['openai']['status'] = 'unavailable'
+                 status['openai']['message'] = 'Analysis service unavailable, cannot check OpenAI'
+        except Exception as e:
+            status['openai']['status'] = 'error'
+            status['openai']['message'] = f"OpenAI Check Error: {str(e)[:100]}"
 
         # --- Supabase Check ---
         try:

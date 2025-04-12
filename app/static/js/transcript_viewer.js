@@ -1,10 +1,10 @@
 console.log("TRANSCRIPT_VIEWER.JS LOADED - V1");
 
 // ==========================================
-// Transcript Viewer / Data Selection Specific Functions
+// Transcript Viewer Specific Logic
 // ==========================================
-
-// Ensure utilities are loaded first (from utils.js)
+// Handles DataTable initialization, data fetching for the table,
+// modal display for conversation details, and transcript rendering.
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("TRANSCRIPT_VIEWER: DOMContentLoaded listener entered.");
@@ -16,13 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     console.log("Initializing Transcript Viewer page scripts...");
 
-    // DataTable instance variable (scoped to this module/listener)
+    // Module-scoped variables
     let conversationsDataTable = null;
-    // Global variable reference needed for viewConversation
-    // We might need to rethink how currentConversationId is managed if export stays global
-    // For now, assume window.currentConversationId exists and is set by viewConversation
+    let currentTranscriptExportData = null; // <-- ADDED: Store data for export
     
-    // ---- Initialize Modal Instance Once ----
     let transcriptModalInstance = null;
     const transcriptModalElement = document.getElementById('conversationModal'); // Use the modal's main ID
     if (transcriptModalElement) {
@@ -39,7 +36,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // ---- End Modal Initialization ----
 
-    // Function to initialize the DataTable
+    // Function to show/hide filter sections based on selected search type
+    function toggleFilterSections() {
+        const searchType = document.querySelector('input[name="search-type"]:checked')?.value || 'date';
+        const dateFilters = document.getElementById('date-range-filters');
+        const customDateStart = document.getElementById('custom-date-inputs');
+        const customDateEnd = document.getElementById('custom-date-inputs-end');
+        const idFilter = document.getElementById('conversation-id-filter');
+        const searchButtonContainer = document.getElementById('search-button') ? document.getElementById('search-button').parentElement : null; // Get button container
+
+        const isCustomTimeframe = document.getElementById('timeframe-custom')?.checked;
+
+        if (dateFilters) dateFilters.style.display = (searchType === 'date') ? '' : 'none';
+        if (idFilter) idFilter.style.display = (searchType === 'id') ? '' : 'none';
+        
+        // Show custom date inputs only if 'date' search AND 'custom' timeframe are selected
+        const showCustom = (searchType === 'date' && isCustomTimeframe);
+        if (customDateStart) customDateStart.style.display = showCustom ? '' : 'none';
+        if (customDateEnd) customDateEnd.style.display = showCustom ? '' : 'none';
+        
+        // Show the main search button only when date search is active (ID search has its own button)
+        if(searchButtonContainer) searchButtonContainer.style.display = (searchType === 'date') ? '' : 'none';
+
+        console.log(`Toggled filters: SearchType=${searchType}, ShowDateFilters=${dateFilters?.style.display}, ShowIDFilter=${idFilter?.style.display}, ShowCustom=${showCustom}`);
+    }
+
+    // Initializes or returns the existing DataTables instance for the conversations table.
     function initializeDataTable() {
         console.log("Initializing DataTable for Transcript Viewer...");
         const tableSelector = '#conversations-table';
@@ -79,12 +101,125 @@ document.addEventListener('DOMContentLoaded', () => {
         return conversationsDataTable;
     }
 
-    // Function to handle search based on date range or conversation ID
+    // ==========================================
+    // Download Helper Function
+    // ==========================================
+    function triggerDownload(content, filename, contentType) {
+        const blob = new Blob([content], { type: contentType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log(`Triggered download for ${filename}`);
+    }
+
+    // ==========================================
+    // Transcript Export Functionality
+    // ==========================================
+    function formatTranscriptForExport(format) {
+        if (!currentTranscriptExportData || !currentTranscriptExportData.transcript) {
+            console.error("No transcript data available for export.");
+            if(window.UI) UI.showToast("No transcript data loaded to export.", "warning");
+            return null;
+        }
+
+        const { conversation_id, start_time, duration, cost, summary, transcript } = currentTranscriptExportData;
+        const filenameBase = `transcript_${conversation_id || 'unknown'}`;
+        const readableDate = start_time ? Formatter.date(start_time, true) : 'Unknown Date'; // Use longer format
+
+        console.log(`Formatting transcript ${conversation_id} for ${format} export.`);
+
+        if (format === 'json') {
+            const jsonData = {
+                conversation_id: conversation_id,
+                start_time: start_time, // Keep ISO string for JSON
+                readable_date: readableDate,
+                duration_seconds: duration,
+                formatted_duration: Formatter.duration(duration),
+                cost_credits: cost,
+                summary: summary,
+                transcript: transcript.map(msg => ({
+                    timestamp: msg.timestamp, // Keep ISO string
+                    speaker: msg.speaker,
+                    role: msg.role,
+                    text: msg.text
+                }))
+            };
+            return {
+                content: JSON.stringify(jsonData, null, 2),
+                filename: `${filenameBase}.json`,
+                contentType: 'application/json'
+            };
+        } else if (format === 'csv') {
+            // Header row
+            let csvContent = 'Timestamp,Speaker,Role,Text\\n';
+            // Data rows
+            transcript.forEach(msg => {
+                const time = msg.timestamp ? new Date(msg.timestamp).toISOString() : 'N/A';
+                const speaker = msg.speaker || 'Unknown';
+                const role = msg.role || 'unknown';
+                // Escape quotes within the text by doubling them, and enclose the whole text in quotes
+                const text = `\"${(msg.text || '').replace(/"/g, '""')}\"`; 
+                csvContent += `${time},${speaker},${role},${text}\\n`;
+            });
+             return {
+                content: csvContent,
+                filename: `${filenameBase}.csv`,
+                contentType: 'text/csv;charset=utf-8;'
+            };
+        } else if (format === 'markdown') {
+            let mdContent = `# Transcript: ${conversation_id}\\n\\n`;
+            mdContent += `**Date:** ${readableDate}\\n`;
+            mdContent += `**Duration:** ${Formatter.duration(duration)}\\n`;
+            mdContent += `**Cost:** ${cost !== null && cost !== undefined ? cost + ' credits' : 'N/A'}\\n\\n`;
+            mdContent += `**Summary:**\\n${summary || 'No summary available.'}\\n\\n`;
+            mdContent += `## Messages\\n\\n`;
+
+            transcript.forEach(msg => {
+                const time = msg.timestamp ? Formatter.dateTime(msg.timestamp) : 'Unknown Time';
+                const speakerLabel = msg.role === 'agent' ? 'Lily (Agent)' : (msg.speaker || 'Curious Caller');
+                mdContent += `**${speakerLabel}:** ${msg.text || ''}\\n`;
+                mdContent += `_${time}_\\n\\n`;
+            });
+            return {
+                content: mdContent,
+                filename: `${filenameBase}.md`,
+                contentType: 'text/markdown;charset=utf-8;'
+            };
+        } else {
+            console.error(`Unsupported export format: ${format}`);
+             if(window.UI) UI.showToast(`Unsupported export format: ${format}`, "danger");
+            return null;
+        }
+    }
+
+    function handleExportClick(event) {
+        event.preventDefault();
+        const format = event.target.id.split('-')[1]; // e.g., 'export-json' -> 'json'
+        console.log(`Export button clicked for format: ${format}`);
+        
+        const exportData = formatTranscriptForExport(format);
+        
+        if (exportData) {
+            triggerDownload(exportData.content, exportData.filename, exportData.contentType);
+             if(window.UI) UI.showToast(`Transcript exported as ${format.toUpperCase()}.`, "success");
+        } else {
+            console.warn("Export failed, no data generated.");
+            // Error toast is shown within formatTranscriptForExport if needed
+        }
+    }
+
+    // Fetches conversation data based on selected filters (date range or ID) and populates the DataTable.
     async function handleDateSearch() {
         console.log("handleDateSearch initiated...");
         const startDateInput = document.getElementById('start-date');
         const endDateInput = document.getElementById('end-date');
-        const conversationIdInput = document.getElementById('conversation_id_search');
+        // CORRECTED ID for conversation search input
+        const conversationIdInput = document.getElementById('conversation-id'); 
         const resultsInfo = document.getElementById('results-info');
         const dataTable = conversationsDataTable; // Use the scoped instance
 
@@ -100,12 +235,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Handle ID Search --- 
         if (searchType === 'id') {
+            // Use the corrected input element
             const conversationId = conversationIdInput ? conversationIdInput.value.trim() : null;
             if (conversationId) {
                 console.log(`Searching for specific Conversation ID: ${conversationId}`);
                 dataTable.clear().draw();
                 if (resultsInfo) resultsInfo.textContent = `Loading details for Conversation ID: ${conversationId}...`;
-                await viewConversation(conversationId); // Call the function within this scope
+                
+                // Show loading indicator for ID search as well
+                const loadingIndicator = document.getElementById('loading-indicator');
+                if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+                
+                try {
+                    await viewConversation(conversationId); // Call the function within this scope
+                } finally {
+                     if (loadingIndicator) loadingIndicator.classList.add('d-none');
+                }
                 return; // ID search complete
             } else {
                  if (window.UI) UI.showToast("Please enter a Conversation ID.", "warning");
@@ -118,44 +263,52 @@ document.addEventListener('DOMContentLoaded', () => {
         let startDate = null;
         let endDate = null;
         
-        // CORRECTLY find the checked timeframe radio button
-        const checkedTimeframeRadio = document.querySelector('input[name="timeframe"]:checked');
-        if (checkedTimeframeRadio) {
-            timeframe = checkedTimeframeRadio.value; // e.g., '7d', '30d', 'all', 'custom'
-            console.log(`Selected timeframe value: ${timeframe}`);
-        } else {
-            console.warn("No timeframe radio button selected, defaulting to custom.");
+        // Check if custom range radio is selected FIRST
+        const customRadio = document.getElementById('timeframe-custom');
+        const isCustom = customRadio?.checked;
+        
+        if (isCustom) {
             timeframe = 'custom';
-        }
-
-        // Use global getDatesFromTimeframe utility for presets
-        if (timeframe !== 'custom' && typeof getDatesFromTimeframe === 'function') { 
-            try {
-                const dates = getDatesFromTimeframe(timeframe); 
-                startDate = dates.startDate;
-                endDate = dates.endDate;
-                // Update input fields if they exist (for visual consistency)
-                if (startDateInput) startDateInput.value = startDate;
-                if (endDateInput) endDateInput.value = endDate;
-                console.log(`Calculated dates for timeframe '${timeframe}': ${startDate} to ${endDate}`);
-            } catch (e) {
-                console.error(`Error getting dates for timeframe ${timeframe}:`, e);
-                if (window.UI) UI.showToast(`Invalid timeframe value: ${timeframe}`, "danger");
-                return;
-            }
-        } else { // Handle custom timeframe
             startDate = startDateInput ? startDateInput.value : null;
             endDate = endDateInput ? endDateInput.value : null;
-            console.log(`Using custom date range: ${startDate} to ${endDate}`);
-            // Ensure the 'custom' radio is actually checked if we fall here
-            const customRadio = document.getElementById('timeframe-custom');
-            if (customRadio) customRadio.checked = true;
+            console.log(`Using custom date range directly: ${startDate} to ${endDate}`);
+        } else {
+            // Find the checked preset timeframe radio button
+            const checkedTimeframeRadio = document.querySelector('input[name="timeframe"]:checked');
+            if (checkedTimeframeRadio) {
+                timeframe = checkedTimeframeRadio.value; 
+                console.log(`Selected preset timeframe value: ${timeframe}`);
+                // Use global getDatesFromTimeframe utility for presets
+                if (typeof getDatesFromTimeframe === 'function') { 
+                    try {
+                        const dates = getDatesFromTimeframe(timeframe); 
+                        startDate = dates.startDate;
+                        endDate = dates.endDate;
+                        // Update input fields if they exist (for visual consistency)
+                        if (startDateInput) startDateInput.value = startDate;
+                        if (endDateInput) endDateInput.value = endDate;
+                        console.log(`Calculated dates for timeframe '${timeframe}': ${startDate} to ${endDate}`);
+                    } catch (e) {
+                        console.error(`Error getting dates for timeframe ${timeframe}:`, e);
+                        if (window.UI) UI.showToast(`Invalid timeframe value: ${timeframe}`, "danger");
+                        return;
+                    }
+                } else {
+                    console.error("getDatesFromTimeframe function not found!");
+                    if (window.UI) UI.showToast("Date calculation utility missing.", "danger");
+                    return;
+                }
+            } else {
+                 console.warn("No timeframe radio button selected, cannot determine date range.");
+                 if (window.UI) UI.showToast("Please select a timeframe.", "warning");
+                 return;
+            }
         }
 
-        // Final validation check
+        // Final validation check for dates
         if (!startDate || !endDate) {
-            console.error(`Validation failed: StartDate=${startDate}, EndDate=${endDate}`);
-            if (window.UI) UI.showToast("Please select a valid start and end date or a timeframe.", "warning");
+            console.error(`Date validation failed: StartDate=${startDate}, EndDate=${endDate}`);
+            if (window.UI) UI.showToast("Please select or enter a valid start and end date.", "warning");
             return;
         }
 
@@ -169,6 +322,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fetch data using global API utility
         const fetchUrl = `/api/conversations?start_date=${startDate}&end_date=${endDate}&limit=10000`;
         console.log(`>>> Calling API.fetch for URL: ${fetchUrl}`);
+        
+        // Show loading indicator (ensure it exists)
+        const loadingIndicator = document.getElementById('loading-indicator');
+        if (loadingIndicator) loadingIndicator.classList.remove('d-none');
+        
         try {
              // Use global API utility
             const apiData = await API.fetch(fetchUrl);
@@ -206,196 +364,252 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // UI.showToast is handled by API.fetch
             dataTable.clear().draw();
+        } finally {
+            // **ALWAYS** hide loading indicator after fetch attempt
+            if (loadingIndicator) loadingIndicator.classList.add('d-none');
+            console.log("handleDateSearch finished attempt, hiding loading indicator.");
         }
     }
 
-    // Function to display a single conversation's transcript
+    // Renders the conversation transcript messages into the modal with iMessage styling.
+    function renderTranscript(transcriptMessages, container) {
+        console.log("Rendering transcript with messages:", transcriptMessages);
+        if (!container) {
+            console.error("Transcript container not found in modal.");
+            return;
+        }
+
+        container.innerHTML = ''; // Clear previous content
+
+        if (!transcriptMessages || transcriptMessages.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted p-3">No transcript messages available.</div>';
+            return;
+        }
+
+        transcriptMessages.forEach(message => {
+            // Determine speaker and alignment based on role
+            const isAgent = message.role === 'agent';
+            const rowClass = isAgent ? 'agent-message' : 'caller-message'; // Parent row class for alignment
+            const speakerLabel = isAgent ? 'Lily' : 'Curious Caller'; // Corrected speaker labels
+            const avatarIcon = isAgent ? 'fas fa-headset' : 'fas fa-user'; // Font Awesome icons
+
+            const messageGroup = document.createElement('div');
+            messageGroup.className = 'message-group d-flex align-items-end mb-3'; // Use flex for avatar/bubble alignment
+
+            const avatarContainer = document.createElement('div');
+            // Simplified container, remove specific sizing/bg classes from JS
+            avatarContainer.className = `avatar-container ${isAgent ? 'me-2' : 'ms-2 order-1'}`; 
+            // Apply color and larger size directly to the icon tag
+            avatarContainer.innerHTML = `<i class="${avatarIcon} fa-2x"></i>`; // Use fa-2x for larger size
+
+            const messageBubble = document.createElement('div');
+            messageBubble.className = 'message-bubble d-flex flex-column'; // Bubble container
+
+            const speakerNameSpan = document.createElement('span');
+            speakerNameSpan.className = 'speaker-label mb-1'; // Class for speaker name
+            speakerNameSpan.textContent = speakerLabel;
+
+            const messageTextSpan = document.createElement('span');
+            messageTextSpan.className = 'message-text'; // Class for message text
+            messageTextSpan.textContent = message.content || '(No text content)'; // Handle null/empty text
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'timestamp mt-1 align-self-end'; // Class for timestamp, aligned right
+            timestampSpan.textContent = message.timestamp ? Formatter.time(message.timestamp) : 'Unknown time';
+
+
+            // Assemble bubble content
+            messageBubble.appendChild(speakerNameSpan);
+            messageBubble.appendChild(messageTextSpan);
+            messageBubble.appendChild(timestampSpan);
+
+            // Assemble message group (avatar + bubble)
+            messageGroup.appendChild(avatarContainer);
+            messageGroup.appendChild(messageBubble);
+             
+            // Create the main row div and apply alignment class
+            const messageRow = document.createElement('div');
+            messageRow.className = rowClass; // This div controls left/right justification via CSS
+            messageRow.appendChild(messageGroup); // Append the group to the row
+
+            container.appendChild(messageRow); // Add the complete row to the main container
+        });
+
+         // Scroll to bottom is removed based on user feedback
+        // container.scrollTop = container.scrollHeight; 
+        console.log("Transcript rendering complete.");
+    }
+
+    // Fetches details for a specific conversation ID and displays them in the modal.
     async function viewConversation(conversationId) {
         console.log(`Viewing conversation ID: ${conversationId}`);
         if (typeof window !== 'undefined') window.currentConversationId = conversationId; 
         
-        const transcriptContainer = document.getElementById('transcript-content');
-        const transcriptTitle = document.getElementById('transcriptModalLabel');
-        const resultsInfo = document.getElementById('results-info');
+        // Use the new container ID
+        const transcriptContainer = document.getElementById('modal-transcript-content'); 
+        const modalTitle = document.getElementById('transcriptModalLabel');
+        // Other modal elements for overview details
+        const modalConvId = document.getElementById('modal-conversation-id');
+        const modalConvDate = document.getElementById('modal-conversation-date');
+        const modalDuration = document.getElementById('modal-duration');
+        const modalCost = document.getElementById('modal-cost');
+        const modalSummary = document.getElementById('modal-summary');
+        const resultsInfo = document.getElementById('results-info'); // Main page info
 
-        if (!transcriptContainer || !transcriptTitle) {
+        if (!transcriptContainer || !modalTitle || !modalConvId || !modalConvDate || !modalSummary) { // Check essential elements
             console.error("Transcript modal elements not found.");
             if (window.UI) UI.showToast("Error displaying transcript: UI elements missing.", "danger");
             return;
         }
 
-        // Show simple loading state INITIALLY in the container
-        transcriptTitle.textContent = `Loading Transcript: ${conversationId}...`;
-        transcriptContainer.innerHTML = '<div class="text-center p-5"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        // Show simple loading state INITIALLY in the container and modal title
+        modalTitle.textContent = `Loading Transcript: ${conversationId}...`;
+        transcriptContainer.innerHTML = '<div class="text-center text-muted p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading transcript...</p></div>';
+        // Clear overview details
+        modalConvId.textContent = 'Loading...';
+        modalConvDate.textContent = 'Loading...';
+        modalDuration.textContent = 'Loading...';
+        modalCost.textContent = '...';
+        modalSummary.textContent = 'Loading...';
         
-        // Ensure modal is ready but DON'T show it yet
+        // Show the modal
         if (!transcriptModalInstance) {
-             console.error("Cannot prepare modal: Instance not available.");
+             console.error("Cannot show modal: Instance not available.");
              if (window.UI) UI.showToast("Could not display transcript viewer.", "danger");
              return;
         }
+        transcriptModalInstance.show();
 
         try {
             // Step 1: Fetch details
             const details = await API.fetch(`/api/conversations/${conversationId}`);
-            console.log("Conversation details received (simplified modal):", details);
+            console.log("Conversation details received:", details);
 
             // Validate Transcript Data
-            if (!details || !details.transcript || !Array.isArray(details.transcript)) {
-                 throw new Error('Invalid or missing transcript data format received.');
+            if (!details || !Array.isArray(details.transcript)) {
+                 console.error("Invalid or missing transcript data format received:", details);
+                 throw new Error('Invalid or missing transcript data received.');
             }
 
-            // Step 2a: Populate Overview Section
-            const overviewLoading = document.getElementById('overview-loading');
-            const overviewDetails = document.getElementById('overview-details');
-            if (overviewLoading && overviewDetails) {
-                document.getElementById('overview-id').textContent = details.conversation_id || 'N/A';
-                document.getElementById('overview-start').textContent = details.start_time ? Formatter.date(details.start_time) : 'N/A';
-                document.getElementById('overview-duration').textContent = details.duration !== null ? Formatter.duration(details.duration) : 'N/A';
-                document.getElementById('overview-status').textContent = details.status || 'N/A';
-                // Populate cost_credits
-                document.getElementById('overview-cost-credits').textContent = details.cost !== null ? details.cost : 'N/A';
-                // Populate summary
-                document.getElementById('overview-summary').textContent = details.summary || 'Not available';
+            // Step 2: Populate Overview Section in Modal
+            modalTitle.textContent = `Conversation: ${details.conversation_id || conversationId}`;
+            modalConvId.textContent = details.conversation_id || 'N/A';
+            modalConvDate.textContent = details.start_time ? Formatter.date(details.start_time) : 'N/A';
+            modalDuration.textContent = details.duration ? Formatter.duration(details.duration) : 'N/A';
+            modalCost.textContent = details.cost !== null ? Formatter.cost(details.cost) : 'N/A';
+            modalSummary.textContent = details.summary || 'No summary available.';
 
-                overviewLoading.style.display = 'none';
-                overviewDetails.style.display = 'block';
-            } else {
-                 console.warn("Overview elements not found in modal.");
-            }
-
-            // Step 2b: Render transcript content
-            transcriptTitle.textContent = `Transcript: ${conversationId}`;
+            // Step 3: Render Transcript using the updated function
             renderTranscript(details.transcript, transcriptContainer);
 
-            // Step 3: NOW show the modal
-            transcriptModalInstance.show();
+            // Optional: Update main page results info
+            if (resultsInfo) resultsInfo.textContent = `Viewing transcript for ${conversationId}.`;
 
-            // Update status message
-            if (resultsInfo) resultsInfo.textContent = `Displaying transcript for Conversation ID: ${conversationId}.`;
+            // --- Store data needed for export ---
+            currentTranscriptExportData = {
+                conversation_id: details.conversation_id,
+                start_time: details.start_time,
+                duration: details.duration,
+                cost: details.cost_credits,
+                summary: details.summary,
+                transcript: details.transcript || [] // Ensure transcript is an array
+            };
+            console.log("Stored data for export:", currentTranscriptExportData);
+            // --- End storing export data ---
 
         } catch (error) {
-            console.error('Error fetching or rendering transcript:', error);
-            // Update title and show error in transcript area
-            transcriptTitle.textContent = `Error Loading Transcript: ${conversationId}`;
-            transcriptContainer.innerHTML = `<div class="alert alert-danger">Failed to load transcript: ${error.message}</div>`;
-            // Also hide overview loading/details and show error there if possible
-            const overviewLoading = document.getElementById('overview-loading');
-            const overviewDetails = document.getElementById('overview-details');
-            if(overviewLoading) overviewLoading.textContent = 'Error loading details.';
-            if(overviewDetails) overviewDetails.style.display = 'none';
-            // Show modal even on error to display the message
-            if (transcriptModalInstance) transcriptModalInstance.show(); 
-
+            console.error("Error fetching or displaying conversation details:", error);
+            if (window.UI) UI.showToast(`Error loading transcript: ${error.message}`, "danger");
+            modalTitle.textContent = `Error Loading Transcript`;
+            transcriptContainer.innerHTML = `<div class="alert alert-danger">Failed to load transcript for ID ${conversationId}. ${error.message}</div>`;
             // Optionally update results info on main page
             if (resultsInfo) {
                  resultsInfo.textContent = `Error loading transcript ${conversationId}: ${error.message}`;
                  resultsInfo.classList.add('text-danger');
             }
+            currentTranscriptExportData = null; // Clear export data on error
         }
-    }
-
-    // Function to render the transcript messages in iMessage style
-    function renderTranscript(transcriptMessages, container) {
-        if (!container) return;
-        container.innerHTML = ''; // Clear previous content
-
-        if (!transcriptMessages || transcriptMessages.length === 0) {
-            container.innerHTML = '<div class="alert alert-info">No transcript messages available.</div>';
-            return;
-        }
-
-        // Iterate over transcriptMessages
-        transcriptMessages.forEach((turn, index) => {
-            // Determine role based on the 'role' field provided by the backend
-            const isUser = turn.role === 'user';
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message-bubble-row', isUser ? 'user-row' : 'agent-row');
-
-            const bubble = document.createElement('div');
-            bubble.classList.add('message-bubble', isUser ? 'user-bubble' : 'agent-bubble');
-
-            const speakerSpan = document.createElement('span');
-            speakerSpan.classList.add('speaker-label');
-            speakerSpan.textContent = isUser ? 'Curious Caller' : 'Lily'; // Assuming 'Lily' is the agent
-
-            const messageContent = document.createElement('p');
-            // Use the 'content' field provided by the backend
-            messageContent.textContent = turn.content || '[Empty message]';
-
-            const timestampSpan = document.createElement('span');
-            timestampSpan.classList.add('timestamp');
-            // Use global Formatter utility
-            let formattedTimestamp = 'No timestamp';
-            try {
-                formattedTimestamp = turn.timestamp ? Formatter.date(turn.timestamp) : 'No timestamp';
-            } catch (formatError) {
-                console.error(`Error formatting timestamp for message ${index}:`, turn.timestamp, formatError);
-                formattedTimestamp = turn.timestamp || 'Invalid timestamp'; // Fallback if Formatter fails
-            }
-            timestampSpan.textContent = formattedTimestamp;
-
-            bubble.appendChild(speakerSpan);
-            bubble.appendChild(messageContent);
-            bubble.appendChild(timestampSpan);
-            messageDiv.appendChild(bubble);
-            container.appendChild(messageDiv);
-        });
     }
 
     // ------------------------------------------
-    // Event Listener Setup
+    // Event Listener Setup (Restored)
     // ------------------------------------------
 
     // Initialize the DataTable
     conversationsDataTable = initializeDataTable();
+    
+    // Add event listeners for search type radio buttons
+    const searchTypeRadios = document.querySelectorAll('input[name="search-type"]');
+    searchTypeRadios.forEach(radio => {
+        radio.addEventListener('change', toggleFilterSections); 
+    });
 
-    // Add event listeners for timeframe buttons (Labels)
+    // Add event listeners for timeframe radio buttons (to toggle custom date visibility)
+    const timeframeRadios = document.querySelectorAll('input[name="timeframe"]');
+    timeframeRadios.forEach(radio => {
+        radio.addEventListener('change', toggleFilterSections);
+    });
+
+    // Add event listeners for timeframe *labels* (since radios are hidden)
     const timeframeLabels = document.querySelectorAll('.btn-group[aria-label="Timeframe selection"] label.btn');
     timeframeLabels.forEach(label => {
         label.addEventListener('click', (event) => {
-            // The radio button state is handled automatically by the browser
-            // We just need to trigger the search
-            // Small delay to allow radio state to update before reading it?
-            setTimeout(handleDateSearch, 0); 
+            // Find the corresponding radio input to check its value
+            const correspondingRadio = document.getElementById(label.getAttribute('for'));
+            const timeframeValue = correspondingRadio ? correspondingRadio.value : null;
+
+            console.log(`Timeframe label clicked for: ${timeframeValue}`);
+
+            // Trigger search immediately ONLY if it's NOT the custom range button
+            if (timeframeValue && timeframeValue !== 'custom') {
+                console.log("Fixed timeframe selected, triggering search...");
+                // Small delay to allow radio state to update before reading it in handleDateSearch
+                setTimeout(handleDateSearch, 50); 
+            } else {
+                console.log("Custom timeframe selected or radio not found, only toggling filters...");
+                 // For custom or unknown, just ensure filters visibility updates
+                setTimeout(toggleFilterSections, 50); // Use small delay here too for consistency
+            }
         });
     });
 
-    // Add event listener for the main search button (for custom range)
-    const customSearchBtn = document.getElementById('search-button'); // CORRECT ID from HTML
-    if (customSearchBtn) {
-        // Add logic here to ensure the 'custom' radio is selected when this is clicked?
-        customSearchBtn.addEventListener('click', () => {
-            const customRadio = document.getElementById('timeframe-custom');
-            if (customRadio) customRadio.checked = true;
-            handleDateSearch();
+    // Add event listener for the main search button (for Date/Custom range)
+    const mainSearchBtn = document.getElementById('search-button'); 
+    if (mainSearchBtn) {
+        mainSearchBtn.addEventListener('click', () => {
+            // Ensure the search type is 'date'
+            const dateRadio = document.getElementById('search-by-date');
+            if (dateRadio) dateRadio.checked = true;
+            // Call the main search handler
+            handleDateSearch(); 
         });
     } else {
-        console.warn("Custom date search button #search-button not found.");
+        console.warn("Main date search button #search-button not found.");
     }
 
-    // Add event listener for the conversation ID search button (Refined logic)
+    // Add event listener for the conversation ID search button 
     const convIdSearchInput = document.getElementById('conversation-id');
-    const convIdSearchBtn = document.getElementById('id-search-button');
+    const convIdSearchBtn = document.getElementById('id-search-button'); // The button WITHIN the input group
     if (convIdSearchBtn && convIdSearchInput) {
-        const searchById = () => {
+        const searchByIdAction = () => {
             const id = convIdSearchInput.value.trim();
             if (id) {
-                // Switch radio button visually
+                // Switch radio button visually AND trigger filter update
                 const radioById = document.getElementById('search-by-id');
                 if (radioById) radioById.checked = true;
+                toggleFilterSections(); // Update visible sections
                 // Trigger the search logic (handleDateSearch checks the ID input)
                 handleDateSearch(); 
             } else {
                 if (window.UI) UI.showToast("Please enter a Conversation ID.", "warning");
             }
         };
-        convIdSearchBtn.addEventListener('click', searchById);
+        convIdSearchBtn.addEventListener('click', searchByIdAction);
         // Optional: Allow Enter key press in ID input field
         convIdSearchInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault(); // Prevent form submission
-                searchById();
+                searchByIdAction();
             }
         });
     } else {
@@ -418,22 +632,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Initial data load (fetch for default timeframe)
-    // Find the LABEL associated with the default radio button (e.g., 30d)
-    /*
-    const defaultTimeframeLabel = document.querySelector('label[for="timeframe-30d"]'); 
-    if (defaultTimeframeLabel) {
-        console.log("Simulating click on default timeframe label...");
-        defaultTimeframeLabel.click(); // Simulate click on the label
-    } else {
-        console.warn("Default timeframe label not found, initial load might not occur.");
-    }
-    */
     // ---- Direct call for initial load --- 
     console.log("Directly calling handleDateSearch for initial load...");
     // Ensure default radio (e.g., 30d) is checked visually if needed
     const defaultRadio = document.getElementById('timeframe-30d');
     if(defaultRadio) defaultRadio.checked = true;
-    handleDateSearch(); 
+    handleDateSearch();
     // ---- End Direct call ---- 
 
-}); // End DOMContentLoaded listener 
+    // Initial call to set correct filter visibility on page load
+    toggleFilterSections(); 
+
+    // Add event listeners for export buttons
+    const exportJsonButton = document.getElementById('export-json');
+    const exportCsvButton = document.getElementById('export-csv');
+    const exportMarkdownButton = document.getElementById('export-markdown');
+
+    if (exportJsonButton) {
+        exportJsonButton.addEventListener('click', handleExportClick);
+        console.log("Attached click listener to #export-json");
+    } else {
+        console.warn("#export-json button not found");
+    }
+     if (exportCsvButton) {
+        exportCsvButton.addEventListener('click', handleExportClick);
+        console.log("Attached click listener to #export-csv");
+    } else {
+        console.warn("#export-csv button not found");
+    }
+    if (exportMarkdownButton) {
+        exportMarkdownButton.addEventListener('click', handleExportClick);
+        console.log("Attached click listener to #export-markdown");
+    } else {
+        console.warn("#export-markdown button not found");
+    }
+
+    console.log("Transcript Viewer page scripts initialization complete.");
+
+}); // End DOMContentLoaded listener

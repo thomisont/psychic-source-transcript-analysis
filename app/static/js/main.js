@@ -203,51 +203,66 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 
 // Function to fetch and update API status indicators
-// This remains global as status might be shown on multiple pages or in the header
 async function updateApiStatus() {
     console.log("Fetching API status...");
-    const statusUrl = '/api/status'; // Ensure this endpoint exists and is correct
-
-    // Use global API utility
+    const statusUrl = '/api/status';
     if (typeof API === 'undefined') {
         console.error("API utility is not defined. Cannot fetch status.");
         return;
     }
 
-    const setStatus = (elementId, text, isConnected) => {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = text;
-            element.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-secondary');
+    // NEW: Function to update icon class based on status
+    const setIconStatus = (iconId, isConnected) => {
+        const iconElement = document.getElementById(iconId);
+        console.log(`[setIconStatus] Target: #${iconId}, Element found: ${!!iconElement}, isConnected: ${isConnected}`); // Log element find & status value
+        if (iconElement) {
+            console.log(`[setIconStatus] Current classes for #${iconId} (before change): ${iconElement.className}`); // Log current classes BEFORE change
+            // Ensure initial placeholder class is also removed
+            iconElement.classList.remove('bi-check-circle-fill', 'bi-x-circle-fill', 'bi-question-circle', 'text-success', 'text-danger', 'text-warning');
             if (isConnected === true) {
-                element.classList.add('bg-success');
+                iconElement.classList.add('bi-check-circle-fill', 'text-success');
             } else if (isConnected === false) {
-                element.classList.add('bg-danger');
-            } else { // Use warning for indeterminate/error states
-                 element.classList.add('bg-warning');
+                iconElement.classList.add('bi-x-circle-fill', 'text-danger');
+            } else { // null or other indicates warning/unknown
+                iconElement.classList.add('bi-question-circle', 'text-warning');
             }
+            // ADDED LOG: Confirm classes after modification
+            console.log(`[setIconStatus] Final classes for #${iconId} (after change): ${iconElement.className}`);
         } else {
-             // console.warn(`Status element #${elementId} not found.`);
+            // console.warn(`Status icon #${iconId} not found.`);
         }
     };
 
     try {
         const statusData = await API.fetch(statusUrl);
-        console.log("API Status data received:", statusData);
+        // Log raw data safely
+        try {
+             console.log("API Status raw data received:", JSON.stringify(statusData)); 
+        } catch (e) {
+            console.error("Could not stringify statusData:", statusData, e);
+        }
 
-        // Update status badges (ensure IDs exist in base.html or relevant templates)
-        setStatus('databaseStatus', statusData.database?.message || 'Unknown', statusData.database?.status === 'connected');
-        setStatus('elevenlabsStatus', statusData.elevenlabs?.message || 'Unknown', statusData.elevenlabs?.status === 'connected');
-        setStatus('analysisStatus', statusData.analysis?.message || 'Unknown', statusData.analysis?.status === 'available');
-        setStatus('supabaseStatus', statusData.supabase?.message || 'Unknown', statusData.supabase?.status === 'connected');
+        // Log specific status values being checked safely
+        console.log(`Checking DB status: ${statusData?.database?.status ?? 'N/A'}`);
+        console.log(`Checking EL status: ${statusData?.elevenlabs?.status ?? 'N/A'}`);
+        console.log(`Checking AN status: ${statusData?.analysis?.status ?? 'N/A'}`);
+        console.log(`Checking SB status: ${statusData?.supabase?.status ?? 'N/A'}`);
+        console.log(`Checking OA status: ${statusData?.openai?.status ?? 'N/A'}`);
 
-        // Update global total count if the function exists
+        // Update status icons using the new function and IDs
+        setIconStatus('databaseStatusIcon', statusData?.database?.status === 'connected');
+        setIconStatus('elevenlabsStatusIcon', statusData?.elevenlabs?.status === 'connected');
+        setIconStatus('analysisStatusIcon', statusData?.analysis?.status === 'available'); // Note: Check for 'available'
+        setIconStatus('supabaseStatusIcon', statusData?.supabase?.status === 'connected');
+        setIconStatus('openaiStatusIcon', statusData?.openai?.status === 'available'); // Added OpenAI check (assuming 'available')
+
+        // Update global total count (remains the same)
         if (typeof updateTotalCount === 'function') {
             if (statusData.total_conversations !== undefined) {
                  updateTotalCount(statusData.total_conversations);
             } else {
                  console.warn("Total conversations count missing from API status response.");
-                 updateTotalCount(null); // Show N/A
+                 updateTotalCount(null);
             }
         } else {
              console.warn("updateTotalCount function not defined globally.");
@@ -255,11 +270,12 @@ async function updateApiStatus() {
 
     } catch (error) {
         console.error("Failed to fetch API status:", error);
-        // Set all to error state
-        setStatus('databaseStatus', `Error`, null);
-        setStatus('elevenlabsStatus', 'Error', null);
-        setStatus('analysisStatus', 'Error', null);
-        setStatus('supabaseStatus', 'Error', null);
+        // Set all icons to error state
+        setIconStatus('databaseStatusIcon', false);
+        setIconStatus('elevenlabsStatusIcon', false);
+        setIconStatus('analysisStatusIcon', false);
+        setIconStatus('supabaseStatusIcon', false);
+        setIconStatus('openaiStatusIcon', null); // Set OpenAI to unknown/warning on general error
         if (typeof updateTotalCount === 'function') {
              updateTotalCount(null); // Show N/A on error
         }

@@ -56,8 +56,9 @@
                     <div class="card-body">
                         <div id="sentiment-overview-content">
                             <p><strong>Overall Sentiment:</strong> <span id="overall-sentiment-label">N/A</span></p>
-                            <div class="mb-3 chart-card-body">
+                            <div class="mb-3 chart-container" id="sentiment-distribution-chart-container">
                                 <canvas id="sentiment-distribution-chart" height="150"></canvas>
+                                <div class="empty-chart-message" style="display: none;">No sentiment data available.</div>
                             </div>
                             <div class="row text-center">
                                 <div class="col">
@@ -81,8 +82,9 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-7">
-                                <div class="chart-card-body">
+                                <div class="chart-container" id="top-themes-chart-container">
                                     <canvas id="top-themes-chart" height="200"></canvas>
+                                    <div class="empty-chart-message" style="display: none;">No theme data available.</div>
                                 </div>
                             </div>
                             <div class="col-md-5">
@@ -106,8 +108,9 @@
                     <div class="card-header">
                        <i class="bi bi-graph-up me-2"></i>Sentiment Trends Over Time
                     </div>
-                    <div class="card-body chart-card-body" id="sentiment-trends-chart-container">
+                    <div class="card-body chart-container" id="sentiment-trends-chart-container">
                          <canvas id="sentiment-trends-chart" height="120"></canvas>
+                         <div class="empty-chart-message" style="display: none;">No sentiment trend data available.</div>
                          <p class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Shows how average sentiment has changed over the selected time period.</p>
                     </div>
                 </div>

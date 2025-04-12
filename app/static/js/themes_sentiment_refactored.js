@@ -6,6 +6,69 @@ if (typeof API === 'undefined' || typeof UI === 'undefined' || typeof Formatter 
     // Optionally, display an error to the user or halt execution
 }
 
+// Define Theme Colors & Palette (Read from CSS)
+const themeColors = {
+    primary: getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#3A0CA3',
+    secondary: getComputedStyle(document.documentElement).getPropertyValue('--secondary-color').trim() || '#C77DFF',
+    darkGray: getComputedStyle(document.documentElement).getPropertyValue('--dark-gray').trim() || '#343a40',
+    textMuted: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#6c757d',
+    white: '#ffffff'
+};
+const vizPalette = [
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-1').trim() || '#3A0CA3', // Indigo
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-2').trim() || '#C77DFF', // Magenta
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-3').trim() || '#9D4EDD', // Lighter Purple
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-4').trim() || '#5E60CE', // Medium Blue
+    '#28a745', // Keep sentiment green
+    '#ffc107', // Keep sentiment yellow/orange
+    '#dc3545'  // Keep sentiment red
+];
+
+// Define Base Font Options
+const baseFont = { family: 'Lato', size: 12, weight: 'normal' };
+const titleFont = { family: 'Montserrat', size: 13, weight: 'bold' }; // Slightly smaller title for these charts
+
+// Define Common Chart Options
+const commonChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        y: {
+            beginAtZero: true,
+            ticks: { color: themeColors.textMuted, font: baseFont },
+            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+        },
+        x: {
+           ticks: { color: themeColors.textMuted, font: baseFont },
+           grid: { color: 'rgba(0, 0, 0, 0.05)' }
+        }
+    },
+    plugins: {
+        legend: {
+            display: true, // Often needed for these charts
+            position: 'bottom',
+            labels: {
+               font: baseFont,
+               color: themeColors.darkGray,
+               boxWidth: 12,
+               padding: 15
+            }
+        },
+        tooltip: {
+            enabled: true,
+            backgroundColor: themeColors.darkGray,
+            titleFont: titleFont,
+            titleColor: themeColors.white,
+            bodyFont: baseFont,
+            bodyColor: themeColors.white,
+            padding: 10,
+            cornerRadius: 4,
+            boxPadding: 4,
+            callbacks: { /* Default callbacks */ }
+        }
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Themes & Sentiment Refactored JS Loaded - Page-specific init");
 
@@ -260,205 +323,225 @@ function renderAnalysisData(data, loadingIndicator, analysisContent) {
     }
 }
 
-// --- Placeholder Rendering Functions ---
-// These will be filled in with detailed logic later.
+// --- Rendering Functions using new styles ---
+
+/**
+ * Helper to update charts and handle empty states
+ */
+function updateChartAndHandleEmpty(chartInstance, config, containerId) {
+    console.log(`Updating chart ${containerId}. Has instance: ${!!chartInstance}`);
+    const container = document.getElementById(containerId);
+    const canvas = container?.querySelector('canvas');
+    const emptyMessageEl = container?.querySelector('.empty-chart-message');
+
+    if (!canvas) {
+        console.error(`Canvas not found within container ${containerId}`);
+        if(emptyMessageEl) emptyMessageEl.style.display = 'block';
+        return null;
+    }
+
+    // Check if data is essentially empty
+    let isEmpty = !config || !config.data || !config.data.labels || config.data.labels.length === 0 ||
+                  !config.data.datasets || config.data.datasets.length === 0 ||
+                  config.data.datasets.every(ds => !ds.data || ds.data.length === 0 || ds.data.every(val => val === 0));
+
+    if (chartInstance) {
+        // Destroy existing chart before creating new one if config type changed or empty
+        console.log(`Destroying existing chart for ${containerId}`);
+        chartInstance.destroy();
+        chartInstance = null;
+    }
+
+    if (!isEmpty) {
+        console.log(`Rendering chart for ${containerId}`);
+        if (emptyMessageEl) emptyMessageEl.style.display = 'none';
+        canvas.style.display = 'block';
+        try {
+            chartInstance = new Chart(canvas.getContext('2d'), config);
+        } catch(e) {
+             console.error(`Error creating chart for ${containerId}:`, e);
+             if (emptyMessageEl) {
+                 emptyMessageEl.textContent = "Error rendering chart.";
+                 emptyMessageEl.style.display = 'block';
+             }
+             canvas.style.display = 'none';
+        }
+    } else {
+        console.log(`Showing empty state for ${containerId}`);
+        if (emptyMessageEl) emptyMessageEl.style.display = 'block';
+        canvas.style.display = 'none';
+    }
+    return chartInstance; // Return the new or null instance
+}
 
 function renderSentimentOverview(sentimentData) {
     console.log("  [renderSentimentOverview] START - Data:", sentimentData);
-    if (!sentimentData) {
-        console.warn("No sentiment overview data to render.");
-        document.getElementById('overall-sentiment-label').textContent = 'N/A';
-        document.getElementById('caller-average-sentiment').textContent = 'N/A';
-        document.getElementById('agent-average-sentiment').textContent = 'N/A';
-        // Clear or show empty state for chart
-        const ctx = document.getElementById('sentiment-distribution-chart').getContext('2d');
-        if (sentimentDistributionChart) sentimentDistributionChart.destroy(); // Clear previous
-         sentimentDistributionChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: { labels: ['No Data'], datasets: [{ data: [1], backgroundColor: ['#cccccc'] }] },
-             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
-        });
-        return;
-    }
+    const containerId = 'sentiment-distribution-chart-container'; // Assuming a container div exists
+    const hasData = sentimentData && sentimentData.sentiment_distribution;
 
-    document.getElementById('overall-sentiment-label').textContent = sentimentData.overall_sentiment_label || 'N/A';
-    document.getElementById('caller-average-sentiment').textContent = Formatter.sentimentScore(sentimentData.caller_average_sentiment); // Assumes Formatter has this
-    document.getElementById('agent-average-sentiment').textContent = Formatter.sentimentScore(sentimentData.agent_average_sentiment); // Assumes Formatter has this
+    document.getElementById('overall-sentiment-label').textContent = sentimentData?.overall_sentiment_label || 'N/A';
+    document.getElementById('caller-average-sentiment').textContent = Formatter.sentimentScore(sentimentData?.caller_average_sentiment);
+    document.getElementById('agent-average-sentiment').textContent = Formatter.sentimentScore(sentimentData?.agent_average_sentiment);
 
-    const distribution = sentimentData.sentiment_distribution || {};
-    const chartData = {
-        labels: ['Very Positive', 'Positive', 'Neutral', 'Negative', 'Very Negative'],
-        datasets: [{
-            label: 'Sentiment Distribution',
-            data: [
-                distribution.very_positive || 0,
-                distribution.positive || 0,
-                distribution.neutral || 0,
-                distribution.negative || 0,
-                distribution.very_negative || 0
-            ],
-            backgroundColor: [
-                '#28a745', // Very Positive (Green)
-                '#a0d911', // Positive (Light Green)
-                '#d9d9d9', // Neutral (Grey)
-                '#ff7875', // Negative (Light Red)
-                '#dc3545'  // Very Negative (Red)
-            ],
-            hoverOffset: 4
-        }]
-    };
-
-    const ctx = document.getElementById('sentiment-distribution-chart').getContext('2d');
-     if (sentimentDistributionChart) sentimentDistributionChart.destroy(); // Clear previous just in case
-    sentimentDistributionChart = new Chart(ctx, {
+    const distribution = sentimentData?.sentiment_distribution || {};
+    const chartConfig = {
         type: 'doughnut',
-        data: chartData,
+        data: {
+            labels: ['Very Positive', 'Positive', 'Neutral', 'Negative', 'Very Negative'],
+            datasets: [{
+                label: 'Sentiment Distribution',
+                data: [
+                    distribution.very_positive || 0,
+                    distribution.positive || 0,
+                    distribution.neutral || 0,
+                    distribution.negative || 0,
+                    distribution.very_negative || 0
+                ],
+                // Use sentiment colors from vizPalette
+                backgroundColor: [
+                    vizPalette[4], // Green
+                    '#a0d911', // Lighter Green (adjust if needed)
+                    '#d9d9d9', // Neutral Grey
+                    vizPalette[5], // Yellow/Orange
+                    vizPalette[6]  // Red
+                ],
+                borderColor: themeColors.white, // Add white border for separation
+                borderWidth: 2,
+                hoverOffset: 4
+            }]
+        },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            ...commonChartOptions,
             plugins: {
-                legend: {
-                    position: 'right',
-                },
+                ...commonChartOptions.plugins,
+                legend: { ...commonChartOptions.plugins.legend, position: 'right' }, // Override position
                 tooltip: {
+                    ...commonChartOptions.plugins.tooltip,
                     callbacks: {
                         label: function(context) {
                             let label = context.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            if (context.parsed !== null) {
-                                label += context.parsed;
-                            }
+                            if (label) label += ': ';
+                            label += context.parsed ?? 'N/A';
                             return label;
                         }
                     }
                 }
             }
         }
-    });
+    };
+
+    sentimentDistributionChart = updateChartAndHandleEmpty(sentimentDistributionChart, chartConfig, containerId);
     console.log("  [renderSentimentOverview] END");
 }
 
 function renderTopThemes(themeData) {
     console.log("  [renderTopThemes] START - Data:", themeData);
+    const containerId = 'top-themes-chart-container'; // Assuming a container div exists
     const listElement = document.getElementById('top-themes-list');
-    const chartCtx = document.getElementById('top-themes-chart').getContext('2d');
     listElement.innerHTML = ''; // Clear previous list
+    const hasData = themeData && themeData.themes && themeData.themes.length > 0;
 
-    if (!themeData || !themeData.themes || themeData.themes.length === 0) {
+    if (!hasData) {
         console.warn("No theme data to render.");
         listElement.innerHTML = '<li class="list-group-item text-muted">No themes identified.</li>';
-        // Clear or show empty state for chart
-        if (topThemesChart) topThemesChart.destroy();
-        topThemesChart = new Chart(chartCtx, {
-             type: 'bar',
-             data: { labels: ['No Data'], datasets: [{ data: [0] }] },
-             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-         });
-        return;
+    } else {
+        // Populate List
+        themeData.themes.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center py-1';
+            li.textContent = item.theme;
+            const badge = document.createElement('span');
+            // Use primary color badge for theme count
+            badge.className = 'badge text-bg-light border border-primary text-primary rounded-pill'; 
+            badge.textContent = item.count;
+            li.appendChild(badge);
+            listElement.appendChild(li);
+        });
     }
 
-    // Populate List
-    themeData.themes.forEach(item => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item d-flex justify-content-between align-items-center py-1';
-        li.textContent = item.theme;
-        const badge = document.createElement('span');
-        badge.className = 'badge bg-primary rounded-pill';
-        badge.textContent = item.count;
-        li.appendChild(badge);
-        listElement.appendChild(li);
-    });
-
     // Prepare Chart Data
-    const chartLabels = themeData.themes.map(item => item.theme);
-    const chartCounts = themeData.themes.map(item => item.count);
+    const chartLabels = hasData ? themeData.themes.map(item => item.theme) : [];
+    const chartCounts = hasData ? themeData.themes.map(item => item.count) : [];
 
-    if (topThemesChart) topThemesChart.destroy(); // Clear previous
-    topThemesChart = new Chart(chartCtx, {
+    const chartConfig = {
         type: 'bar',
         data: {
             labels: chartLabels,
             datasets: [{
                 label: 'Mentions',
                 data: chartCounts,
-                backgroundColor: 'rgba(88, 99, 248, 0.6)', // Example purple color
-                borderColor: 'rgba(88, 99, 248, 1)',
+                backgroundColor: vizPalette[2], // Use Lighter Purple from palette
+                borderColor: colorMix(vizPalette[2], 'black', 0.1), // Slightly darker border
                 borderWidth: 1
             }]
         },
         options: {
+            ...commonChartOptions,
             indexAxis: 'y', // Horizontal bar chart
-            responsive: true,
-            maintainAspectRatio: false,
             scales: {
-                x: { beginAtZero: true, grid: { display: false } },
-                y: { grid: { display: false } }
+                x: { ...commonChartOptions.scales.x, beginAtZero: true, grid: { display: false }, title: { display: false } },
+                y: { ...commonChartOptions.scales.y, grid: { display: false }, ticks: { font: { size: 10 } } } // Smaller font if needed
             },
             plugins: {
-                legend: { display: false },
-                tooltip: { enabled: true }
-            }
+                 ...commonChartOptions.plugins,
+                 legend: { display: false }, // No legend needed for single dataset
+                 tooltip: { ...commonChartOptions.plugins.tooltip }
+             }
         }
-    });
+    };
+
+    topThemesChart = updateChartAndHandleEmpty(topThemesChart, chartConfig, containerId);
     console.log("  [renderTopThemes] END");
 }
 
 
 function renderSentimentTrends(trendData) {
     console.log("  [renderSentimentTrends] START - Data:", trendData);
-     const chartCtx = document.getElementById('sentiment-trends-chart').getContext('2d');
-
-     if (!trendData || !trendData.labels || trendData.labels.length === 0) {
-         console.warn("No sentiment trend data to render.");
-         if (sentimentTrendsChart) sentimentTrendsChart.destroy();
-         sentimentTrendsChart = new Chart(chartCtx, {
-             type: 'line',
-             data: { labels: ['No Data'], datasets: [{ data: [0] }] },
-             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-         });
-         return;
-     }
+    const containerId = 'sentiment-trends-chart-container';
+    const hasData = trendData && trendData.labels && trendData.labels.length > 0;
 
      const chartConfig = {
          type: 'line',
          data: {
-             labels: trendData.labels,
+             labels: hasData ? trendData.labels : [],
              datasets: [{
                  label: 'Average Sentiment',
-                 data: trendData.average_sentiment_scores,
-                 borderColor: '#1890ff', // Blue line
-                 backgroundColor: 'rgba(24, 144, 255, 0.1)', // Light blue fill
+                 data: hasData ? trendData.average_sentiment_scores : [],
+                 borderColor: vizPalette[3], // Medium Blue line
+                 backgroundColor: colorMix(vizPalette[3], 'white', 80), // Very light blue fill
                  fill: true,
-                 tension: 0.1 // Slight curve
+                 tension: 0.3, // Smoother curve
+                 pointRadius: 3,
+                 pointBackgroundColor: vizPalette[3]
              }]
          },
          options: {
-             responsive: true,
-             maintainAspectRatio: false,
+            ...commonChartOptions,
              scales: {
                  x: {
+                    ...commonChartOptions.scales.x,
                      type: 'time',
                      time: {
                          unit: 'day',
-                          tooltipFormat: 'DD MMM YYYY', // Luxon format for tooltips
-                          displayFormats: {
-                              day: 'MMM DD' // Luxon format for axis labels
-                          }
+                          tooltipFormat: 'DD MMM YYYY', 
+                          displayFormats: { day: 'MMM DD' }
                      },
-                     title: { display: false }
+                     title: { display: false } 
                  },
                  y: {
-                     beginAtZero: false, // Sentiment can be negative
+                    ...commonChartOptions.scales.y,
+                     beginAtZero: false,
                      title: { display: false },
-                     suggestedMin: -1, // Optional: Set scale if needed
-                     suggestedMax: 1
+                     suggestedMin: -1,
+                     suggestedMax: 1,
+                     ticks: { precision: 1 } // Show one decimal place for sentiment score
                  }
              },
              plugins: {
-                 legend: { display: false }, // Hide legend if only one dataset
+                 ...commonChartOptions.plugins,
+                 legend: { display: false },
                  tooltip: {
+                    ...commonChartOptions.plugins.tooltip,
                      mode: 'index',
                      intersect: false,
                      callbacks: {
@@ -471,13 +554,9 @@ function renderSentimentTrends(trendData) {
          }
      };
 
-     if (sentimentTrendsChart) {
-         sentimentTrendsChart.destroy();
-     }
-     sentimentTrendsChart = new Chart(chartCtx, chartConfig);
+    sentimentTrendsChart = updateChartAndHandleEmpty(sentimentTrendsChart, chartConfig, containerId);
     console.log("  [renderSentimentTrends] END");
 }
-
 
 function renderThemeCorrelation(correlationData) {
     console.log("  [renderThemeCorrelation] START - Data:", correlationData);
@@ -669,4 +748,29 @@ if (typeof Formatter !== 'undefined') {
          };
          console.log("Added Formatter.truncateText helper.");
      }
-} 
+}
+
+// Utility function to mix colors (basic version) - REMOVED DUE TO ERRORS
+/*
+function colorMix(color1, color2, weight) {
+    // Basic implementation for hex colors - more robust library might be needed
+    // This is a placeholder and might not parse all CSS colors accurately
+    try {
+        const d2h = (d) => d.toString(16);
+        const h2d = (h) => parseInt(h, 16);
+        weight = typeof(weight) !== 'undefined' ? weight : 50;
+        var color = "#";
+        for (var i = 0; i <= 5; i += 2) {
+            var v1 = h2d(color1.substr(i + 1, 2));
+            var v2 = h2d(color2.substr(i + 1, 2));
+            var val = d2h(Math.floor(v2 + (v1 - v2) * (weight / 100.0)));
+            while(val.length < 2) { val = '0' + val; } 
+            color += val;
+        }
+        return color;
+    } catch (e) {
+        console.warn("colorMix failed, returning color1:", e);
+        return color1; // Fallback
+    }
+}
+*/ 

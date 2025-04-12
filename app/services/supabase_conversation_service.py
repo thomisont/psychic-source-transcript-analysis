@@ -28,8 +28,8 @@ class SupabaseConversationService:
 
     def __init__(self, supabase_client: Optional[SupabaseClient] = None):
         """
-        Initialize the conversation service with Supabase client.
-        Accepts an optional pre-initialized SupabaseClient instance.
+        Initializes the service with a Supabase client instance.
+        The client is expected to be pre-configured and passed in.
         """
         self.cache = {}  # Simple in-memory cache
         self.supabase = supabase_client # Store the passed client
@@ -48,7 +48,12 @@ class SupabaseConversationService:
         logging.info("Conversation service cache cleared")
     
     def get_conversation_count(self, start_date=None, end_date=None) -> int:
-        """Gets the count of conversations within a date range using standard client methods."""
+        """
+        Gets the count of conversations within an optional date range.
+        Uses the 'created_at' field of the conversations table for filtering.
+        NOTE: This counts conversations records, which might differ slightly from counts
+        based on message activity if conversations exist without messages.
+        """
         if not self.initialized or not self.supabase or not self.supabase.client:
              logging.error("Supabase client not available in get_conversation_count")
              return 0
@@ -80,7 +85,19 @@ class SupabaseConversationService:
             return 0
     
     def get_conversations(self, start_date=None, end_date=None, limit=100, offset=0) -> Dict[str, Any]:
-        """Gets conversations filtered by message timestamp range, using a DB function."""
+        """
+        Retrieves a paginated list of conversations, filtered by message timestamps 
+        within the specified date range.
+        
+        Process:
+        1. Calls the Supabase RPC function `get_conversation_ids_in_range` to get IDs
+           of conversations having messages within the start/end date.
+        2. Fetches the full conversation data (including nested messages) for ALL matching IDs.
+        3. Processes the fetched data, calculating duration and formatting transcripts.
+        4. Sorts the processed conversations by start time (created_at) in Python.
+        5. Applies pagination (limit/offset) to the sorted list in Python.
+        6. Returns the paginated list and the total count found by the RPC function.
+        """
         if not self.initialized or not self.supabase or not self.supabase.client:
              logging.error("Supabase client not available in get_conversations")
              return {"conversations": [], "total_count": 0, "error": "Supabase client not initialized"}
@@ -131,28 +148,29 @@ class SupabaseConversationService:
                  return {"conversations": [], "total_count": 0}
 
             # --- Apply pagination to the list of IDs --- 
-            paginated_ids = conversation_ids[offset : offset + limit]
+            # paginated_ids = conversation_ids[offset : offset + limit]
+            # Fetch ALL conversations matching the IDs first
+            paginated_ids = conversation_ids # Use all IDs for the fetch
             
             if not paginated_ids:
                 logging.info(f"No conversations for the requested page (offset={offset}, limit={limit}) within the date range.")
                 return {"conversations": [], "total_count": total_count} # Return total count but empty page
 
-            # --- Fetch full conversation data for the paginated IDs --- 
-            logging.info(f"Fetching full data for {len(paginated_ids)} conversations on current page...")
+            # --- Fetch full conversation data for ALL matching IDs --- 
+            logging.info(f"Fetching full data for {len(paginated_ids)} conversations...") # Updated log
             query = self.supabase.client.table('conversations').select(
                 "id, external_id, title, created_at, status, messages(*)"
             ).in_('id', paginated_ids) # Filter by the list of IDs found
             
-            # Apply ordering if needed (e.g., by created_at desc for consistency)
-            # Note: We can't easily order by message timestamps here anymore
-            query = query.order('created_at', desc=True)
+            # REMOVED ordering at the Supabase query level
+            # query = query.order('created_at', desc=True)
             
             # Execute query for full data
             response = query.execute()
             result_data = response.data
-            logging.info(f"Fetched {len(result_data)} full conversation records for the current page.")
+            logging.info(f"Fetched {len(result_data)} full conversation records before sorting/pagination.")
 
-            # --- Process results (same as before) --- 
+            # --- Process results --- 
             conversations = []
             for row in result_data:
                 messages = row.get('messages', [])
@@ -160,18 +178,24 @@ class SupabaseConversationService:
                 # Format transcript similar to get_conversation_details
                 transcript = []
                 if messages:
-                    transcript = [
-                        {
-                            # Determine role based on speaker or role field
-                            'role': 'user' if msg.get('speaker') == 'Curious Caller' or msg.get('role') == 'user' else 'assistant', 
-                            # Extract content flexibly
-                            'content': msg.get('text') or msg.get('content'), 
+                    for i, msg in enumerate(messages): 
+                        speaker = msg.get('speaker')
+                        role_field = msg.get('role')
+                        message_content = msg.get('text') or msg.get('content') or ''
+                        
+                        # Explicitly determine role
+                        current_role = 'agent' # Default to agent
+                        if speaker == 'user' or role_field == 'user':
+                            current_role = 'user'
+                        
+                        # Now 'i' is defined for this log message
+                        logging.debug(f"  Msg {i}: speaker='{speaker}', role_field='{role_field}', ASSIGNED_ROLE='{current_role}'")
+
+                        transcript.append({
+                            'role': current_role, 
+                            'content': message_content,
                             'timestamp': msg.get('timestamp'),
-                            # Include other message fields if needed? e.g., msg.get('id')
-                        }
-                        for msg in messages
-                        if msg.get('text') or msg.get('content') # Ensure message has content
-                    ]
+                        })
 
                 start_time_str = None # Use ISO string from DB
                 end_time_str = None
@@ -211,23 +235,48 @@ class SupabaseConversationService:
                     except Exception as duration_calc_err:
                          logging.warning(f"Could not calculate duration: {duration_calc_err}")
 
+                # Ensure start_time is parsed for sorting
+                start_time_for_sort = None
+                created_at_str = row.get('created_at')
+                if created_at_str:
+                    try:
+                        start_time_for_sort = parser.parse(created_at_str)
+                        if start_time_for_sort.tzinfo is None:
+                            start_time_for_sort = start_time_for_sort.replace(tzinfo=timezone.utc)
+                    except Exception as parse_err:
+                        logging.warning(f"Could not parse created_at '{created_at_str}' for sorting: {parse_err}")
+
                 # Conversation data now includes the transcript
                 conversation_data = {
                     'conversation_id': row.get('external_id'),
                     'title': row.get('title') or "Untitled",
-                    'start_time': row.get('created_at'), # Use conversation created_at
+                    'start_time': created_at_str, # Keep original string for response
                     'status': row.get('status'),
-                    'message_count': len(messages), # Count from fetched messages
-                    'duration': duration, # Calculated above
-                    'sentiment_score': 0.0, # Placeholder for analysis
-                    'transcript': transcript # ADDED formatted transcript
-                    # Consider adding raw 'messages' if needed elsewhere?
-                    # 'messages': messages 
+                    'message_count': len(messages),
+                    'duration': duration,
+                    'sentiment_score': 0.0,
+                    'transcript': transcript,
+                    # Add the parsed datetime object for sorting (won't be in JSON response)
+                    '_sort_time': start_time_for_sort 
                 }
                 conversations.append(conversation_data)
             
+            # --- Sort the fetched conversations in Python --- 
+            # Sort by the parsed datetime object, descending (most recent first)
+            # Handle cases where _sort_time might be None
+            conversations.sort(key=lambda x: x.get('_sort_time') or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+            
+            # --- Apply pagination to the sorted Python list --- 
+            paginated_conversations = conversations[offset : offset + limit]
+            
+            # Remove the temporary sort key before returning
+            for conv in paginated_conversations:
+                conv.pop('_sort_time', None)
+
+            logging.info(f"Returning {len(paginated_conversations)} conversations for page (offset={offset}, limit={limit}). Total matching range: {total_count}")
+
             return {
-                "conversations": conversations,
+                "conversations": paginated_conversations, # Return the paginated list
                 "total_count": total_count
             }
             
@@ -236,8 +285,16 @@ class SupabaseConversationService:
             return {"conversations": [], "total_count": 0, "error": str(e)}
     
     def get_conversation_details(self, conversation_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieve details for a specific conversation using standard client methods.
-        Uses a two-step query: first fetch conversation, then fetch messages."""
+        """
+        Retrieves detailed information for a single conversation by its external_id.
+        
+        Process:
+        1. Fetches the main conversation record (including cost, summary) using external_id.
+        2. Fetches all associated messages using the internal conversation primary key ID.
+        3. Constructs a formatted transcript array, determining user/agent roles.
+        4. Calculates duration based on message timestamps.
+        5. Returns a dictionary containing conversation details, messages, and transcript.
+        """
         if not self.initialized or not self.supabase or not self.supabase.client:
              logging.error("Supabase client not available in get_conversation_details")
              return None
@@ -276,15 +333,28 @@ class SupabaseConversationService:
             messages = messages_response.data if messages_response.data else []
             logging.info(f"Fetched {len(messages)} messages for conversation {conversation_id}")
 
-            # Construct response (same logic as before, but messages are from the second query)
-            transcript = [
-                {
-                    'role': 'user' if msg.get('speaker') == 'Curious Caller' else 'assistant',
-                    'content': msg.get('text'),
+            # Construct response (more robust role/content handling) - REPLACEMENT v2
+            transcript = []
+            logging.debug(f"--- Building Transcript for {conversation_id} ---") 
+            for i, msg in enumerate(messages):
+                speaker = msg.get('speaker')
+                role_field = msg.get('role')
+                message_content = msg.get('text') or msg.get('content') or ''
+                
+                # Explicitly determine role
+                current_role = 'agent' # Default to agent
+                if speaker == 'user' or role_field == 'user':
+                    current_role = 'user'
+                
+                logging.debug(f"  Msg {i}: speaker='{speaker}', role_field='{role_field}', ASSIGNED_ROLE='{current_role}'")
+
+                transcript.append({
+                    'role': current_role, # Use the explicitly determined role
+                    'content': message_content,
                     'timestamp': msg.get('timestamp'),
-                }
-                for msg in messages
-            ]
+                })
+            logging.debug(f"--- Finished Building Transcript for {conversation_id} ---")
+            # End of REPLACEMENT block v2
             
             start_time = None
             end_time = None
@@ -331,38 +401,16 @@ class SupabaseConversationService:
             
     def get_dashboard_stats(self, start_date: str | None = None, end_date: str | None = None) -> dict:
         """
-        Fetches aggregated dashboard statistics by calling the Supabase RPC function
-        'get_message_activity_in_range'.
+        Fetches aggregated statistics for the main dashboard based on message activity 
+        within the specified date range.
 
-        Core Logic:
-        1. Calls Supabase RPC `get_message_activity_in_range(start_iso, end_iso)`
-           - This function filters messages based on `messages.timestamp`.
-           - It aggregates most stats (hourly/daily activity, volume, avg duration, peak time) 
-             based on the messages within the filtered range.
-           - It returns the distinct `conversation_id`s found within the range.
-        2. Calculates `avg_cost_credits` via a separate query using the distinct IDs.
-        3. Calculates `completion_rate` via a separate query using the distinct IDs.
-
-        Args:
-            start_date: Optional start date in 'YYYY-MM-DD' format.
-            end_date: Optional end date in 'YYYY-MM-DD' format.
-
-        Returns:
-            A dictionary containing various aggregated statistics (activity by hour/day,
-            daily volume, daily average duration, total conversations, average duration,
-            peak hour) or an error dictionary if the RPC call fails.
-            Example success structure:
-            {
-                'activity_by_hour': { '0': 10, '1': 5, ... },
-                'activity_by_day': { '0': 50, '1': 60, ... }, // Monday=0
-                'daily_volume': { '2023-10-26': 25, '2023-10-27': 30, ... },
-                'daily_avg_duration': { '2023-10-26': 120.5, '2023-10-27': 180.0, ... }, // Seconds
-                'total_conversations_period': 55,
-                'avg_duration_seconds': 150.25,
-                'peak_time_hour': 14
-            }
-            Example error structure:
-            { 'error': 'Description of error' }
+        Process:
+        1. Calls the Supabase RPC function `get_message_activity_in_range` which performs
+           the primary aggregation based on message timestamps (hourly/daily activity, volume, 
+           avg duration, peak time) and returns distinct conversation IDs found.
+        2. Performs secondary queries using the returned distinct IDs to calculate 
+           average cost and completion rate for conversations within that period.
+        3. Cleans and combines the results into a dictionary for the dashboard API.
         """
         try:
             logging.info(f"Calling Supabase RPC get_message_activity_in_range with start: {start_date}, end: {end_date}")

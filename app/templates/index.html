@@ -122,182 +122,151 @@
         </div>
     </div>
     
+    {# New Framed API Status - Under Date Selector #}
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center">
-                        API Status <span class="status-indicator ms-2" id="statusIndicator"></span>
-                    </h5>
-                    <div class="row mt-3">
-                        <div class="col-md-3">
-                            <div class="d-flex align-items-center">
-                                <span class="me-2">Database Connection:</span>
-                                <span class="badge bg-secondary" id="databaseStatus">Unknown</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-flex align-items-center">
-                                <span class="me-2">ElevenLabs API:</span>
-                                <span class="badge bg-secondary" id="elevenlabsStatus">Unknown</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-flex align-items-center">
-                                <span class="me-2">Analysis Service:</span>
-                                <span class="badge bg-secondary" id="analysisStatus">Unknown</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-flex align-items-center">
-                                <span class="me-2">Supabase:</span>
-                                <span class="badge bg-secondary" id="supabaseStatus">Unknown</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="api-status-frame">
+                <h6 class="api-status-title">Key Systems Status</h6>
+                <ul class="api-status-list">
+                    <li class="api-status-item">Database:<i id="databaseStatusIcon" class="bi bi-question-circle"></i></li>
+                    <li class="api-status-item">ElevenLabs:<i id="elevenlabsStatusIcon" class="bi bi-question-circle"></i></li>
+                    <li class="api-status-item">Analysis:<i id="analysisStatusIcon" class="bi bi-question-circle"></i></li>
+                    <li class="api-status-item">Supabase:<i id="supabaseStatusIcon" class="bi bi-question-circle"></i></li>
+                    <li class="api-status-item">OpenAI:<i id="openaiStatusIcon" class="bi bi-question-circle"></i></li> {# Added OpenAI #}
+                </ul>
             </div>
         </div>
     </div>
-    
+
     {# Row for Key Performance Indicators (KPIs) - Split into 3 and 2 #}
-    <div class="row stats-container">
+    <div class="row stats-container g-4">
         <!-- First Row: Conversations, Avg Duration, Avg Cost -->
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-light">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
-                            <i class="bi bi-chat-dots text-primary"></i>
-                        </div>
-                        <h5 class="card-title mb-0">Conversations</h5>
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="stat-card h-100">
+                <div class="stat-card-header">
+                    <div class="stat-metric-name">Conversations</div>
+                    <div class="stat-icon-container bg-viz-1">
+                        <i class="bi bi-chat-dots stat-icon"></i>
                     </div>
-                    {# Corrected ID to match JS: total-conversations #}
-                    <h2 id="total-conversations" class="card-text mt-auto mb-1">--</h2> 
-                    <p class="text-muted small">In selected period</p>
+                </div>
+                <div class="stat-card-body">
+                    <div id="total-conversations" class="stat-metric-value">--</div>
+                    <div class="stat-metric-trend">In selected period</div>
                 </div>
             </div>
         </div>
         
         <!-- Average Duration KPI Card -->
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-light">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
-                            <i class="bi bi-clock-history text-success"></i>
-                        </div>
-                        <h5 class="card-title mb-0">Avg Duration</h5>
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="stat-card h-100">
+                <div class="stat-card-header">
+                    <div class="stat-metric-name">Avg Duration</div>
+                    <div class="stat-icon-container bg-viz-2">
+                        <i class="bi bi-clock-history stat-icon"></i>
                     </div>
-                    {# Corrected ID to match JS: average-duration #}
-                    <h2 id="average-duration" class="card-text mt-auto mb-1">--:--</h2>
-                    <p class="text-muted small">Per conversation</p>
+                </div>
+                <div class="stat-card-body">
+                    <div id="average-duration" class="stat-metric-value">--:--</div>
+                    <div class="stat-metric-trend">Per conversation</div>
                 </div>
             </div>
         </div>
         
         <!-- Average Cost KPI Card -->
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-light">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
-                            <i class="bi bi-coin text-warning"></i>
-                        </div>
-                        <h5 class="card-title mb-0">Avg Cost</h5>
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="stat-card h-100">
+                <div class="stat-card-header">
+                    <div class="stat-metric-name">Avg Cost</div>
+                    <div class="stat-icon-container bg-viz-3">
+                        <i class="bi bi-coin stat-icon"></i>
                     </div>
-                     {# Corrected ID to match JS: average-cost #}
-                    <h2 id="average-cost" class="card-text mt-auto mb-1">--</h2>
-                    <p class="text-muted small">Credits per conversation</p>
+                </div>
+                <div class="stat-card-body">
+                    <div id="average-cost" class="stat-metric-value">--</div>
+                    <div class="stat-metric-trend">Credits per conversation</div>
                 </div>
             </div>
         </div>
     </div> {# End of first KPI row #}
 
     {# Second Row for KPIs #}
-    <div class="row stats-container">
+    <div class="row stats-container g-4">
         <!-- Completion Rate KPI Card -->
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-light">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
-                            <i class="bi bi-check-circle-fill text-info"></i> {# Using check-circle icon #}
-                        </div>
-                        <h5 class="card-title mb-0">Completion Rate</h5>
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="stat-card h-100">
+                <div class="stat-card-header">
+                    <div class="stat-metric-name">Completion Rate</div>
+                    <div class="stat-icon-container bg-viz-4">
+                        <i class="bi bi-check-circle-fill stat-icon"></i>
                     </div>
-                    {# New ID for this KPI #}
-                    <h2 id="completion-rate" class="card-text mt-auto mb-1">--%</h2>
-                    <p class="text-muted small">Of conversations completed</p>
+                </div>
+                <div class="stat-card-body">
+                    <div id="completion-rate" class="stat-metric-value">--%</div>
+                    <div class="stat-metric-trend">Of conversations completed</div>
                 </div>
             </div>
         </div>
         
         <!-- Peak Time KPI Card -->
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 border-light">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="rounded-circle bg-secondary bg-opacity-10 p-3 me-3">
-                            <i class="bi bi-hourglass-split text-secondary"></i>
-                        </div>
-                        <h5 class="card-title mb-0">Peak Time</h5>
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="stat-card h-100">
+                <div class="stat-card-header">
+                    <div class="stat-metric-name">Peak Time</div>
+                    <div class="stat-icon-container bg-viz-accent">
+                        <i class="bi bi-hourglass-split stat-icon"></i>
                     </div>
-                    {# ID matches JS: peak-time #}
-                    <h2 id="peak-time" class="card-text mt-auto mb-1">--:--</h2> 
-                    <p class="text-muted small">Most active hour</p>
                 </div>
-            </div>
-        </div>
-        {# Add an empty column to keep spacing consistent if needed #}
-        <div class="col-md-4 mb-4"></div>
-    </div> {# End of second KPI row #}
-    
-    {# Row for Hourly and Weekday Bar Charts #}
-    <div class="row">
-        <!-- Hourly Activity Chart Card -->
-        <div class="col-md-6 mb-4">
-            <div class="card border-light h-100">
-                <div class="card-header bg-transparent">Activity by Hour of Day</div>
-                <div class="card-body chart-container">
-                    <canvas id="hourlyActivityChart"></canvas>
+                <div class="stat-card-body">
+                    <div id="peak-time" class="stat-metric-value">--:--</div>
+                    <div class="stat-metric-trend">Most active hour</div>
                 </div>
             </div>
         </div>
         
-        <!-- Weekday Activity Chart Card -->
-        <div class="col-md-6 mb-4">
-            <div class="card border-light h-100">
-                <div class="card-header bg-transparent">Activity by Day of Week</div>
-                <div class="card-body chart-container">
-                    <canvas id="weekdayActivityChart"></canvas>
+        <!-- Placeholder for potential 6th card -->
+        <div class="col-lg-4 col-md-6 mb-4"> 
+             <!-- Add 6th card here if needed -->
+        </div>
+    </div> {# End of second KPI row #}
+    
+    {# Charts Row #}
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body chart-container" id="volume-chart-container">
+                    <h5 class="card-title">Call Volume Trends</h5>
+                    <canvas id="callVolumeChart"></canvas>
+                    <div class="empty-chart-message" style="display: none;">No volume data for this period.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body chart-container" id="duration-chart-container">
+                    <h5 class="card-title">Call Duration Trends</h5>
+                    <canvas id="callDurationChart"></canvas>
+                    <div class="empty-chart-message" style="display: none;">No duration data for this period.</div>
                 </div>
             </div>
         </div>
     </div>
-    
-    {# Row for Volume and Duration Line Charts #}
+
     <div class="row">
-        <!-- Call Volume Trend Chart Card -->
-        <div class="col-md-6 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="card h-100">
-                <div class="card-header">
-                    Call Volume Trends
-                </div>
-                <div class="card-body chart-container">
-                    <canvas id="callVolumeChart"></canvas>
+                <div class="card-body chart-container" id="hourly-chart-container">
+                    <h5 class="card-title">Hourly Activity</h5>
+                    <canvas id="hourlyActivityChart"></canvas>
+                    <div class="empty-chart-message" style="display: none;">No hourly activity data.</div>
                 </div>
             </div>
         </div>
-        
-        <!-- Call Duration Trend Chart Card -->
-        <div class="col-md-6 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="card h-100">
-                <div class="card-header">
-                    Call Duration Trends
-                </div>
-                <div class="card-body chart-container">
-                    <canvas id="callDurationChart"></canvas>
+                <div class="card-body chart-container" id="weekday-chart-container">
+                    <h5 class="card-title">Weekday Activity</h5>
+                    <canvas id="weekdayActivityChart"></canvas>
+                    <div class="empty-chart-message" style="display: none;">No weekday activity data.</div>
                 </div>
             </div>
         </div>
@@ -323,90 +292,4 @@
 <!-- Load dashboard-specific JavaScript -->
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
-<!-- Existing inline script for API status -->
-<script>
-function updateAPIStatus() {
-    fetch('/api/status')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Update Database status
-            const databaseStatus = document.getElementById('databaseStatus');
-            if (data.database.status === 'connected') {
-                databaseStatus.textContent = 'Connected';
-                databaseStatus.className = 'badge bg-success';
-            } else {
-                databaseStatus.textContent = 'Disconnected';
-                databaseStatus.className = 'badge bg-danger';
-            }
-            
-            // Update ElevenLabs status
-            const elevenlabsStatus = document.getElementById('elevenlabsStatus');
-            if (data.elevenlabs.status === 'connected') {
-                elevenlabsStatus.textContent = 'Connected';
-                elevenlabsStatus.className = 'badge bg-success';
-            } else {
-                elevenlabsStatus.textContent = 'Disconnected';
-                elevenlabsStatus.className = 'badge bg-danger';
-            }
-            
-            // Update Analysis Service status
-            const analysisStatus = document.getElementById('analysisStatus');
-            if (data.analysis.status === 'available') {
-                analysisStatus.textContent = 'Available';
-                analysisStatus.className = 'badge bg-success';
-            } else if (data.analysis.status === 'limited') {
-                analysisStatus.textContent = 'Limited';
-                analysisStatus.className = 'badge bg-warning';
-            } else {
-                analysisStatus.textContent = 'Unavailable';
-                analysisStatus.className = 'badge bg-danger';
-            }
-            
-            // Update Supabase status
-            const supabaseStatus = document.getElementById('supabaseStatus');
-            if (data.supabase.status === 'connected') {
-                supabaseStatus.textContent = 'Connected';
-                supabaseStatus.className = 'badge bg-success';
-            } else if (data.supabase.status === 'limited') {
-                supabaseStatus.textContent = 'Limited';
-                supabaseStatus.className = 'badge bg-warning';
-            } else {
-                supabaseStatus.textContent = 'Disconnected';
-                supabaseStatus.className = 'badge bg-danger';
-            }
-            
-            // Update overall status indicator
-            const statusIndicator = document.getElementById('statusIndicator');
-            if (data.database.status === 'connected' || data.supabase.status === 'connected') {
-                statusIndicator.innerHTML = '🟢';
-            } else {
-                statusIndicator.innerHTML = '🔴';
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching API status:', error);
-            document.getElementById('databaseStatus').textContent = 'Error';
-            document.getElementById('databaseStatus').className = 'badge bg-danger';
-            document.getElementById('elevenlabsStatus').textContent = 'Error';
-            document.getElementById('elevenlabsStatus').className = 'badge bg-danger';
-            document.getElementById('analysisStatus').textContent = 'Error';
-            document.getElementById('analysisStatus').className = 'badge bg-danger';
-            document.getElementById('supabaseStatus').textContent = 'Error';
-            document.getElementById('supabaseStatus').className = 'badge bg-danger';
-            document.getElementById('statusIndicator').innerHTML = '🔴';
-        });
-}
-
-// Update status when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    updateAPIStatus();
-    // Refresh status every 30 seconds
-    setInterval(updateAPIStatus, 30000);
-});
-</script>
 {% endblock %} 

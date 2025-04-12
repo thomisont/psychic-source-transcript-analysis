@@ -21,6 +21,31 @@ console.log("DASHBOARD.JS LOADED - V1");
 // Dependencies: utils.js (API, Formatter, UI, getDatesFromTimeframe), 
 //               main.js (initializeGlobalDateRangeSelector)
 // ==========================================
+
+// Define Theme Colors (from CSS variables)
+const themeColors = {
+    primary: getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#3A0CA3',
+    secondary: getComputedStyle(document.documentElement).getPropertyValue('--secondary-color').trim() || '#C77DFF',
+    darkGray: getComputedStyle(document.documentElement).getPropertyValue('--dark-gray').trim() || '#343a40',
+    textMuted: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#6c757d',
+    white: '#ffffff'
+};
+
+// Define Data Viz Palette (from CSS variables)
+const vizPalette = [
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-1').trim() || '#3A0CA3', // Indigo
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-2').trim() || '#C77DFF', // Magenta
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-3').trim() || '#9D4EDD', // Lighter Purple
+    getComputedStyle(document.documentElement).getPropertyValue('--viz-color-4').trim() || '#5E60CE', // Medium Blue
+    // Add more colors if needed, matching CSS
+    getComputedStyle(document.documentElement).getPropertyValue('--teal').trim() || '#20c997',
+    getComputedStyle(document.documentElement).getPropertyValue('--orange').trim() || '#fd7e14'
+];
+
+// Define Base Font Options
+const baseFont = { family: 'Lato', size: 12, weight: 'normal' };
+const titleFont = { family: 'Montserrat', size: 14, weight: 'bold' };
+
 document.addEventListener('DOMContentLoaded', () => {
     // Check if we are on the dashboard page using a reliable element ID
     // Use an ID present only on the dashboard template (e.g., a main container)
@@ -32,8 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Initializing dashboard scripts...");
 
     // --- Chart Instance Variables ---
-    // Keep track of Chart.js instances to update them later.
-    // conversationsChartInstance removed as it's no longer used.
     let hourlyChartInstance = null;
     let weekdayChartInstance = null;
     let callVolumeChartInstance = null;
@@ -42,208 +65,215 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Helper Functions ---
 
     /**
-     * Initializes a single Chart.js instance.
-     * @param {string} canvasId - The ID of the canvas element.
-     * @param {string} type - The chart type (e.g., 'bar', 'line').
-     * @param {object} options - Chart.js options object.
-     * @returns {Chart|null} The Chart instance or null if initialization failed.
-     */
-    function initializeChart(canvasId, type, options = {}) {
-        const ctx = document.getElementById(canvasId)?.getContext('2d');
-        if (!ctx) {
-            console.error(`Canvas context not found for chart ID: ${canvasId}`);
-            return null;
-        }
-        try {
-            // Provide default data structure
-            const defaultData = {
-                labels: [],
-                datasets: [{
-                    label: 'Dataset', // Default label, can be customized via options
-                    data: [],
-                    // Add some default styling or let options override
-                    backgroundColor: 'rgba(0, 123, 255, 0.5)',
-                    borderColor: 'rgba(0, 123, 255, 1)',
-                    borderWidth: 1
-                }]
-            };
-            return new Chart(ctx, { type, data: defaultData, options });
-        } catch (e) {
-            console.error(`Error creating chart for ID ${canvasId}:`, e);
-            return null;
-        }
-    }
-
-    /**
-     * Initializes all dashboard charts if their canvas elements exist
-     * and an instance hasn't already been created.
-     * Called once on DOMContentLoaded.
+     * Initializes all dashboard charts.
      */
     function initializeCharts() {
-        console.log("Initializing dashboard charts IF NEEDED...");
+        console.log("Initializing dashboard charts...");
         try {
-            // Get contexts for existing charts
-            const ctxHourly = document.getElementById('hourlyActivityChart')?.getContext('2d');
-            const ctxWeekday = document.getElementById('weekdayActivityChart')?.getContext('2d');
-            // Note: 'callVolumeChart' and 'callDurationChart' canvases are checked inside initializeChart
-
-            // Common chart options
-            const chartOptions = {
+            // Common chart options with updated fonts and colors
+            const commonChartOptions = {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { display: false } }
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: themeColors.textMuted,
+                            font: baseFont
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)' // Lighter grid lines
+                        }
+                    },
+                    x: {
+                       ticks: {
+                            color: themeColors.textMuted,
+                            font: baseFont
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false, // Usually false for dashboard charts
+                        labels: {
+                           font: baseFont,
+                           color: themeColors.darkGray
+                        }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: themeColors.darkGray,
+                        titleFont: { ...titleFont, size: 13 }, 
+                        titleColor: themeColors.white,
+                        bodyFont: baseFont,
+                        bodyColor: themeColors.white,
+                        padding: 10,
+                        cornerRadius: 4,
+                        boxPadding: 4,
+                        callbacks: { 
+                            // Default callbacks, override per chart if needed
+                        }
+                    }
+                }
             };
 
             // Create Hourly Activity chart instance if needed
+            const ctxHourly = document.getElementById('hourlyActivityChart')?.getContext('2d');
             if (ctxHourly && !hourlyChartInstance) {
-                try {
-                    hourlyChartInstance = new Chart(ctxHourly, {
-                        type: 'bar',
-                        data: { labels: [], datasets: [{ label: 'Messages', data: [], backgroundColor: '#17a2b8' }] }, // Changed label
-                        options: { // Add y-axis title
-                            ...chartOptions, // Spread existing common options
-                            scales: { 
-                                ...chartOptions.scales, // Spread existing scale options
-                                y: { 
-                                    ...chartOptions.scales?.y, // Spread existing y-axis options
-                                    beginAtZero: true, 
-                                    title: { display: true, text: 'Messages' } // Add Y-axis title
-                                } 
-                            }
+                hourlyChartInstance = new Chart(ctxHourly, {
+                    type: 'bar',
+                    data: { labels: [], datasets: [{ label: 'Messages', data: [], backgroundColor: vizPalette[3] }] }, // Use Light Blue
+                    options: {
+                        ...commonChartOptions, 
+                        scales: { 
+                            ...commonChartOptions.scales, 
+                            y: { 
+                                ...commonChartOptions.scales?.y, 
+                                title: { display: true, text: 'Messages', color: themeColors.darkGray, font: titleFont }
+                            } 
                         }
-                    });
-                    console.log("Hourly chart initialized");
-                } catch (e) {
-                    console.error("Error creating hourly chart:", e);
-                    // We don't nullify the instance on error here, as a partial init might
-                    // still allow updates later, or prevent re-initialization attempts.
-                }
+                    }
+                });
+                console.log("Hourly chart initialized");
             }
 
             // Create Weekday Activity chart instance if needed
+            const ctxWeekday = document.getElementById('weekdayActivityChart')?.getContext('2d');
             if (ctxWeekday && !weekdayChartInstance) {
-                try {
-                    weekdayChartInstance = new Chart(ctxWeekday, {
-                        type: 'bar',
-                        data: { labels: [], datasets: [{ label: 'Messages', data: [], backgroundColor: '#ffc107' }] }, // Changed label
-                        options: { // Add y-axis title
-                            ...chartOptions, // Spread existing common options
-                            scales: { 
-                                ...chartOptions.scales, // Spread existing scale options
-                                y: { 
-                                    ...chartOptions.scales?.y, // Spread existing y-axis options
-                                    beginAtZero: true, 
-                                    title: { display: true, text: 'Messages' } // Add Y-axis title
-                                } 
+                weekdayChartInstance = new Chart(ctxWeekday, {
+                    type: 'bar',
+                    data: { labels: [], datasets: [{ label: 'Messages', data: [], backgroundColor: vizPalette[2] }] }, // Use Purple
+                    options: {
+                        ...commonChartOptions,
+                        scales: { 
+                            ...commonChartOptions.scales,
+                            y: { 
+                                ...commonChartOptions.scales?.y,
+                                title: { display: true, text: 'Messages', color: themeColors.darkGray, font: titleFont }
                             }
                         }
-                    });
-                    console.log("Weekday chart initialized");
-                } catch (e) {
-                    console.error("Error creating weekday chart:", e);
-                }
+                    }
+                });
+                console.log("Weekday chart initialized");
             }
-
-            // --- Initialize Line Charts Directly (Replacing initializeChart helper calls) ---
 
             // Initialize Call Volume Trend chart if needed
             const ctxVolume = document.getElementById('callVolumeChart')?.getContext('2d');
             if (ctxVolume && !callVolumeChartInstance) {
-                try {
-                    callVolumeChartInstance = new Chart(ctxVolume, {
-                        type: 'line',
-                        data: {
-                            labels: [], // Initially empty
-                            datasets: [{
-                                label: 'Conversations',
-                                data: [],
-                                backgroundColor: 'rgba(54, 162, 235, 0.2)', // Style from engagement
-                                borderColor: 'rgba(54, 162, 235, 1)',   // Style from engagement
-                                borderWidth: 2,                      // Style from engagement
-                                tension: 0.4,                      // Style from engagement
-                                fill: true                           // Style from engagement
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } }, // Keep tooltip default
-                            scales: {
-                                y: { 
-                                    beginAtZero: true, 
-                                    ticks: { precision: 0 }, 
-                                    title: { display: true, text: 'Conversations'} 
-                                },
-                                x: { 
-                                    title: { display: true, text: 'Date'}, 
-                                    ticks: { 
-                                        autoSkip: true,          // Style from engagement (adapted)
-                                        maxRotation: 45,         // Style from engagement
-                                        minRotation: 45          // Style from engagement
-                                    } 
-                                } 
+                // Create gradient background - REVERTED to RGBA
+                // const volumeGradient = ctxVolume.createLinearGradient(0, 0, 0, 300);
+                // volumeGradient.addColorStop(0, colorMix(vizPalette[0], 'white', 90)); 
+                // volumeGradient.addColorStop(1, colorMix(vizPalette[0], 'white', 100)); 
+
+                callVolumeChartInstance = new Chart(ctxVolume, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Conversations',
+                            data: [],
+                            backgroundColor: 'rgba(58, 12, 163, 0.1)', // Light Indigo fill
+                            borderColor: vizPalette[0], // Primary line (Indigo)
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: vizPalette[0],
+                            pointBorderColor: themeColors.white,
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: vizPalette[0]
+                        }]
+                    },
+                    options: {
+                        ...commonChartOptions,
+                        scales: {
+                            y: {
+                                ...commonChartOptions.scales?.y,
+                                title: { display: true, text: 'Conversations', color: themeColors.darkGray, font: titleFont },
+                                ticks: { precision: 0, color: themeColors.textMuted, font: baseFont },
+                            },
+                            x: {
+                                ...commonChartOptions.scales?.x,
+                                title: { display: true, text: 'Date', color: themeColors.darkGray, font: titleFont },
+                                ticks: { 
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    color: themeColors.textMuted,
+                                    font: baseFont
+                                }
                             }
                         }
-                    });
-                    console.log("Call Volume chart initialized directly with new styles");
-                } catch (e) {
-                    console.error("Error creating call volume chart:", e);
-                }
+                    }
+                });
+                console.log("Call Volume chart initialized");
             }
 
             // Initialize Call Duration Chart if needed
             const ctxDuration = document.getElementById('callDurationChart')?.getContext('2d');
             if (ctxDuration && !callDurationChartInstance) {
-                try {
-                    callDurationChartInstance = new Chart(ctxDuration, {
-                        type: 'line',
-                        data: {
-                            labels: [], // Initially empty
-                            datasets: [{
-                                label: 'Avg Duration (s)', // Label matches old chart
-                                data: [],
-                                backgroundColor: 'rgba(75, 192, 192, 0.2)', // Style from engagement
-                                borderColor: 'rgba(75, 192, 192, 1)',   // Style from engagement
-                                borderWidth: 2,                      // Style from engagement
-                                tension: 0.4,                      // Style from engagement
-                                fill: true                           // Style from engagement
-                            }]
+                 // Create gradient background - REVERTED to RGBA
+                // const durationGradient = ctxDuration.createLinearGradient(0, 0, 0, 300); 
+                // durationGradient.addColorStop(0, colorMix(vizPalette[2], 'white', 90)); 
+                // durationGradient.addColorStop(1, colorMix(vizPalette[2], 'white', 100)); 
+
+                callDurationChartInstance = new Chart(ctxDuration, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Avg Duration (s)',
+                            data: [],
+                            backgroundColor: 'rgba(76, 201, 240, 0.1)', // Light Light Blue fill
+                            borderColor: vizPalette[4], // Use vizAccent Teal line (previously vizPalette[2])
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: vizPalette[4],
+                            pointBorderColor: themeColors.white,
+                            pointHoverRadius: 6,
+                            pointHoverBackgroundColor: vizPalette[4] // Use vizAccent Teal
+                        }]
+                    },
+                    options: {
+                        ...commonChartOptions,
+                        plugins: {
+                            ...commonChartOptions.plugins,
+                            tooltip: {
+                                ...commonChartOptions.plugins.tooltip,
+                                callbacks: {
+                                    label: (ctx) => `Avg: ${Formatter.duration(ctx.raw)}`
+                                }
+                            }
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { 
-                                legend: { display: false },
-                                tooltip: { 
-                                    callbacks: { 
-                                        // Keep custom tooltip from dashboard/engagement
-                                        label: (ctx) => `Avg: ${Formatter.duration(ctx.raw)}` 
-                                    } 
-                                } 
-                            },
-                            scales: {
-                                y: { 
-                                    beginAtZero: true, 
-                                    // Keep custom Y-axis ticks from dashboard/engagement
-                                    ticks: { precision: 0, callback: (value) => Formatter.duration(value, true) }, 
-                                    title: { display: true, text: 'Avg Duration (mm:ss)' } 
+                        scales: {
+                            y: {
+                                ...commonChartOptions.scales?.y,
+                                title: { display: true, text: 'Avg Duration (mm:ss)', color: themeColors.darkGray, font: titleFont },
+                                ticks: { 
+                                    precision: 0, 
+                                    callback: (value) => Formatter.duration(value, true),
+                                    color: themeColors.textMuted,
+                                    font: baseFont 
                                 },
-                                x: { 
-                                    title: { display: true, text: 'Date' }, 
-                                    ticks: { 
-                                        autoSkip: true,          // Style from engagement (adapted)
-                                        maxRotation: 45,         // Style from engagement
-                                        minRotation: 45          // Style from engagement
-                                    } 
-                                } 
+                            },
+                            x: {
+                                ...commonChartOptions.scales?.x,
+                                title: { display: true, text: 'Date', color: themeColors.darkGray, font: titleFont },
+                                ticks: {
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    color: themeColors.textMuted,
+                                    font: baseFont
+                                }
                             }
                         }
-                    });
-                    console.log("Call Duration chart initialized directly with new styles");
-                } catch (e) {
-                    console.error("Error creating call duration chart:", e);
-                }
+                    }
+                });
+                console.log("Call Duration chart initialized");
             }
         } catch (error) {
             console.error('General error during chart initialization:', error);
@@ -323,20 +353,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // Helper to update a Chart.js instance
-        const updateChart = (chartInstance, labels, dataSet) => {
-            console.log("updateChart called. Instance:", !!chartInstance, "Labels:", labels, "DataSet:", dataSet);
+        // Helper to update Chart.js, now includes empty state handling
+        const updateChart = (chartInstance, labels, dataSet, chartContainerId) => {
+            console.log("updateChart called. Instance:", !!chartInstance, "Labels:", labels, "DataSet:", dataSet, "Container:", chartContainerId);
+            const container = chartContainerId ? document.getElementById(chartContainerId) : null;
+            const emptyMessageEl = container ? container.querySelector('.empty-chart-message') : null;
+
             if (chartInstance) {
-                if (!data.error && labels && dataSet) {
+                let isEmpty = data.error || !labels || labels.length === 0 || !dataSet || dataSet.length === 0;
+                if (dataSet && Array.isArray(dataSet) && dataSet.every(val => val === 0)) {
+                    isEmpty = true; // Also consider empty if all values are zero
+                }
+
+                if (!isEmpty) {
                     chartInstance.data.labels = labels;
                     chartInstance.data.datasets[0].data = dataSet;
+                    if (emptyMessageEl) emptyMessageEl.style.display = 'none';
+                    chartInstance.canvas.style.display = 'block';
                 } else {
                     chartInstance.data.labels = [];
                     chartInstance.data.datasets[0].data = [];
+                    if (emptyMessageEl) emptyMessageEl.style.display = 'block';
+                    chartInstance.canvas.style.display = 'none';
                 }
                 chartInstance.update();
             } else {
                 // console.warn("Attempted to update a non-existent chart instance.");
+                if (emptyMessageEl) emptyMessageEl.style.display = 'block'; // Show empty message if chart never initialized
             }
         };
 
@@ -348,41 +391,31 @@ document.addEventListener('DOMContentLoaded', () => {
         updateText('completion-rate', data.completion_rate, Formatter.percentage);
         updateText('peak-time', data.peak_time_hour, Formatter.hour);
 
-        // --- Update Charts ---
-
+        // --- Update Charts with container IDs for empty state---
         // Hourly Activity Chart (Bar)
-        // Expects data.activity_by_hour = { '0': count, '1': count, ... '23': count }
-        const hourlyLabels = Array.from({ length: 24 }, (_, i) => Formatter.hour(i)); // Labels 00:00 to 23:00
+        const hourlyLabels = Array.from({ length: 24 }, (_, i) => Formatter.hour(i));
         const hourlyValues = hourlyLabels.map((_, hour) => data.activity_by_hour?.[hour] || 0);
-        console.log("Hourly Chart Data:", { labels: hourlyLabels, values: hourlyValues });
-        updateChart(hourlyChartInstance, hourlyLabels, hourlyValues);
+        updateChart(hourlyChartInstance, hourlyLabels, hourlyValues, 'hourly-chart-container'); // Pass container ID
 
         // Weekday Activity Chart (Bar)
-        // Expects data.activity_by_day = { '0': count, ... '6': count } (Mon=0)
         const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         const weekdayValues = weekdayLabels.map((_, dayIndex) => data.activity_by_day?.[dayIndex] || 0);
-        console.log("Weekday Chart Data:", { labels: weekdayLabels, values: weekdayValues });
-        updateChart(weekdayChartInstance, weekdayLabels, weekdayValues);
+        updateChart(weekdayChartInstance, weekdayLabels, weekdayValues, 'weekday-chart-container'); // Pass container ID
 
         // Daily Call Volume Trend Chart (Line)
-        // Expects data.daily_volume = { 'YYYY-MM-DD': count, ... }
-        // Sort data by date
         const sortedVolume = Object.entries(data.daily_volume || {})
             .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB));
         const volumeLabels = sortedVolume.map(([date]) => date);
         const volumeValues = sortedVolume.map(([, count]) => count || 0);
-        console.log("Volume Trend Chart Data:", { labels: volumeLabels, values: volumeValues });
-        updateChart(callVolumeChartInstance, volumeLabels, volumeValues);
+        updateChart(callVolumeChartInstance, volumeLabels, volumeValues, 'volume-chart-container'); // Pass container ID
 
         // Daily Call Duration Trend Chart (Line)
-        // Expects data.daily_avg_duration = { 'YYYY-MM-DD': seconds, ... }
         const sortedDuration = Object.entries(data.daily_avg_duration || {})
              .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB));
         const durationLabels = sortedDuration.map(([date]) => date);
         // Ensure duration values are numbers (handle potential nulls/undefined)
         const durationValues = sortedDuration.map(([, duration]) => Number(duration || 0)); 
-        console.log("Duration Trend Chart Data:", { labels: durationLabels, values: durationValues });
-        updateChart(callDurationChartInstance, durationLabels, durationValues);
+        updateChart(callDurationChartInstance, durationLabels, durationValues, 'duration-chart-container'); // Pass container ID
     }
 
     // Initialize the global date selector from main.js

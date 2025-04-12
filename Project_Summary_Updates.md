@@ -922,3 +922,42 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **Development Workflow:** Identified `python run.py` as the correct server start command for the Replit environment and documented it in `STARTUP.md`.
 
 **Outcome:** The Dashboard now incorporates key metrics and styles from the old Engagement Metrics page, which has been successfully removed. Date range filtering is accurate. Codebase is cleaner. 
+
+## Agent Session Learnings (Themes & Sentiment Refactor - April 12, 2025)
+
+*   **Caching (`AnalysisService`)**: The `AnalysisService.get_full_themes_sentiment_analysis` results are cached using Flask-Caching (`FileSystemCache`). The cache key is based on start/end dates (`themes_sentiment_<start>_<end>`) with a 1-hour timeout. This leads to near-instantaneous loads for subsequent requests within the timeout period.
+*   **Sync Impact on Cache**: The manual "Sync New Conversations" task updates the database but does **not** automatically invalidate the `AnalysisService` cache. Analysis results will only reflect newly synced data after the relevant cache entry expires (1 hour) or if the cache is manually cleared.
+*   **Loading Indicator (`themes_sentiment_refactored.js`)**:
+    *   An enhanced indicator (spinner, text, progress bar) is used.
+    *   The indicator is shown when `loadAnalysisData` starts.
+    *   It's hidden after `renderAnalysisData` completes its *synchronous* execution.
+    *   For *long* loads (cache miss, LLM analysis running), the indicator stays visible, showing the model name.
+    *   For *fast* loads (cache hit), the indicator appears and disappears very quickly because the data returns almost instantly. This is expected behavior due to caching performance.
+    *   CSS opacity transitions coupled with `requestAnimationFrame` for content visibility and `setTimeout` for disabling pointer events on the indicator provide the fade effect.
+*   **Model Name Display**:
+    *   The AI model name (e.g., "gpt-4o") is stored in `ConversationAnalyzer.model_name` (`app/utils/analysis.py`).
+    *   It's added to the `analysis_status` dict within `ConversationAnalyzer._parse_and_validate_llm_output`.
+    *   The frontend reads `data.analysis_status.model_name`.
+    *   It's displayed persistently in the `#analysis-model-info` element on the page.
+*   **JS Initialization**: `themes_sentiment_refactored.js` triggers its own initial load via `handleTimeframeChange` in `DOMContentLoaded`. The global `initializeGlobalDateRangeSelector` in `main.js` only attaches click listeners for subsequent date changes.
+*   **File Cleanup**: Old template/JS files for this page were removed. Active files are `themes_sentiment_refactored.html` and `themes_sentiment_refactored.js`.
+*   **Backend Dependencies**: API Route (`/api/themes-sentiment/full-analysis-v2`) -> `AnalysisService.get_full_themes_sentiment_analysis` -> `SupabaseConversationService.get_conversations` (for data) & `ConversationAnalyzer.unified_llm_analysis` (for analysis).
+
+## Agent Session Learnings (Transcript Viewer UI Fixes - 2025-04-12)
+
+*   **Dashboard Fix:** Resolved issue where API/System status icons were not displaying. Added the missing Bootstrap Icons CSS link to `base.html` and fixed a CSS color conflict in `style.css`.
+*   **Transcript Viewer UI Refinements:**
+    *   Removed redundant UI elements (e.g., "Updated UI" badge) and consolidated page title bars.
+    *   Improved contrast on elements with primary backgrounds (card headers, modal titles).
+    *   Fixed date range filter logic: Preset buttons now trigger search automatically, while "Custom Range" requires manual "Search" button press after entering dates.
+    *   Fixed Conversation ID search error (was using incorrect input field ID).
+    *   Fixed custom date range searches returning incorrect datasets by implementing Python-based sorting/pagination in `SupabaseConversationService.get_conversations` after fetching all relevant IDs via RPC.
+*   **Transcript Modal Overhaul:**
+    *   Restructured modal header layout (stacked details left, summary right). Removed redundant "Agent:" field. Bolder summary text.
+    *   Fixed transcript messages always showing as 'agent'. Corrected role assignment logic in `SupabaseConversationService.get_conversation_details` to check both `speaker` and `role` fields from the database.
+    *   Implemented speaker labels ("Lily", "Curious Caller") above message bubbles.
+    *   Updated avatars to use Font Awesome icons (`fas fa-headset`, `fas fa-user`) instead of initials.
+    *   **Resolved alternating left/right message alignment:** Debugging revealed CSS conflicts. The final fix involved making the parent `.agent-message` and `.caller-message` divs flex containers in `style.css` to control `justify-content`, while the child `.caller-message .message-group` retained `flex-direction: row-reverse` for avatar placement.
+*   **Debugging:** Utilized browser developer tools extensively to diagnose CSS issues. Added detailed `DEBUG` level logging in the backend service and confirmed the application log level was set correctly (in `run.py`) to trace data processing errors.
+*   **Code Structure:** Confirmed `SupabaseConversationService` is primary, but `ConversationService` (SQLAlchemy) remains as a fallback configured in `app/__init__.py`.
+*   **Deferred:** "Export Transcript" button functionality remains unimplemented.

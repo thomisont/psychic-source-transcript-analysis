@@ -23,6 +23,43 @@ const Formatter = {
     },
 
     /**
+     * Format date objects for display (Date and Time)
+     * @param {string} dateString - ISO date string to format
+     * @returns {string} Formatted date and time string
+     */
+    dateTime(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: 'numeric', minute: '2-digit', hour12: true
+            });
+        } catch (error) {
+            console.error('Error formatting dateTime:', dateString, error);
+            return dateString; // Fallback
+        }
+    },
+
+    /**
+     * Format date objects for display (Time only)
+     * @param {string} dateString - ISO date string to format
+     * @returns {string} Formatted time string
+     */
+    time(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleTimeString(undefined, {
+                hour: 'numeric', minute: '2-digit', hour12: true
+            });
+        } catch (error) {
+            console.error('Error formatting time:', dateString, error);
+            return dateString; // Fallback
+        }
+    },
+
+    /**
      * Format seconds as minutes:seconds
      * @param {number} seconds - Duration in seconds
      * @returns {string} Formatted duration string
