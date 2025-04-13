@@ -395,6 +395,19 @@ def sync_new_conversations(app, full_sync=False):
                 f"DB Final: {final_count}."
             )
             logging.info(log_message)
+            
+            # >>> ADD CACHE CLEARING HERE <<<
+            try:
+                if hasattr(app, 'analysis_service') and app.analysis_service:
+                    logging.info("Sync Task: Clearing AnalysisService cache...")
+                    app.analysis_service.clear_cache()
+                    logging.info("Sync Task: AnalysisService cache cleared.")
+                else:
+                    logging.warning("Sync Task: AnalysisService not found on app context, cannot clear cache.")
+            except Exception as cache_clear_err:
+                logging.error(f"Sync Task: Error clearing analysis cache: {cache_clear_err}", exc_info=True)
+            # >>> END CACHE CLEARING <<<
+            
             return {
                 "status": "success", 
                 "checked_api": conversations_checked_api_count,
@@ -414,6 +427,19 @@ def sync_new_conversations(app, full_sync=False):
             final_count_on_error = initial_count
             try: final_count_on_error = supabase.execute_sql("SELECT COUNT(*) as count FROM conversations")[0]['count']
             except: pass 
+            
+            # >>> ADD CACHE CLEARING HERE <<<
+            try:
+                if hasattr(app, 'analysis_service') and app.analysis_service:
+                    logging.info("Sync Task: Clearing AnalysisService cache...")
+                    app.analysis_service.clear_cache()
+                    logging.info("Sync Task: AnalysisService cache cleared.")
+                else:
+                    logging.warning("Sync Task: AnalysisService not found on app context, cannot clear cache.")
+            except Exception as cache_clear_err:
+                logging.error(f"Sync Task: Error clearing analysis cache: {cache_clear_err}", exc_info=True)
+            # >>> END CACHE CLEARING <<<
+            
             return {
                 "status": "error", 
                 "message": str(e),

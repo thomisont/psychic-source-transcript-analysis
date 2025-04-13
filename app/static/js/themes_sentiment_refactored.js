@@ -228,6 +228,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup event listeners (including the new RAG button listener)
     setupEventListeners();
+
+    // *** Initialize Bootstrap Tooltips for Info Icons ***
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    console.log(`Initialized ${tooltipList.length} Bootstrap tooltips.`);
+    // *** End Tooltip Initialization ***
 });
 
 // Chart instances - declare globally to allow updates/destruction
@@ -275,31 +283,40 @@ async function loadAnalysisData(startDateISO, endDateISO) {
         return;
     }
 
-    // Reset UI state
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'block';
-        loadingIndicator.style.opacity = '1';
-        loadingIndicator.style.pointerEvents = 'auto';
-    }
-    if (loadingMessageMain) loadingMessageMain.textContent = "Sentiment Analysis Underway";
-    if (loadingMessageDetail) loadingMessageDetail.textContent = "This process takes time to complete.";
-    if (errorDisplay) errorDisplay.style.display = 'none';
-    if (analysisContent) {
-        analysisContent.style.display = 'none';
-        analysisContent.style.opacity = '0';
-    }
-    if (conversationCountDisplay) conversationCountDisplay.textContent = '';
-    if (analysisModelInfo) analysisModelInfo.textContent = '';
+    // Reset UI state & SHOW loading indicator
+    // Use requestAnimationFrame to ensure UI updates before potentially blocking API call
+    requestAnimationFrame(() => {
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'block';
+            loadingIndicator.style.opacity = '1';
+            loadingIndicator.style.pointerEvents = 'auto';
+        }
+        if (loadingMessageMain) loadingMessageMain.textContent = "Sentiment Analysis Underway";
+        if (loadingMessageDetail) loadingMessageDetail.textContent = "This process takes time to complete.";
+        if (errorDisplay) errorDisplay.style.display = 'none';
+        if (analysisContent) {
+            analysisContent.style.display = 'none';
+            analysisContent.style.opacity = '0';
+        }
+        if (conversationCountDisplay) conversationCountDisplay.textContent = '';
+        if (analysisModelInfo) analysisModelInfo.textContent = '';
 
-    // Destroy previous charts
-    if (sentimentDistributionChart) sentimentDistributionChart.destroy();
-    if (topThemesChart) topThemesChart.destroy();
-    if (sentimentTrendsChart) sentimentTrendsChart.destroy();
-    sentimentDistributionChart = null;
-    topThemesChart = null;
-    sentimentTrendsChart = null;
+        // Destroy previous charts
+        if (sentimentDistributionChart) sentimentDistributionChart.destroy();
+        if (topThemesChart) topThemesChart.destroy();
+        if (sentimentTrendsChart) sentimentTrendsChart.destroy();
+        sentimentDistributionChart = null;
+        topThemesChart = null;
+        sentimentTrendsChart = null;
 
-    try {
+        // NOW trigger the API fetch *after* the UI update frame
+        triggerApiFetch(startDateISO, endDateISO);
+    });
+}
+
+// Helper function to contain the async API call and subsequent rendering
+async function triggerApiFetch(startDateISO, endDateISO) {
+     try {
         const url = `/api/themes-sentiment/full-analysis-v2?start_date=${encodeURIComponent(startDateISO)}&end_date=${encodeURIComponent(endDateISO)}`;
         console.log(`[loadAnalysisData] Calling API.fetch for: ${url}`);
         const data = await API.fetch(url);
@@ -384,22 +401,40 @@ function renderAnalysisData(data) {
         const metadata = data.metadata;
         const analysisStatus = data.analysis_status;
 
-        // --- Update Info Displays First ---
-        // *** ADD CHECKS ***
-        if (conversationCountDisplay) {
-            conversationCountDisplay.textContent = `Conversations in period: ${metadata?.total_conversations_in_range || 'N/A'}`;
-        } else {
-            console.warn("Element 'conversation-count-display' not found in renderAnalysisData.");
-        }
-        // *** ADD CHECK ***
-        if (analysisModelInfo) {
-            analysisModelInfo.textContent = `Analysis by: ${analysisStatus?.model_name || 'Unknown'}`;
-        } else {
-             console.warn("Element 'analysis-model-info' not found in renderAnalysisData.");
-        }
-        // --- End Info Displays ---
+        // Update the main content area with the analysis results
+        console.log('[renderAnalysisData] Rendering analysis data components...', data); // Log the whole data object
 
-        clearPlaceholders(); // Hides loading/error, Shows analysisContent block
+        // --- Update Metadata Display --- 
+        const conversationsCountEl = document.getElementById('conversation-count-display');
+        const analysisModelInfoEl = document.getElementById('analysis-model-info');
+        
+        // Safely access metadata and update count
+        if (conversationsCountEl) {
+            // Use optional chaining ?. for safer access
+            const totalCount = data?.metadata?.total_conversations_in_range;
+            if (totalCount !== undefined && totalCount !== null) {
+                conversationsCountEl.textContent = totalCount;
+            } else {
+                conversationsCountEl.textContent = 'N/A'; 
+                console.warn('Metadata or total_conversations_in_range missing or invalid in API data', data?.metadata);
+            }
+        }
+
+        // Safely access analysis status and update model info
+        if (analysisModelInfoEl) {
+             // Use optional chaining ?. for safer access
+            const modelName = data?.analysis_status?.model_name;
+            if (modelName) {
+                analysisModelInfoEl.textContent = `Analysis by: ${modelName}`;
+                analysisModelInfoEl.style.display = 'block';
+            } else {
+                analysisModelInfoEl.style.display = 'none';
+                console.warn('Analysis status or model name missing or invalid in API data', data?.analysis_status);
+            }
+        }
+        // --- End Metadata Display --- 
+
+        // clearPlaceholders(); // Hides loading/error, Shows analysisContent block // MOVED TO END OF TRY BLOCK
 
         // --- Render Components ---
         renderSentimentOverview(sentimentData);
@@ -416,20 +451,21 @@ function renderAnalysisData(data) {
 
         console.log("[renderAnalysisData] All rendering components called. PRE-TRANSITION.");
 
-        // --- Handle Smooth Transition ---
-        // *** ADD CHECKS ***
+        // --- Handle Smooth Transition & Hide Loader (AFTER rendering) ---
+        clearPlaceholders(); // Call here instead to ensure content is ready
+        
         if (analysisContent) {
             analysisContent.style.display = 'block';
             requestAnimationFrame(() => {
                  if (analysisContent) analysisContent.style.opacity = '1';
             });
         }
-        // *** ADD CHECK ***
         if (loadingIndicator) {
             loadingIndicator.style.opacity = '0';
+            // Use a slightly longer timeout to ensure content is visible before hiding loader fully
             setTimeout(() => {
                  if (loadingIndicator) loadingIndicator.style.display = 'none';
-            }, 300);
+            }, 500); 
         }
         // --- End Smooth Transition ---
 

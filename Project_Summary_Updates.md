@@ -990,17 +990,12 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **Backend Caching:** The caching mechanism for the themes/sentiment analysis seems overly aggressive or incorrectly keyed, leading to stale data being served. This needs immediate investigation in the backend Python code (Flask route and caching logic).
 *   **Backend Analysis:** While caching is the prime suspect, there's a secondary possibility of a bug in the `ConversationAnalyzer` service's aggregation logic when handling larger datasets (>300 conversations).
 
-## Agent Session Learnings (RAG Implementation - Phase 1 - April 13, 2025)
+## Agent Session Learnings (RAG Refinement - April 14, 2025)
 
-*   **RAG Implementation:** Successfully implemented Phase 1 of a RAG (Retrieval-Augmented Generation) system using Supabase `pgvector` for ad-hoc natural language querying on the "Themes & Sentiment" page.
-*   **Embedding Strategy:** Determined that embedding **full transcripts** (truncated if needed) provides significantly better semantic context for RAG than embedding short summaries. Created and ran a backfill script (`scripts/backfill_embeddings.py`) to populate transcript embeddings, overwriting previous summary-based ones. Added tracking for transcript truncation during embedding.
-*   **Vector Search:**
-    *   Enabled `pgvector` extension and added `embedding vector(1536)` column to `conversations`.
-    *   Created an HNSW index (`embedding vector_cosine_ops`) for efficient searching.
-    *   Implemented a Supabase SQL function (`match_conversations`) using the cosine distance operator (`<=>`) for similarity search, including date filtering and filtering out rows with NULL/empty summaries.
-    *   Discovered that similarity scores for relevant transcript embeddings vs. natural language queries were lower than initially expected; adjusted the query threshold to `0.35` based on direct SQL testing.
-*   **Database/SQL:** Debugged and corrected multiple `42804` (type mismatch) errors in the SQL function's `RETURNS TABLE` definition by aligning declared types (`integer`, `character varying`) with the actual `conversations` table schema.
-*   **Service Layer:** Implemented RAG logic in `AnalysisService.process_natural_language_query` (query embedding -> vector search via `SupabaseConversationService.find_similar_conversations` -> LLM call) and `SupabaseConversationService.find_similar_conversations`.
-*   **API/UI:** Added a new API endpoint (`POST /api/themes-sentiment/query`) and corresponding frontend UI/JS (using standard `fetch`) for the ad-hoc query feature.
-*   **LLM Persona:** Successfully implemented the "Lily" persona for RAG responses by modifying the LLM system prompt.
-*   **Next Steps:** Phase 2 involves refactoring the existing analysis components (`get_full_themes_sentiment_analysis`) to use the RAG pipeline and implementing UI enhancements (linking IDs, history, export).
+*   **RAG Context:** Refactored the RAG pipeline for the 'Themes & Sentiment' page analysis (`AnalysisService.get_full_themes_sentiment_analysis`) to use **full transcripts** as context for the LLM instead of just summaries. This was necessary because analysis based on summaries proved too sparse compared to previous benchmarks.
+*   **Targeted RAG:** Implemented a multi-step RAG process within `_get_rag_categorized_quotes`. Separate, targeted vector searches and LLM prompts are now used for (1) Questions & Concerns and (2) Positive Interactions, each using full transcript context. This improves context relevance for specific analysis goals.
+*   **Caching:** Modified the background sync task (`app/tasks/sync.py`) to automatically clear the Flask-Caching analysis cache (`app.analysis_service.clear_cache()`) upon successful completion. This ensures analysis reflects newly synced data more quickly.
+*   **UI Polishing:** Added info tooltips to explain the RAG process for each analysis section. Improved loading indicator timing.
+*   **Outstanding Issue (Count):** Identified a persistent bug where the date-range conversation count on the 'Themes & Sentiment' page always shows the total count. Diagnosis points to the date filters (`.gte`/`.lte`) in `SupabaseConversationService.get_conversation_count` not being applied correctly by the `supabase-py` query builder. Tried using `count='exact'` and fetching/counting IDs; both methods failed to return a filtered count. Needs further investigation or a workaround (e.g., Supabase RPC function).
+
+## Agent Session Learnings (RAG Implementation - Phase 1 - April 13, 2025)

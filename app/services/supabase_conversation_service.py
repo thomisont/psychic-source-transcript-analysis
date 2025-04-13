@@ -59,7 +59,9 @@ class SupabaseConversationService:
              return 0
 
         try:
-            query = self.supabase.client.table('conversations').select("*", count='exact')
+            # === ALTERNATIVE COUNT STRATEGY ===
+            # Select only IDs and count the results length
+            query = self.supabase.client.table('conversations').select("id") # Select only ID
             
             start_dt_iso = None
             if start_date:
@@ -73,12 +75,46 @@ class SupabaseConversationService:
                 end_dt_iso = end_dt.isoformat()
                 query = query.lte('created_at', end_dt_iso)
                 
-            # Execute the query to get the count
+            # Execute the query to get IDs
             response = query.execute()
             
-            count = response.count
-            logging.info(f"Retrieved count {count} for conversations ({start_dt_iso} to {end_dt_iso}) using standard method.")
-            return count if count is not None else 0
+            # --- Log the raw data and the full response --- 
+            logging.debug(f"Supabase count query (ID fetch) RAW RESPONSE DATA (first 10): {response.data[:10] if response.data else 'None'}")
+            logging.debug(f"Supabase count query (ID fetch) FULL RESPONSE OBJECT: {response}")
+            # --- End Log ---
+            
+            # Count the number of rows returned
+            count = len(response.data) if response.data else 0
+            logging.info(f"Retrieved count {count} via ID fetch for conversations ({start_dt_iso} to {end_dt_iso}).")
+            return count
+            # === END ALTERNATIVE COUNT STRATEGY ===
+            
+            # === ORIGINAL COUNT STRATEGY (Commented Out) ===
+            # query = self.supabase.client.table('conversations').select("*", count='exact')
+            # 
+            # start_dt_iso = None
+            # if start_date:
+            #     start_dt = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            #     start_dt_iso = start_dt.isoformat()
+            #     query = query.gte('created_at', start_dt_iso)
+            # 
+            # end_dt_iso = None
+            # if end_date:
+            #     end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+            #     end_dt_iso = end_dt.isoformat()
+            #     query = query.lte('created_at', end_dt_iso)
+            #     
+            # # Execute the query to get the count
+            # response = query.execute()
+            # 
+            # # --- Log the full response object --- 
+            # logging.debug(f"Supabase count query response object: {response}")
+            # # --- End Log ---
+            # 
+            # count = response.count
+            # logging.info(f"Retrieved count {count} for conversations ({start_dt_iso} to {end_dt_iso}) using standard method.")
+            # return count if count is not None else 0
+            # === END ORIGINAL COUNT STRATEGY ===
             
         except Exception as e:
             logging.error(f"Error in get_conversation_count using standard method: {e}", exc_info=True)
