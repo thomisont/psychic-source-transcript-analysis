@@ -989,3 +989,18 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **CSS:** Bootstrap overrides can be complex. Unrelated styles (`overflow: hidden` on `.stat-card`) can cause unexpected side effects. The list height calculation issue remains unexplained but was bypassed by changing the UI pattern.
 *   **Backend Caching:** The caching mechanism for the themes/sentiment analysis seems overly aggressive or incorrectly keyed, leading to stale data being served. This needs immediate investigation in the backend Python code (Flask route and caching logic).
 *   **Backend Analysis:** While caching is the prime suspect, there's a secondary possibility of a bug in the `ConversationAnalyzer` service's aggregation logic when handling larger datasets (>300 conversations).
+
+## Agent Session Learnings (RAG Implementation - Phase 1 - April 13, 2025)
+
+*   **RAG Implementation:** Successfully implemented Phase 1 of a RAG (Retrieval-Augmented Generation) system using Supabase `pgvector` for ad-hoc natural language querying on the "Themes & Sentiment" page.
+*   **Embedding Strategy:** Determined that embedding **full transcripts** (truncated if needed) provides significantly better semantic context for RAG than embedding short summaries. Created and ran a backfill script (`scripts/backfill_embeddings.py`) to populate transcript embeddings, overwriting previous summary-based ones. Added tracking for transcript truncation during embedding.
+*   **Vector Search:**
+    *   Enabled `pgvector` extension and added `embedding vector(1536)` column to `conversations`.
+    *   Created an HNSW index (`embedding vector_cosine_ops`) for efficient searching.
+    *   Implemented a Supabase SQL function (`match_conversations`) using the cosine distance operator (`<=>`) for similarity search, including date filtering and filtering out rows with NULL/empty summaries.
+    *   Discovered that similarity scores for relevant transcript embeddings vs. natural language queries were lower than initially expected; adjusted the query threshold to `0.35` based on direct SQL testing.
+*   **Database/SQL:** Debugged and corrected multiple `42804` (type mismatch) errors in the SQL function's `RETURNS TABLE` definition by aligning declared types (`integer`, `character varying`) with the actual `conversations` table schema.
+*   **Service Layer:** Implemented RAG logic in `AnalysisService.process_natural_language_query` (query embedding -> vector search via `SupabaseConversationService.find_similar_conversations` -> LLM call) and `SupabaseConversationService.find_similar_conversations`.
+*   **API/UI:** Added a new API endpoint (`POST /api/themes-sentiment/query`) and corresponding frontend UI/JS (using standard `fetch`) for the ad-hoc query feature.
+*   **LLM Persona:** Successfully implemented the "Lily" persona for RAG responses by modifying the LLM system prompt.
+*   **Next Steps:** Phase 2 involves refactoring the existing analysis components (`get_full_themes_sentiment_analysis`) to use the RAG pipeline and implementing UI enhancements (linking IDs, history, export).

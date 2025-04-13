@@ -2,7 +2,7 @@
 
 This document outlines the plan to implement a Retrieval-Augmented Generation (RAG) system using Supabase with `pgvector` for the Psychic Source Transcript Analysis Tool. The goal is to improve the scalability, accuracy, and cost-effectiveness of conversation analysis and enable ad-hoc natural language querying.
 
-**Current Status:** Phase 1 complete, except for backfill script (running). Ready to test UI.
+**Current Status:** Phase 1 complete. Ready to start Phase 2.
 
 ---
 
@@ -15,19 +15,19 @@ This document outlines the plan to implement a Retrieval-Augmented Generation (R
     -   [X] **1b.** Add `embedding vector(1536)` column to the `conversations` table in Supabase (using OpenAI's `text-embedding-3-small` dimension).
     -   [X] **1c.** Update `requirements.txt` with necessary libraries (e.g., `openai`, `supabase-py`).
 
--   [ ] **2. Embedding Pipeline:**
-    -   [X] **2a.** Modify Sync Task (`app/tasks/sync.py`): Generate embeddings for conversation summaries using `text-embedding-3-small` during sync and store them in the new Supabase column. Handle potential API errors.
-    -   [X] **2b.** Backfill Embeddings: Create and run a script (`scripts/backfill_embeddings.py`) to generate/store embeddings for existing conversations. (Script completed successfully).
+-   [X] **2. Embedding Pipeline:**
+    -   [X] **2a.** Modify Sync Task (`app/tasks/sync.py`): Generate embeddings for conversation **transcripts** during sync and store them in the new Supabase column. Track truncation.
+    -   [X] **2b.** Backfill Embeddings: Create and run a script (`scripts/backfill_embeddings.py`) to generate/store **transcript** embeddings for existing conversations, overwriting previous ones. Track truncation.
 
 -   [X] **3. Core RAG Service Logic:**
     -   [X] **3a.** Supabase Service (`app/services/supabase_conversation_service.py`): Implement `find_similar_conversations(query_vector, start_date, end_date, limit=N)` using `pgvector` similarity search, filtering by date, returning IDs and summaries. (Depends on SQL function `match_conversations`).
     -   [X] **3b.** Analysis Service (`app/services/analysis_service.py`): Implement `process_natural_language_query(self, query, start_date, end_date)`.
         -   [X] Generate query embedding.
         -   [X] Call `find_similar_conversations`.
-        -   [X] Construct focused LLM prompt (GPT-4o) with retrieved context + query.
+        -   [X] Construct focused LLM prompt (GPT-4o) with retrieved context + query (Lily Persona).
         -   [X] Call LLM via `ConversationAnalyzer` or direct client.
-        *   [X] Return answer or error dictionary.
-    -   [X] **3c.** Create Supabase SQL function `match_conversations` to perform vector search with date filtering.
+        *   [X] Return answer or error dictionary (User-friendly 0 results message).
+    -   [X] **3c.** Create Supabase SQL function `match_conversations` to perform vector search with date filtering and summary check.
 
 -   [X] **4. Ad-hoc Query UI & API:**
     -   [X] **4a.** Frontend (`themes_sentiment_refactored.html` / `.js`): Add UI elements (textarea, button, response area, loader). Implement JS to capture input, call API, display results/errors.
@@ -37,18 +37,25 @@ This document outlines the plan to implement a Retrieval-Augmented Generation (R
 
 ## Phase 2: Refactor Existing Analysis & Refinements
 
-**Goal:** Migrate the pre-canned analyses on the Themes & Sentiment page to use the RAG pipeline and optimize the system.
+**Goal:** Migrate the pre-canned analyses on the Themes & Sentiment page to use the RAG pipeline and implement UI/UX enhancements.
 
 -   [ ] **5. Refactor Pre-canned Analysis:**
-    -   [ ] **5a.** Modify `AnalysisService.get_full_themes_sentiment_analysis` to use RAG: Define internal queries, perform vector search, retrieve context, use targeted LLM prompts, parse results.
-    -   [ ] **5b.** Update caching strategy for `get_full_themes_sentiment_analysis`.
+    -   [ ] **5a.** Modify `AnalysisService.get_full_themes_sentiment_analysis` to use RAG: Define internal queries/prompts for each section (Sentiment Overview, Top Themes, Trends, Categories), perform vector search, retrieve context, use targeted LLM prompts, parse results to fit UI.
+    -   [ ] **5b.** Update caching strategy for `get_full_themes_sentiment_analysis` based on RAG approach.
 
 -   [ ] **6. Optimization & Evaluation:**
     -   [ ] **6a.** Monitor performance, cost, and accuracy.
-    -   [ ] **6b.** Experiment with N (number of retrieved docs).
-    *   [ ] **6c.** Refine LLM prompts.
-    -   [ ] **6d.** Consider embedding/retrieving different/more text (e.g., transcript chunks) if needed.
+    -   [ ] **6b.** Experiment with N (number of retrieved docs) and similarity threshold (currently 0.35).
+    *   [ ] **6c.** Refine LLM prompts (including Lily persona consistency).
+    -   [ ] **6d.** Consider embedding/retrieving different/more text (e.g., transcript chunks) if needed for specific analyses.
     -   [ ] **6e.** Explore advanced RAG techniques if necessary.
+
+-   [ ] **7. UI/UX Enhancements for RAG Query:** (Based on user feedback)
+    -   [ ] **7a. Contextual Linking:** Update RAG context generation and LLM prompt to include conversation `external_id`. Update frontend JS to parse responses and convert `(ID: ...)` into clickable links.
+    -   [ ] **7b. Transcript Modal:** Implement or adapt a modal viewer triggered by the links in 7a to display the full transcript for the selected `external_id`.
+    -   [ ] **7c. Session History:** Implement JS logic to store and display the user-Lily query/response history for the current browser session.
+    -   [ ] **7d. Export/Copy:** Add UI buttons and JS for copying responses/history to clipboard and potentially downloading as a text file.
+    -   [ ] **7e. (Optional) Contextual Follow-up:** Explore sending previous user-Lily analysis turns back to the LLM for more conversational follow-up queries.
 
 ---
 

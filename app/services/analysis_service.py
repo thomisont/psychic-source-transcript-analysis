@@ -694,9 +694,8 @@ class AnalysisService:
             
             if not similar_conversations:
                 logging.warning(f"No similar conversations found matching the query criteria (Threshold: {threshold}).")
-                # Modified return message for debugging
-                return {'answer': f"DEBUG: Vector search returned 0 results meeting the similarity threshold ({threshold}) for the selected date range."}
-                # Original: return {'answer': "I couldn't find any conversations matching that description in the selected date range."}
+                # Modified return message for user-friendliness
+                return {'answer': f"Based on my analysis, I couldn't find conversations matching that specific description within the selected dates using the current similarity setting ({threshold}). You could try rephrasing your question or widening the date range."}
             
             logging.info(f"Retrieved {len(similar_conversations)} relevant conversation summaries (Threshold: {threshold}).")
         except Exception as e:

@@ -15,7 +15,7 @@ if not api_key:
 client = openai.OpenAI(api_key=api_key)
 
 # The query text
-query_text = "relationships" # Simple, concrete query
+query_text = "provocative" # Simple, concrete query
 
 try:
     # Generate embedding
