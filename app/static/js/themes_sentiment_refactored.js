@@ -127,6 +127,9 @@ const commonChartOptions = {
 let topThemesChart = null;
 let sentimentTrendsChart = null;
 
+// --- Global variable for the modal instance ---
+let categoryModal = null;
+
 // --- Element References (Declare at Module Scope) ---
 let loadingIndicator = null;
 let errorDisplay = null;
@@ -135,6 +138,16 @@ let conversationCountDisplay = null;
 let analysisModelInfo = null;
 let loadingMessageMain = null;
 let loadingMessageDetail = null;
+let categoryModalElement = null;
+let categoryModalTitle = null;
+let categoryModalBody = null;
+// NEW: RAG Query Elements
+let ragQueryInput = null;
+let ragSubmitBtn = null;
+let ragResponseArea = null;
+let ragResponseContent = null;
+let ragErrorDisplay = null;
+let ragSubmitSpinner = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Themes & Sentiment Refactored JS Loaded - Page-specific init");
@@ -180,7 +193,40 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Manually triggering initial load for 7 days.");
     handleTimeframeChange('last_7_days');
 
-    // Setup event listeners (including the new delegated listener)
+    // *** Assign Modal Elements ***
+    categoryModalElement = document.getElementById('categoryDetailModal');
+    categoryModalTitle = document.getElementById('categoryDetailModalLabel');
+    categoryModalBody = document.getElementById('categoryDetailModalBody');
+
+    // *** Initialize Modal Instance ***
+    if (categoryModalElement) {
+        categoryModal = new bootstrap.Modal(categoryModalElement);
+        console.log("Category detail modal instance created.");
+    } else {
+        console.error("Could not find category detail modal element (#categoryDetailModal).");
+    }
+
+    // *** Assign RAG Query Elements ***
+    ragQueryInput = document.getElementById('rag-query-input');
+    ragSubmitBtn = document.getElementById('submit-rag-query-btn');
+    ragResponseArea = document.getElementById('rag-response-area');
+    ragResponseContent = document.getElementById('rag-response-content');
+    ragErrorDisplay = document.getElementById('rag-error-display');
+    if (ragSubmitBtn) {
+        ragSubmitSpinner = ragSubmitBtn.querySelector('.spinner-border');
+    }
+
+    // *** Log RAG element assignments ***
+    console.log("[DOMContentLoaded] Checking RAG elements:", {
+        ragQueryInput: !!ragQueryInput,
+        ragSubmitBtn: !!ragSubmitBtn,
+        ragResponseArea: !!ragResponseArea,
+        ragResponseContent: !!ragResponseContent,
+        ragErrorDisplay: !!ragErrorDisplay,
+        ragSubmitSpinner: !!ragSubmitSpinner
+    });
+
+    // Setup event listeners (including the new RAG button listener)
     setupEventListeners();
 });
 
@@ -260,7 +306,7 @@ async function loadAnalysisData(startDateISO, endDateISO) {
         console.log("%%% RAW API DATA RECEIVED: %%%", JSON.stringify(data, null, 2));
 
         if (data && !data.error) {
-            console.log("[loadAnalysisData] Data is valid, calling renderAnalysisData...");
+            console.log("[loadAnalysisData] Data received successfully (no 'error' key). PRE-RENDER CALL.");
 
             const modelName = data.analysis_status?.model_name;
             if (modelName && modelName !== 'N/A' && loadingMessageMain) {
@@ -326,6 +372,8 @@ async function loadAnalysisData(startDateISO, endDateISO) {
  * @param {HTMLElement} analysisContent - The main content container element.
  */
 function renderAnalysisData(data) {
+    console.log("[renderAnalysisData] FUNCTION START.");
+
     // *** Log at start of function ***
     console.log("[renderAnalysisData] Start. Checking errorDisplay:", errorDisplay);
 
@@ -358,14 +406,15 @@ function renderAnalysisData(data) {
         renderTopThemes(data.top_themes);
         renderSentimentTrends(data.sentiment_trends);
         renderThemeCorrelation(data.theme_sentiment_correlation);
-        renderCollapsibleCategories(categorizedData?.common_questions, 'common-questions');
-        renderCollapsibleCategories(categorizedData?.concerns_skepticism, 'concerns-skepticism');
-
-        // *** ADD SPECIFIC LOG HERE ***
-        console.log("%%% DEBUG: Data for Positive Interactions: %%%", JSON.stringify(categorizedData?.positive_interactions, null, 2));
-
+        
+        // *** NEW: Call renderCategoryLists ***
+        renderCategoryLists(categorizedData?.common_questions, 'common-questions');
+        renderCategoryLists(categorizedData?.concerns_skepticism, 'concerns-skepticism');
+        
         renderPositiveInteractions(categorizedData?.positive_interactions);
         // --- End Render Components ---
+
+        console.log("[renderAnalysisData] All rendering components called. PRE-TRANSITION.");
 
         // --- Handle Smooth Transition ---
         // *** ADD CHECKS ***
@@ -729,16 +778,18 @@ function renderSentimentTrends(trendData) {
                 {
                     label: 'Average Sentiment', // Updated label
                     data: avgScores,           // Use avgScores
-                    borderColor: vizPalette[3], // Medium Blue 
-                    backgroundColor: hexToRgba(vizPalette[3], 0.1), 
+                    borderColor: vizPalette[3] || themeColors.accent, // Use accent color or fallback
                     borderWidth: 2,
-                    pointBackgroundColor: vizPalette[3],
+                    pointBackgroundColor: vizPalette[3] || themeColors.accent,
                     pointRadius: 3,
-                    pointHoverRadius: 5,
-                    tension: 0.3, 
-                    fill: true 
+                    tension: 0.4,
+                    fill: true,
+                    // Safely call hexToRgba
+                    backgroundColor: (vizPalette[3] && vizPalette[3].startsWith('#')) 
+                                     ? hexToRgba(vizPalette[3], 0.1) 
+                                     : 'rgba(247, 37, 133, 0.1)' // Fallback transparent accent
                 }
-                // Removed agent/caller specific datasets as data not present
+                // Add datasets for caller/agent trends if data structure provides them
             ]
         },
         options: {
@@ -867,145 +918,91 @@ function getSentimentClassFromLabel(label) {
 }
 
 /**
- * Renders collapsible categories (Common Questions, Concerns/Skepticism) using Bootstrap Accordion.
+ * Renders lists of clickable category names (Top 5).
  * @param {Array<object>} categories - Array of category objects, each with `category_name`, `count`, and `quotes`.
  * @param {string} type - Identifier string ('common-questions' or 'concerns-skepticism').
  */
-function renderCollapsibleCategories(categories, type) {
-    const accordionContainerId = `${type}-accordion`;
-    const accordionContainer = document.getElementById(accordionContainerId);
+function renderCategoryLists(categories, type) {
+    const listContainerId = `${type}-list`; // e.g., common-questions-list
+    const listContainer = document.getElementById(listContainerId);
 
-    if (!accordionContainer) {
-        console.error(`Accordion container not found: #${accordionContainerId}`);
+    if (!listContainer) {
+        console.error(`Category list container not found: #${listContainerId}`);
         return;
     }
 
-    accordionContainer.innerHTML = ''; // Clear previous content
+    listContainer.innerHTML = ''; // Clear placeholder
 
     if (!categories || categories.length === 0) {
-        accordionContainer.innerHTML = `<div class="text-center text-muted p-3">No ${type.replace('-', ' ')} identified for this period.</div>`;
+        listContainer.innerHTML = `<div class="text-center text-muted p-3">No ${type.replace('-', ' ')} identified.</div>`;
         return;
     }
 
-    console.log(`Rendering ${type}:`, categories);
+    // Sort categories by count (descending) 
+    const sortedCategories = [...categories].sort((a, b) => (b.count || 0) - (a.count || 0)); // Use spread to avoid modifying original array
+    
+    // *** Correctly slice the sorted array ***
+    const topCategories = sortedCategories.slice(0, 5);
 
-    categories.forEach((category, index) => {
-        const categoryId = `${type}-category-${index}`;
-        const collapseId = `${type}-collapse-${index}`;
+    console.log(`Rendering Top 5 ${type} (from ${sortedCategories.length} total):`, topCategories);
 
-        const accordionItem = document.createElement('div');
-        accordionItem.className = 'accordion-item';
+    const listGroup = document.createElement('ul');
+    listGroup.className = 'list-group list-group-flush';
 
-        const header = document.createElement('h2');
-        header.className = 'accordion-header';
-        header.id = `${categoryId}-header`;
+    topCategories.forEach((category, index) => {
+        // *** Add logging and try...catch for each item ***
+        console.log(`[${type}] Processing category item ${index}:`, category);
+        try {
+            const categoryName = category.category_name || 'Unnamed Category';
+            const count = category.count || 0;
+            const quotes = category.quotes || [];
 
-        const button = document.createElement('button');
-        button.className = 'accordion-button collapsed'; // Start collapsed
-        button.type = 'button';
-        button.dataset.bsToggle = 'collapse';
-        button.dataset.bsTarget = `#${collapseId}`;
-        button.setAttribute('aria-expanded', 'false');
-        button.setAttribute('aria-controls', collapseId);
+            const listItem = document.createElement('li');
+            // listItem.className = 'list-group-item'; // Removed class
 
-        const categoryName = document.createElement('span');
-        categoryName.textContent = category.category_name || 'Unnamed Category';
-        categoryName.className = 'me-auto'; // Push badge to the right
+            const link = document.createElement('a');
+            link.href = '#';
+            link.className = 'd-flex justify-content-between align-items-center text-decoration-none category-list-item text-primary py-2 px-3 border-bottom';
+            link.dataset.categoryName = categoryName;
+            try {
+                link.dataset.quotes = JSON.stringify(quotes);
+            } catch (e) {
+                console.error(`Error stringifying quotes for category ${categoryName}:`, e);
+                link.dataset.quotes = '[]'; 
+            }
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = categoryName;
+            nameSpan.className = 'me-2';
 
-        const badge = document.createElement('span');
-        badge.className = 'badge bg-secondary rounded-pill ms-2'; // Added margin-start
-        badge.textContent = category.count || 0;
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-secondary rounded-pill';
+            badge.textContent = count;
 
-        button.appendChild(categoryName);
-        button.appendChild(badge);
-        header.appendChild(button);
-
-        const collapse = document.createElement('div');
-        collapse.id = collapseId;
-        collapse.className = 'accordion-collapse collapse';
-        collapse.setAttribute('aria-labelledby', header.id);
-        collapse.dataset.bsParent = `#${accordionContainerId}`;
-
-        const body = document.createElement('div');
-        body.className = 'accordion-body';
-
-        const listGroup = document.createElement('ul');
-        listGroup.className = 'list-group list-group-flush'; // Flush removes borders
-
-        if (category.quotes && category.quotes.length > 0) {
-            category.quotes.forEach(quoteData => {
-                const listItem = document.createElement('li');
-                // REMOVE OLD: d-flex justify-content-between align-items-start
-                listItem.className = 'list-group-item py-2 px-0'; // Simpler class, adjust padding if needed
-
-                const quoteTextContainer = document.createElement('div');
-                // No extra classes needed now, text/link handles content
-                // REMOVE OLD: quoteTextContainer.className = 'me-3 flex-grow-1';
-
-                if (quoteData.conversation_id && String(quoteData.conversation_id).toLowerCase() !== 'null') {
-                    // Create a link if ID exists and is not null/undefined
-                    const link = document.createElement('a');
-                    link.href = '#'; // Prevent page jump, handled by JS
-                    link.className = 'text-decoration-none text-dark transcript-link'; // Add class, style as needed
-                    link.dataset.conversationId = quoteData.conversation_id;
-                    link.innerHTML = `<i class="bi bi-quote me-1"></i>${quoteData.quote_text || "Empty Quote"}`; // Add quote icon for visual cue
-                    quoteTextContainer.appendChild(link);
-                } else {
-                    // Just display text if no ID
-                    quoteTextContainer.innerHTML = `<i class="bi bi-quote me-1 text-muted"></i><span class="text-muted">${quoteData.quote_text || "Empty Quote"}</span>`;
-                    // Optionally add a class to indicate it's not clickable - Already done with text-muted span
-                }
-
-                // Append the text container (which now contains either text or a link)
-                listItem.appendChild(quoteTextContainer);
-
-                // Remove the old external link icon logic
-                /*
-                const linkContainer = document.createElement('div');
-                linkContainer.className = 'flex-shrink-0'; // Prevent link from wrapping
-
-                if (quoteData.conversation_id) {
-                    const link = document.createElement('a');
-                    link.href = '#'; // Placeholder, will be handled by JS
-                    link.className = 'btn btn-sm btn-outline-primary transcript-link-icon'; // Example class
-                     link.dataset.conversationId = quoteData.conversation_id;
-                    link.innerHTML = '<i class="bi bi-box-arrow-up-right"></i>'; // Link icon
-                    link.setAttribute('title', 'View Transcript');
-                    linkContainer.appendChild(link);
-                } else {
-                     // Optionally show a disabled state or nothing
-                }
-                listItem.appendChild(linkContainer); // Append link icon container
-                */
-
-                // Sentiment Badge (if applicable) - Keep this if needed
-                if (quoteData.sentiment_label) {
-                    const sentimentBadge = document.createElement('span');
-                    sentimentBadge.className = `badge rounded-pill ms-2 ${getSentimentClassFromLabel(quoteData.sentiment_label)}`;
-                    sentimentBadge.textContent = quoteData.sentiment_label;
-                    // Append badge next to the text container or where appropriate
-                    quoteTextContainer.appendChild(sentimentBadge); // Append inside the main text container
-                }
-
-                listGroup.appendChild(listItem);
-            });
-        } else {
-            const noQuotesItem = document.createElement('li');
-            noQuotesItem.className = 'list-group-item text-muted px-0';
-            noQuotesItem.textContent = 'No specific examples found.';
-            listGroup.appendChild(noQuotesItem);
+            link.appendChild(nameSpan);
+            link.appendChild(badge);
+            listItem.appendChild(link);
+            listGroup.appendChild(listItem);
+            console.log(`[${type}] Successfully appended item ${index}: ${categoryName}`);
+        } catch (error) {
+            console.error(`[${type}] Error processing category item ${index}:`, category, error);
+            // Optionally append an error message placeholder to the list
         }
-
-        body.appendChild(listGroup);
-        collapse.appendChild(body);
-        accordionItem.appendChild(header);
-        accordionItem.appendChild(collapse);
-        accordionContainer.appendChild(accordionItem);
     });
+
+    listContainer.appendChild(listGroup);
+
+    // Optionally add a note if more categories were available
+    if (sortedCategories.length > 5) {
+        const moreNote = document.createElement('p');
+        moreNote.className = 'small text-muted mt-2';
+        moreNote.textContent = `Top 5 shown. ${sortedCategories.length - 5} more categories identified.`;
+        listContainer.appendChild(moreNote);
+    }
 }
 
 /**
- * Renders the list of most positive interactions.
+ * Renders the list of most positive interactions (Top 10).
  * @param {object} interactionData - Object containing `count` and `quotes` array.
  */
 function renderPositiveInteractions(interactionData) {
@@ -1018,47 +1015,90 @@ function renderPositiveInteractions(interactionData) {
     }
 
     listContainer.innerHTML = ''; // Clear previous content
-    countSpan.textContent = interactionData?.count || 0;
+    const totalCount = interactionData?.count || 0;
+    countSpan.textContent = totalCount; // Show total count
 
-    // *** CORRECTED KEY: Use interactionData?.quotes ***
-    const interactions = interactionData?.quotes;
+    const quotes = interactionData?.quotes;
 
-    if (!interactions || interactions.length === 0) {
+    if (!quotes || quotes.length === 0) {
         listContainer.innerHTML = '<li class="list-group-item text-muted text-center">No particularly positive interactions identified.</li>';
         return;
     }
 
-    // This log should now run correctly
-    console.log("Rendering Positive Interactions (using .quotes key):", interactions);
+    // Sort by sentiment_score (desc) and take top 10
+    // Ensure sentiment_score exists and is a number for sorting
+    const sortedQuotes = [...quotes] // Use spread to avoid modifying original array
+        .filter(q => q.sentiment_score !== null && q.sentiment_score !== undefined)
+        .sort((a, b) => b.sentiment_score - a.sentiment_score);
+        
+    // *** Correctly slice the sorted array ***
+    const topQuotes = sortedQuotes.slice(0, 10);
 
-    interactions.forEach(interaction => {
-        const listItem = document.createElement('li');
-        // Use flexbox for layout: text on left, badge on right
-        listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+    console.log(`Rendering Top 10 Positive Interactions (from ${sortedQuotes.length} available with scores):`, topQuotes);
 
-        const textElement = document.createElement('span');
-        textElement.className = 'interaction-quote me-3'; // Add margin to separate from badge
+    const listGroup = document.createElement('ul');
+    listGroup.className = 'list-group list-group-flush';
 
-        // Use interaction.quote_text and interaction.conversation_id (already correct)
-        if (interaction.conversation_id && String(interaction.conversation_id).toLowerCase() !== 'null') {
-            const link = document.createElement('a');
-            link.href = '#'; 
-            link.className = 'text-decoration-none text-dark transcript-link'; 
-            link.dataset.conversationId = interaction.conversation_id;
-            link.innerHTML = `<i class="bi bi-quote me-1"></i>${interaction.quote_text || "Empty Quote"}`; 
-            textElement.appendChild(link);
-        } else {
-            textElement.innerHTML = `<i class="bi bi-quote me-1 text-muted"></i><span class="text-muted">${interaction.quote_text || "Empty Quote"}</span>`;
+    topQuotes.forEach((interaction, index) => {
+         // *** Add logging and try...catch for each item ***
+        console.log(`[PositiveInteractions] Processing item ${index}:`, interaction);
+        try {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+
+            const textElement = document.createElement('span');
+            textElement.className = 'interaction-quote me-3'; 
+
+            if (interaction.conversation_id && String(interaction.conversation_id).toLowerCase() !== 'null') {
+                const link = document.createElement('a');
+                link.href = '#'; 
+                link.className = 'text-decoration-none text-dark transcript-link'; 
+                link.dataset.conversationId = interaction.conversation_id;
+                link.innerHTML = `<i class="bi bi-quote me-1"></i>${interaction.quote_text || "Empty Quote"}`; 
+                textElement.appendChild(link);
+            } else {
+                textElement.innerHTML = `<i class="bi bi-quote me-1 text-muted"></i><span class="text-muted">${interaction.quote_text || "Empty Quote"}</span>`;
+            }
+
+            const sentimentBadge = document.createElement('span');
+            let sentimentLabel = interaction.sentiment_label || 'Positive'; 
+            if (!interaction.sentiment_label && interaction.sentiment_score !== null && interaction.sentiment_score !== undefined) {
+                sentimentLabel = Formatter && Formatter.sentimentLabel ? Formatter.sentimentLabel(interaction.sentiment_score) : 'Positive';
+            }
+            sentimentBadge.className = `badge rounded-pill ${getSentimentClassFromLabel(sentimentLabel)} text-nowrap`;
+            sentimentBadge.textContent = sentimentLabel;
+
+            listItem.appendChild(textElement); 
+            listItem.appendChild(sentimentBadge); 
+            listGroup.appendChild(listItem);
+             console.log(`[PositiveInteractions] Successfully appended item ${index}`);
+        } catch (error) {
+             console.error(`[PositiveInteractions] Error processing item ${index}:`, interaction, error);
         }
-
-        const sentimentBadge = document.createElement('span');
-        sentimentBadge.className = `badge rounded-pill ${getSentimentClassFromLabel(interaction.sentiment_label)} text-nowrap`;
-        sentimentBadge.textContent = interaction.sentiment_label || 'Positive'; 
-
-        listItem.appendChild(textElement); 
-        listItem.appendChild(sentimentBadge); 
-        listContainer.appendChild(listItem);
     });
+    
+    listContainer.appendChild(listGroup);
+
+    // Optionally add a note if more interactions were available
+    const totalPositiveAvailable = sortedQuotes.length;
+    if (totalPositiveAvailable > 10) {
+        const moreNote = document.createElement('p');
+        moreNote.className = 'small text-muted mt-2';
+        // Adjust message slightly
+        moreNote.textContent = `Top 10 shown. ${totalPositiveAvailable - 10} more positive interactions identified with sentiment scores.`;
+        listContainer.appendChild(moreNote);
+    } else if (totalCount > totalPositiveAvailable) {
+        // Handle case where total count is high but few have scores
+        const moreNote = document.createElement('p');
+        moreNote.className = 'small text-muted mt-2';
+        moreNote.textContent = `${topQuotes.length} shown. Some interactions may lack sentiment scores for ranking. Total positive: ${totalCount}.`;
+        listContainer.appendChild(moreNote);
+    } else if (totalCount > 10 && totalPositiveAvailable <= 10) {
+         const moreNote = document.createElement('p');
+        moreNote.className = 'small text-muted mt-2';
+        moreNote.textContent = `${topQuotes.length} shown. Total positive interactions: ${totalCount}.`;
+        listContainer.appendChild(moreNote);
+    }
 }
 
 // Add helper functions to Formatter in utils.js or here if local
@@ -1121,16 +1161,17 @@ function showTranscriptModal(conversationId) {
 
 /**
  * Sets up event listeners after the DOM is ready.
- * Specifically, adds a delegated listener for transcript links.
- * Also adds listeners for Bootstrap accordion events to fix scrolling.
+ * Includes listeners for transcript links and category list items.
  */
 function setupEventListeners() {
     const contentArea = document.getElementById('analysis-content');
     if (contentArea) {
-        // Delegated listener for transcript links
         contentArea.addEventListener('click', (event) => {
             const linkElement = event.target.closest('.transcript-link');
+            const categoryItem = event.target.closest('.category-list-item');
+
             if (linkElement) {
+                // --- Transcript Link Handling (Placeholder) ---
                 event.preventDefault(); 
                 const conversationId = linkElement.dataset.conversationId;
                 if (conversationId && conversationId !== 'null') {
@@ -1138,40 +1179,197 @@ function setupEventListeners() {
                 } else {
                     console.warn("Clicked transcript link but conversation ID is missing or null.");
                 }
+            } else if (categoryItem) {
+                // --- Category List Item Click Handling ---
+                event.preventDefault();
+                const categoryName = categoryItem.dataset.categoryName;
+                const quotesJson = categoryItem.dataset.quotes;
+                
+                console.log(`Category item clicked: ${categoryName}`);
+
+                if (categoryName && quotesJson && categoryModal) {
+                    try {
+                        const quotes = JSON.parse(quotesJson);
+                        // Update modal title
+                        if (categoryModalTitle) {
+                            categoryModalTitle.textContent = categoryName || 'Category Details';
+                        }
+                        // Update modal body
+                        if (categoryModalBody) {
+                            populateModalBody(quotes);
+                        }
+                        // Show the modal
+                        categoryModal.show();
+                    } catch (e) {
+                        console.error("Error parsing quotes JSON or showing modal:", e);
+                         if (categoryModalBody) {
+                             categoryModalBody.innerHTML = '<p class="text-danger">Error loading quotes.</p>';
+                         }
+                         if (categoryModalTitle) {
+                             categoryModalTitle.textContent = 'Error';
+                         }
+                         categoryModal.show(); // Show modal even with error
+                    }
+                } else {
+                    console.warn("Missing category data or modal instance for clicked item.", {categoryName, quotesJson, categoryModal: !!categoryModal });
+                }
             }
         });
-         console.log("Delegated event listener for transcript links added to #analysis-content.");
+         console.log("Delegated event listeners for transcript links AND category items added to #analysis-content.");
     } else {
-        console.error("Could not find #analysis-content to attach transcript link listener.");
+        console.error("Could not find #analysis-content to attach event listeners.");
     }
 
-    // Accordion Scroll Fix Listener
-    const commonQuestionsAccordion = document.getElementById('common-questions-accordion');
-    const concernsSkepticismAccordion = document.getElementById('concerns-skepticism-accordion');
+    // *** Add listener for the RAG submit button ***
+    if (ragSubmitBtn) {
+        ragSubmitBtn.addEventListener('click', submitRagQuery);
+    } else {
+        console.error("Could not find RAG submit button to attach listener.");
+    }
+}
 
-    const applyScrollStyles = (event) => {
-        // event.target is the .accordion-collapse element that was shown
-        console.log('shown.bs.collapse event fired for:', event.target.id);
-        const collapseElement = event.target;
-        if (collapseElement && collapseElement.classList.contains('accordion-collapse')) {
-            // Find the .list-group INSIDE the .accordion-body within the shown collapse element
-            const listGroupElement = collapseElement.querySelector('.accordion-body .list-group');
-            if (listGroupElement) {
-                console.log('Applying scroll styles to .list-group within:', collapseElement.id);
-                listGroupElement.style.maxHeight = '300px'; // Apply max-height to list-group
-                listGroupElement.style.overflowY = 'auto'; // Apply overflow to list-group
-            } else {
-                console.warn('Could not find .list-group inside .accordion-body within:', collapseElement.id);
-            }
+// --- NEW MODAL POPULATION FUNCTION ---
+/**
+ * Populates the category detail modal body with a list of quotes.
+ * @param {Array<object>} quotes - Array of quote objects for the category.
+ */
+function populateModalBody(quotes) {
+    if (!categoryModalBody) return;
+
+    categoryModalBody.innerHTML = ''; // Clear previous content
+
+    const totalQuotes = quotes?.length || 0;
+
+    if (totalQuotes === 0) {
+        categoryModalBody.innerHTML = '<p class="text-muted">No quotes found for this category.</p>';
+        return;
+    }
+
+    // *** Slice to get Top 5 quotes for display ***
+    const topQuotes = quotes.slice(0, 5);
+    console.log(`Displaying Top 5 quotes in modal (from ${totalQuotes} total):`, topQuotes);
+
+    const listGroup = document.createElement('ul');
+    listGroup.className = 'list-group list-group-flush';
+
+    // *** Loop through topQuotes only ***
+    topQuotes.forEach(quoteData => {
+        const listItem = document.createElement('li');
+        listItem.className = 'list-group-item d-flex justify-content-between align-items-start py-2 px-0';
+
+        const quoteTextContainer = document.createElement('div');
+        quoteTextContainer.className = 'me-3 flex-grow-1';
+
+        if (quoteData.conversation_id && String(quoteData.conversation_id).toLowerCase() !== 'null') {
+            const link = document.createElement('a');
+            link.href = '#';
+            link.className = 'text-decoration-none text-dark transcript-link';
+            link.dataset.conversationId = quoteData.conversation_id;
+             // Store quote text in data attribute for potential highlighting later
+            link.dataset.quoteText = quoteData.quote_text || ''; 
+            link.innerHTML = `<i class="bi bi-quote me-1"></i>${quoteData.quote_text || "Empty Quote"}`;
+            quoteTextContainer.appendChild(link);
+        } else {
+            quoteTextContainer.innerHTML = `<i class="bi bi-quote me-1 text-muted"></i><span class="text-muted">${quoteData.quote_text || "Empty Quote"}</span>`;
         }
-    };
 
-    if (commonQuestionsAccordion) {
-        commonQuestionsAccordion.addEventListener('shown.bs.collapse', applyScrollStyles);
-        console.log("Added shown.bs.collapse listener to #common-questions-accordion");
+        if (quoteData.sentiment_label) {
+            const sentimentBadge = document.createElement('span');
+            sentimentBadge.className = `badge rounded-pill ms-2 ${getSentimentClassFromLabel(quoteData.sentiment_label)}`;
+            sentimentBadge.textContent = quoteData.sentiment_label;
+            quoteTextContainer.appendChild(sentimentBadge);
+        }
+        listItem.appendChild(quoteTextContainer);
+        listGroup.appendChild(listItem);
+    });
+
+    categoryModalBody.appendChild(listGroup);
+
+    // *** Add note if more than 5 quotes existed ***
+    if (totalQuotes > 5) {
+        const moreNote = document.createElement('p');
+        moreNote.className = 'small text-muted mt-3 mb-0'; // Add margin top
+        moreNote.textContent = `Showing Top 5 quotes. ${totalQuotes} total quotes in this category.`;
+        categoryModalBody.appendChild(moreNote);
     }
-    if (concernsSkepticismAccordion) {
-        concernsSkepticismAccordion.addEventListener('shown.bs.collapse', applyScrollStyles);
-        console.log("Added shown.bs.collapse listener to #concerns-skepticism-accordion");
+}
+
+// --- NEW: Function to submit RAG query ---
+async function submitRagQuery() {
+    if (!ragQueryInput || !ragSubmitBtn || !ragResponseArea || !ragResponseContent || !ragErrorDisplay || !ragSubmitSpinner) {
+        console.error("RAG Query UI elements not found. Cannot submit query.");
+        return;
+    }
+
+    const query = ragQueryInput.value.trim();
+    if (!query) {
+        ragErrorDisplay.textContent = "Please enter a question.";
+        ragErrorDisplay.style.display = 'block';
+        ragResponseArea.style.display = 'none';
+        return;
+    }
+
+    // Get current date range
+    const selectedButton = document.querySelector('#date-range-selector .date-range-btn.active');
+    const timeframe = selectedButton ? selectedButton.dataset.timeframe : 'last_7_days';
+    const { startDate, endDate } = getDatesFromTimeframe(timeframe);
+
+    console.log(`Submitting RAG Query: "${query}" for ${startDate} to ${endDate}`);
+
+    // --- UI Updates for Loading State ---
+    ragSubmitBtn.disabled = true;
+    if (ragSubmitSpinner) ragSubmitSpinner.style.display = 'inline-block';
+    ragResponseArea.style.display = 'none';
+    ragResponseContent.textContent = ''; // Clear previous response
+    ragErrorDisplay.style.display = 'none';
+
+    try {
+        const payload = {
+            query: query,
+            start_date: startDate,
+            end_date: endDate
+        };
+        // const result = await API.post('/api/themes-sentiment/query', payload);
+        
+        // Replace API.post with standard fetch
+        const response = await fetch('/api/themes-sentiment/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                 // Add CSRF token header if needed by your Flask setup
+                // 'X-CSRFToken': getCsrfToken() 
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            // Attempt to get error message from response body, else use status text
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try {
+                 const errorData = await response.json();
+                 errorMsg = errorData.error || errorMsg;
+            } catch (e) { /* Ignore parsing error if body is not JSON */ }
+            throw new Error(errorMsg);
+        }
+        
+        const result = await response.json(); // Parse JSON body
+
+        if (result && result.answer) {
+            ragResponseContent.textContent = result.answer;
+            ragResponseArea.style.display = 'block';
+        } else if (result && result.error) {
+            throw new Error(result.error); // Throw error to be caught below
+        } else {
+            throw new Error("Received an unexpected response from the server.");
+        }
+
+    } catch (error) {
+        console.error("Error submitting RAG query:", error);
+        ragErrorDisplay.textContent = `Error: ${error.message || 'Could not process your query.'}`;
+        ragErrorDisplay.style.display = 'block';
+    } finally {
+        // --- Restore UI State ---
+        ragSubmitBtn.disabled = false;
+        if (ragSubmitSpinner) ragSubmitSpinner.style.display = 'none';
     }
 } 

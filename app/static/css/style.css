@@ -148,7 +148,6 @@ h1, h2, h3, h4, h5, h6 {
     background-color: var(--white);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Softer shadow */
     transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-    overflow: hidden; /* Ensure content respects border-radius */
     display: flex; /* Use flex for internal layout */
     flex-direction: column; /* Stack header and body */
     height: 100%; /* Ensure cards in a row are same height */
@@ -910,24 +909,54 @@ h1, h2, h3, h4, h5, h6 {
 } 
 
 /* Accordion Content Scrolling for Themes/Sentiment Page */
-/* Apply base styles to .accordion-collapse, JS will ensure they apply after animation */
-#common-questions-accordion .accordion-item .accordion-collapse,
-#concerns-skepticism-accordion .accordion-item .accordion-collapse {
-    max-height: 300px; /* Base height - REMOVED !important */
-    overflow-y: auto; /* Base overflow - REMOVED !important */
-}
-
-/* Ensure body and list group inside don't interfere */
+/* FINAL ATTEMPT: Apply scroll directly to accordion-body, use !important */
 #common-questions-accordion .accordion-body,
 #concerns-skepticism-accordion .accordion-body {
-    padding: 0; /* Keep padding removed */
+    max-height: 300px !important;
+    overflow-y: auto !important;
+    padding: 1rem !important; /* Ensure padding */
 }
+
+/* Remove conflicting styles from list-group */
 #common-questions-accordion .accordion-body .list-group,
 #concerns-skepticism-accordion .accordion-body .list-group {
    margin-bottom: 0;
+   overflow-y: visible;
+   display: block !important;
+   height: auto !important; /* Explicitly set height based on content */
 }
+
+/* === DEBUG STYLES for list items === */
+/*
+.category-list-container .list-group li,
+#positive-interactions-list .list-group li {
+    display: block !important;
+    min-height: 30px !important; 
+    background-color: lightgreen !important; 
+    border-bottom: 1px dashed red !important; 
+    margin-bottom: 2px !important; 
+    padding: 5px !important; 
+    overflow: visible !important; 
+}
+.category-list-container .list-group li a,
+#positive-interactions-list .list-group li span.interaction-quote,
+#positive-interactions-list .list-group li span.interaction-quote a {
+    display: block !important; 
+    width: auto !important; 
+    height: auto !important; 
+    background-color: lightblue !important; 
+    color: black !important; 
+}
+*/
+/* === END DEBUG STYLES === */
 
 /* Minor style tweak for accordion button badges */
 .accordion-button .badge {
     font-size: 0.75em; /* Slightly smaller badge */
+} 
+
+/* Override for accordion cards to prevent flex from interfering with scrolling */
+.accordion-card .card-body {
+    display: block; /* Change from flex to block */
+    min-height: auto; /* Remove min-height */
 } 

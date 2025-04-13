@@ -949,3 +949,43 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **CSS Specificity (`style.css`):** Overriding Bootstrap's default accordion styles for scrolling proved difficult. Multiple selectors (targeting `.accordion-body`, `.list-group`, and `.accordion-collapse`) were attempted. High specificity or potential structural conflicts with Bootstrap might be preventing the desired `max-height` and `overflow-y` from applying correctly.
 *   **Data Dependency (Links):** Features like the "View" transcript link in accordions rely directly on non-null values (`conversation_id`) in the API data. The current sample/LLM data seems to consistently return `null` for these, preventing link rendering. Verification is needed when real data with IDs is present.
 *   **JS DOM Timing & Null Checks:** Assigning element references via `getElementById` *after* `DOMContentLoaded` is crucial. Adding `if (element)` checks before accessing `.textContent` or `.style` properties, especially within `try...catch` blocks and async callbacks, is essential for preventing runtime errors when elements might be unexpectedly missing or `null`.
+
+## Agent Session Summary (April 12, 2025 - Themes & Sentiment UI Refinement)
+
+**1. Where We've Been:**
+
+*   Reviewed the previous session's focus on fixing JavaScript data rendering on the `/themes-sentiment` page.
+*   Addressed outstanding UI issues: accordion scrolling, missing links (due to null `conversation_id` in data), and positive interactions list layout.
+*   Attempted numerous CSS and JavaScript solutions to fix accordion scrolling (targeting `.accordion-body`, `.accordion-collapse`, `.list-group`, using `!important`, using `shown.bs.collapse` JS event). Observed scrollbar flashing, indicating styles applied but were overridden, likely by Bootstrap's JS or CSS during/after animation.
+*   Used a diagnostic `div` to confirm the container *could* scroll, but the `ul.list-group` inside was not having its height calculated correctly by the browser (stuck at 122px despite visible content), preventing overflow. CSS attempts to force `height: auto` or `display: block` on the `ul` failed.
+*   Pivoted away from the problematic accordion scrolling.
+*   Implemented a "Modal per Category" display:
+    *   Replaced accordion HTML with simple list containers (`#common-questions-list`, `#concerns-skepticism-list`).
+    *   Added a generic Bootstrap modal (`#categoryDetailModal`).
+    *   Refactored JS (`themes_sentiment_refactored.js`) to remove accordion logic, render Top 5 categories as clickable links (`renderCategoryLists`), populate the modal with Top 5 quotes (`populateModalBody`), add event listeners for category clicks, and limit positive interactions list to Top 10 (`renderPositiveInteractions`).
+*   Refined category list item appearance (badges, spacing).
+*   Restored dashboard KPI card styling (`.stat-card` in `style.css`) which was broken by earlier general CSS changes.
+*   Diagnosed why lists showed fewer items than expected (e.g., 2/1/3 instead of 5/5/10): Confirmed via console and server logs that for the default 7-day date range, this was the actual amount of data returned by the API.
+*   Tested with the "All" time range (875 conversations found). **Problem:** The API still returned the same minimal data (2/1/3 items), despite logs showing 300+ conversations being processed by the LLM.
+
+**2. What Has Been Fixed:**
+
+*   Frontend UI switched from accordions to a "Modal per Category" list display for Common Questions and Concerns/Skepticism.
+*   Category lists render the Top 5 available categories based on count.
+*   Positive Interactions list renders the Top 10 available interactions based on sentiment score.
+*   Clicking a category opens a modal showing the Top 5 quotes for that category.
+*   Category list item styling is improved (name and badge display correctly).
+*   Dashboard KPI card styling is restored.
+*   Transcript links are correctly attached to quotes (but currently trigger a placeholder function).
+
+**3. Current Task & Problem:**
+
+*   **Primary Issue:** The backend API endpoint (`/api/themes-sentiment/full-analysis-v2`) is returning stale or incomplete analysis data, especially for larger date ranges ("All" time). Although the backend logs show hundreds of conversations being fetched and processed by the LLM for the "All" range, the API response consistently contains only the minimal data (2/1/3 items). Server logs show `Returning cached themes/sentiment data for 2025-04-05-2025-04-12` repeatedly, even when different date ranges are selected via the UI. This strongly suggests a **backend caching issue**, where either the cache key is not generated correctly based on the requested dates, or the cache is not being invalidated properly.
+*   **Secondary Task (Deferred):** Implement the actual transcript viewer functionality. This requires building a new modal, a backend API endpoint (`/api/transcript/<id>`), and frontend JS to fetch, render, and highlight quotes.
+
+**4. Codebase Learnings & Guidance:**
+
+*   **Frontend Rendering:** The JS (`themes_sentiment_refactored.js`) correctly renders the data it receives but is dependent on the backend providing accurate and complete data.
+*   **CSS:** Bootstrap overrides can be complex. Unrelated styles (`overflow: hidden` on `.stat-card`) can cause unexpected side effects. The list height calculation issue remains unexplained but was bypassed by changing the UI pattern.
+*   **Backend Caching:** The caching mechanism for the themes/sentiment analysis seems overly aggressive or incorrectly keyed, leading to stale data being served. This needs immediate investigation in the backend Python code (Flask route and caching logic).
+*   **Backend Analysis:** While caching is the prime suspect, there's a secondary possibility of a bug in the `ConversationAnalyzer` service's aggregation logic when handling larger datasets (>300 conversations).

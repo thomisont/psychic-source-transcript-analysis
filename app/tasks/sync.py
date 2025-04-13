@@ -21,6 +21,9 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import desc, func, cast, Text
 from dateutil import parser
 from postgrest import APIResponse # Add this import if not already present
+import openai # Added
+import os # Added
+from typing import List, Dict
 
 # Import necessary components (use absolute imports)
 from app.extensions import db
@@ -30,6 +33,49 @@ from app.api.elevenlabs_client import ElevenLabsClient # We need the client dire
 # Import SupabaseClient (add path to ensure it's available)
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from tools.supabase_client import SupabaseClient
+
+# --- Helper function for OpenAI Embedding ---
+# Modified to accept transcript turns and concatenate
+# Modified to return a tuple: (embedding_vector, was_truncated)
+def get_embedding(turns: List[Dict[str, str]], client):
+    was_truncated = False # Flag to track truncation
+    if not client or not turns:
+        logging.debug("Sync Task: Skipping embedding generation - no client or turns provided.")
+        return None, was_truncated
+    
+    # Concatenate transcript content
+    full_transcript_text = " ".join([turn.get('content', '') for turn in turns if turn.get('content')])
+    
+    if not full_transcript_text.strip():
+        logging.debug("Sync Task: Skipping embedding generation - concatenated transcript is empty.")
+        return None, was_truncated
+
+    # Simple truncation heuristic (can be improved with tiktoken)
+    # Estimate max characters based on average token length
+    max_chars = 8000 * 4 # Rough estimate for text-embedding-3-small max tokens
+    text_to_embed = full_transcript_text
+    if len(full_transcript_text) > max_chars:
+        text_to_embed = full_transcript_text[:max_chars]
+        logging.warning(f"Sync Task: Truncated transcript text before embedding due to length ({len(full_transcript_text)} chars).")
+        was_truncated = True # Set the flag
+        
+    try:
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text_to_embed
+        )
+        # Assuming the embedding is in response.data[0].embedding for openai > 1.0
+        if response.data and len(response.data) > 0:
+             logging.debug(f"Sync Task: Successfully generated embedding for concatenated transcript snippet '{text_to_embed[:100]}...'.")
+             return response.data[0].embedding, was_truncated # Return vector and flag
+        else:
+             logging.error("Sync Task: OpenAI embedding response format unexpected or empty.")
+             return None, was_truncated
+    except Exception as e:
+        # Log more context about the text length that failed
+        logging.error(f"Sync Task: Failed to get embedding from OpenAI for transcript (approx {len(text_to_embed)} chars): {e}", exc_info=True) 
+        return None, was_truncated # Return None and flag on error
+# --- End Helper Function ---
 
 def sync_new_conversations(app, full_sync=False):
     """
@@ -46,6 +92,7 @@ def sync_new_conversations(app, full_sync=False):
         conversations_updated_count = 0
         conversations_skipped_count = 0
         conversations_failed_count = 0
+        truncated_count = 0 # ADDED: Counter for truncated embeddings
         conversations_checked_api_count = 0 # How many summaries we got from API
 
         try:
@@ -57,12 +104,26 @@ def sync_new_conversations(app, full_sync=False):
             supabase = SupabaseClient(supabase_url, supabase_key)
             logging.info("Initialized Supabase client for sync task")
             
+            # Initialize OpenAI Client
+            openai_api_key = app.config.get('OPENAI_API_KEY')
+            openai_client = None # Initialize as None
+            if not openai_api_key:
+                logging.warning("Sync Task: OPENAI_API_KEY not found in config. Embedding generation will be skipped.")
+            else:
+                try:
+                    openai_client = openai.OpenAI(api_key=openai_api_key)
+                    logging.info("Initialized OpenAI client for sync task")
+                except Exception as openai_init_err:
+                    logging.error(f"Sync Task: Failed to initialize OpenAI client: {openai_init_err}. Embedding generation will be skipped.")
+                    openai_client = None # Ensure it's None on failure
+            # End OpenAI Client Initialization
+
             client: ElevenLabsClient = app.elevenlabs_client
             if not client or not client.api_key or not client.agent_id:
                 logging.error("Sync Task: ElevenLabs client is not properly configured. Aborting.")
                 return {"status": "error", "message": "Client not configured"}, 500
 
-            # === 1. Get Initial Count & Existing IDs/Summary Status from Supabase ===
+            # === 1. Get Initial Count & Existing IDs/Summary/Embedding Status from Supabase ===
             existing_conversations_dict = {}
             try:
                 # Get initial count
@@ -71,13 +132,17 @@ def sync_new_conversations(app, full_sync=False):
                 initial_count = count_result[0]['count'] if count_result else 0
                 logging.info(f"Sync Task: Initial conversation count in DB: {initial_count}")
 
-                # Fetch all existing external_ids and check if summary is NULL
+                # Fetch all existing external_ids and check if summary/embedding is NULL
                 # Fetch in chunks if necessary for very large tables, but start simple
-                existing_query = "SELECT external_id, (summary IS NOT NULL) as has_summary FROM conversations"
+                existing_query = "SELECT external_id, (summary IS NOT NULL) as has_summary, (embedding IS NOT NULL) as has_embedding FROM conversations"
                 existing_results = supabase.execute_sql(existing_query)
                 if existing_results:
                     for row in existing_results:
-                        existing_conversations_dict[row['external_id']] = row['has_summary']
+                        # Store both summary and embedding status
+                        existing_conversations_dict[row['external_id']] = {
+                            'has_summary': row['has_summary'],
+                            'has_embedding': row['has_embedding']
+                        }
                 logging.info(f"Sync Task: Fetched status for {len(existing_conversations_dict)} existing conversations from DB.")
             except Exception as db_fetch_err:
                  logging.error(f"Sync Task: Failed to fetch initial data from Supabase: {db_fetch_err}. Aborting.")
@@ -142,11 +207,15 @@ def sync_new_conversations(app, full_sync=False):
 
                     # Determine if new or existing, and if update is needed
                     is_new = external_id not in existing_conversations_dict
-                    # Need update if: new OR (existing AND (summary missing OR full_sync))
-                    needs_detail_fetch = is_new or (not is_new and (not existing_conversations_dict[external_id] or full_sync))
+                    # Updated logic: Need update if new OR (existing AND (embedding missing OR full_sync))
+                    needs_detail_fetch = is_new or (
+                        not is_new and (
+                            not existing_conversations_dict[external_id]['has_embedding'] or full_sync
+                        )
+                    )
 
                     if not needs_detail_fetch:
-                        logging.debug(f"Sync Task: Skipping detail fetch for existing conversation {external_id} (summary present, not full sync).")
+                        logging.debug(f"Sync Task: Skipping detail fetch for existing conversation {external_id} (embedding present, not full sync).")
                         conversations_skipped_count += 1
                         continue
                     
@@ -176,7 +245,13 @@ def sync_new_conversations(app, full_sync=False):
                         
                         conv_status = str(adapted_data.get('status', 'unknown')).lower()
                         conv_summary_str = str(summary) if (summary := adapted_data.get('summary')) is not None else None
-                        
+
+                        # --- Generate Embedding FROM TRANSCRIPT ---
+                        embedding_vector, truncated_flag = get_embedding(adapted_data.get('turns', []), openai_client)
+                        if truncated_flag:
+                            truncated_count += 1 # Increment counter if truncated
+                        # --- End Embedding Generation ---
+
                         # --- Perform Insert or Update (Simplified logic here, reuse existing DB blocks below) ---
                         logging.info(f"Sync Task: Pre-Op Check for {external_id}. Op: {'Insert' if is_new else 'Update'}")
                         if is_new:
@@ -206,7 +281,8 @@ def sync_new_conversations(app, full_sync=False):
                                     'created_at': created_at_iso, 
                                     'status': conv_status,
                                     'cost_credits': cost_value_int,
-                                    'summary': conv_summary_str
+                                    'summary': conv_summary_str,
+                                    'embedding': embedding_vector
                                 }
                                 conv_result = supabase.insert('conversations', conv_data)
                                 if not conv_result: 
@@ -273,7 +349,8 @@ def sync_new_conversations(app, full_sync=False):
                                  update_data = {
                                      'cost_credits': cost_value_int,
                                      'status': conv_status,
-                                     'summary': conv_summary_str
+                                     'summary': conv_summary_str,
+                                     'embedding': embedding_vector
                                      # Add other fields if they can change and should be updated
                                  }
                                  response: APIResponse = supabase.client.table('conversations') \
@@ -310,7 +387,14 @@ def sync_new_conversations(app, full_sync=False):
                  final_count = initial_count # Use initial as best guess
 
             # === 6. Log Summary & Return ===
-            logging.info(f"Sync Task Finished. API Checked: {conversations_checked_api_count}, DB Initial: {initial_count}, Added: {conversations_added_count}, Updated: {conversations_updated_count}, Skipped: {conversations_skipped_count}, Failed: {conversations_failed_count}, DB Final: {final_count}.")
+            log_message = (
+                f"Sync Task Finished. API Checked: {conversations_checked_api_count}, "
+                f"DB Initial: {initial_count}, Added: {conversations_added_count}, "
+                f"Updated: {conversations_updated_count}, Skipped: {conversations_skipped_count}, "
+                f"Failed: {conversations_failed_count}, Truncated Embeddings: {truncated_count}, "
+                f"DB Final: {final_count}."
+            )
+            logging.info(log_message)
             return {
                 "status": "success", 
                 "checked_api": conversations_checked_api_count,
@@ -319,7 +403,8 @@ def sync_new_conversations(app, full_sync=False):
                 "updated": conversations_updated_count, 
                 "skipped": conversations_skipped_count,
                 "failed": conversations_failed_count,
-                "final_db_count": final_count
+                "final_db_count": final_count,
+                "truncated_embeddings": truncated_count
             }, 200
 
         except Exception as e: 
@@ -338,5 +423,6 @@ def sync_new_conversations(app, full_sync=False):
                 "updated": conversations_updated_count, 
                 "skipped": conversations_skipped_count,
                 "failed": conversations_failed_count,
-                "final_db_count": final_count_on_error # Report count even on failure
+                "final_db_count": final_count_on_error,
+                "truncated_embeddings": truncated_count
             }, 500

@@ -577,6 +577,67 @@ class SupabaseConversationService:
             base_stats.update(error_payload)
         return base_stats
 
+    # --- Vector Search Method ---
+    def find_similar_conversations(self, query_vector: List[float], start_date: Optional[str] = None, end_date: Optional[str] = None, limit: int = 10, similarity_threshold: float = 0.75) -> List[Dict[str, Any]]:
+        """
+        Finds conversations with embeddings semantically similar to the query vector,
+        filtered by date range.
+
+        Args:
+            query_vector: The vector embedding of the user's query.
+            start_date: Optional start date string (YYYY-MM-DD).
+            end_date: Optional end date string (YYYY-MM-DD).
+            limit: The maximum number of similar conversations to return.
+            similarity_threshold: The minimum similarity score (cosine distance) for a match.
+
+        Returns:
+            A list of dictionaries, each containing info about a similar conversation
+            (e.g., id, external_id, summary, score), or an empty list on error/no match.
+        """
+        if not self.initialized or not self.supabase or not self.supabase.client:
+            logging.error("Supabase client not available in find_similar_conversations")
+            return []
+        if not query_vector:
+            logging.error("No query vector provided for similarity search.")
+            return []
+
+        try:
+            # Convert dates to ISO strings for the function
+            start_dt_iso = None
+            end_dt_iso = None
+            if start_date:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+                start_dt_iso = start_dt.isoformat()
+            if end_date:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
+                end_dt_iso = end_dt.isoformat()
+
+            # Parameters for the RPC function
+            params = {
+                'query_embedding': query_vector,
+                'similarity_threshold': similarity_threshold,
+                'match_count': limit,
+                'start_iso': start_dt_iso, # Pass None if not provided
+                'end_iso': end_dt_iso # Pass None if not provided
+            }
+
+            logging.info(f"Calling RPC match_conversations with limit={limit}, threshold={similarity_threshold}, start={start_date}, end={end_date}")
+            
+            # Execute the RPC function (assumes it exists in Supabase)
+            response = self.supabase.client.rpc('match_conversations', params).execute()
+
+            if response.data:
+                logging.info(f"Found {len(response.data)} similar conversations.")
+                # The RPC function should return a list of dicts with id, external_id, summary, score
+                return response.data
+            else:
+                logging.info("No similar conversations found matching the criteria.")
+                return []
+
+        except Exception as e:
+            logging.error(f"Error calling RPC match_conversations: {e}", exc_info=True)
+            return [] # Return empty list on error
+
     # --- Method to Replace Old DB Logic (Keep ONE copy) ---
     def get_filtered_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
         """ New method to fetch paginated conversations matching the old DB service signature."""

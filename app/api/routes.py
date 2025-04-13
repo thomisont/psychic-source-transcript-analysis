@@ -281,6 +281,67 @@ def get_full_themes_sentiment_data_v2(): # Renamed function
         current_app.logger.error(f"Unexpected error in /themes-sentiment/full-analysis-v2 after {duration:.2f}s: {str(e)}", exc_info=True)
         return jsonify({"error": f"An unexpected server error occurred: {str(e)}"}), 500, response_headers
 
+# --- NEW: Endpoint for Ad-hoc RAG Query --- 
+@api.route('/themes-sentiment/query', methods=['POST'])
+def process_rag_query():
+    """Processes a natural language query using the RAG service."""
+    request_start_time = time.time()
+    response_headers = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    }
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid JSON payload"}), 400, response_headers
+        
+        query = data.get('query')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        
+        if not query:
+            return jsonify({"error": "Missing required field: query"}), 400, response_headers
+        
+        # Basic date validation (could be more robust)
+        # For now, allow None dates as the service handles them
+        
+        current_app.logger.info(f"API Request: /themes-sentiment/query - Query: '{query[:50]}...', Start: {start_date}, End: {end_date}")
+        
+        analysis_service = current_app.analysis_service
+        if not analysis_service:
+             current_app.logger.critical("AnalysisService not found on current_app!")
+             return jsonify({"error": "Analysis service is unavailable."}), 503, response_headers
+             
+        # Call the new RAG processing method
+        result = analysis_service.process_natural_language_query(
+            query=query,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Check for errors from the service
+        if isinstance(result, dict) and 'error' in result:
+             current_app.logger.error(f"RAG Query service returned an error: {result['error']}")
+             status_code = 500 # Default
+             if "not found" in result.get('error','').lower() or "unavailable" in result.get('error','').lower():
+                 status_code = 503
+             elif "embedding" in result.get('error','').lower() or "search" in result.get('error','').lower():
+                  status_code = 500
+             return jsonify(result), status_code, response_headers
+             
+        # Return the answer
+        duration = time.time() - request_start_time
+        current_app.logger.info(f"Successfully processed RAG query in {duration:.2f} seconds.")
+        return jsonify(result), 200, response_headers
+        
+    except Exception as e:
+        duration = time.time() - request_start_time
+        current_app.logger.error(f"Unexpected error in /themes-sentiment/query after {duration:.2f}s: {str(e)}", exc_info=True)
+        return jsonify({"error": f"An unexpected server error occurred: {str(e)}"}), 500, response_headers
+# --- END NEW RAG QUERY ENDPOINT --- 
+
 def get_conversation_count(start_date=None, end_date=None):
     """Helper function to efficiently get conversation count for date range"""
     from app.extensions import db

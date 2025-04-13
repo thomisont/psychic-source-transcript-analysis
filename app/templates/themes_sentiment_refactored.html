@@ -148,9 +148,8 @@
                          <h5 class="mb-0"><i class="bi bi-question-circle-fill me-2"></i>Common Questions</h5>
                     </div>
                     <div class="card-body p-4">
-                        <div class="accordion" id="common-questions-accordion">
-                            <!-- Accordion items will be populated here -->
-                            <div class="text-center p-3">Loading categories...</div>
+                        <div id="common-questions-list" class="category-list-container">
+                            <div class="text-center p-3 text-muted">Loading categories...</div>
                         </div>
                     </div>
                 </div>
@@ -161,9 +160,8 @@
                         <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Concerns & Skepticism</h5>
                     </div>
                     <div class="card-body p-4">
-                         <div class="accordion" id="concerns-skepticism-accordion">
-                             <!-- Accordion items will be populated here -->
-                             <div class="text-center p-3">Loading categories...</div>
+                         <div id="concerns-skepticism-list" class="category-list-container">
+                             <div class="text-center p-3 text-muted">Loading categories...</div>
                          </div>
                     </div>
                 </div>
@@ -200,6 +198,55 @@
             </div>
         </div>
     </div> <!-- /#analysis-content -->
+
+    <!-- NEW: Ad-hoc RAG Query Section -->
+    <div id="rag-query-section" class="my-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-search me-2"></i>Ask About Conversations</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="card-text text-muted mb-3">Ask a question about the conversations within the selected date range.</p>
+                <div class="mb-3">
+                    <label for="rag-query-input" class="form-label">Your Question:</label>
+                    <textarea class="form-control" id="rag-query-input" rows="3" placeholder="e.g., What were the main topics discussed last week? Are there any conversations mentioning career changes?"></textarea>
+                </div>
+                <button id="submit-rag-query-btn" type="button" class="btn btn-primary">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+                    Submit Query
+                </button>
+                
+                <div id="rag-response-area" class="mt-4" style="display: none;">
+                    <h6>Answer:</h6>
+                    <div id="rag-response-content" class="border rounded p-3 bg-light" style="min-height: 100px; white-space: pre-wrap;">
+                        <!-- Response will appear here -->
+                    </div>
+                </div>
+                <div id="rag-error-display" class="alert alert-danger mt-3" role="alert" style="display: none;">
+                    <!-- RAG Errors will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- END NEW: Ad-hoc RAG Query Section -->
+
+    <!-- Generic Modal for Category Details -->
+    <div class="modal fade" id="categoryDetailModal" tabindex="-1" aria-labelledby="categoryDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="categoryDetailModalLabel">Category Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="categoryDetailModalBody">
+                    Loading quotes...
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div>
 {% endblock %}

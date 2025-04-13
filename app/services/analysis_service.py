@@ -18,9 +18,29 @@ import json
 import os
 from collections import Counter, defaultdict
 from sqlalchemy.orm import Session
+import openai # Added for query embedding
 
 # Import the conversation service we need
 from app.services.supabase_conversation_service import SupabaseConversationService
+
+# --- Helper function for OpenAI Embedding ---
+# Re-defined here, consider moving to a shared util later
+def _get_openai_embedding(text, client, model="text-embedding-3-small"):
+    if not client or not text:
+        logging.debug("AnalysisService: Skipping embedding generation - no client or text.")
+        return None
+    try:
+        response = client.embeddings.create(model=model, input=text)
+        if response.data and len(response.data) > 0:
+            logging.debug(f"AnalysisService: Successfully generated embedding for query snippet '{str(text)[:50]}...'.")
+            return response.data[0].embedding
+        else:
+            logging.error("AnalysisService: OpenAI embedding response format unexpected or empty.")
+            return None
+    except Exception as e:
+        logging.error(f"AnalysisService: Failed to get embedding from OpenAI for query snippet '{str(text)[:50]}...': {e}")
+        return None
+# --- End Helper Function ---
 
 class AnalysisService:
     """Service for handling conversation analysis operations."""
@@ -425,7 +445,7 @@ class AnalysisService:
                 # Log the specific conversation ID that failed along with the error
                 # Use traceback to get more context if needed
                 error_trace = traceback.format_exc() 
-                logging.warning(f"Service error getting transcript for conversation {conv_id}: {e}\\nTrace: {error_trace}")
+                logging.warning(f"Service error getting transcript for conversation {conv_id}: {e}\nTrace: {error_trace}")
                 errors.append({'conversation_id': conv_id, 'error': str(e)})
                 continue # Continue to the next conversation ID
                 
@@ -611,6 +631,132 @@ class AnalysisService:
         end_time = time.time()
         logging.info(f"Successfully completed full themes & sentiment analysis in {end_time - start_time:.2f} seconds.")
         return analysis_result
+
+    # --- RAG Method for Ad-hoc Queries ---
+    def process_natural_language_query(self, query: str, start_date: Optional[str], end_date: Optional[str]) -> Dict[str, str]:
+        """
+        Processes a natural language query using RAG against conversation summaries.
+
+        Args:
+            query: The user's natural language query.
+            start_date: Optional start date string (YYYY-MM-DD).
+            end_date: Optional end date string (YYYY-MM-DD).
+
+        Returns:
+            A dictionary containing the answer or an error message.
+        """
+        logging.info(f"Processing natural language query: '{query[:50]}...' for dates {start_date}-{end_date}")
+        
+        # --- Pre-requisite Checks ---
+        if not self.conversation_service or not self.conversation_service.initialized:
+            logging.error("Cannot process query: SupabaseConversationService not available.")
+            return {'error': 'Conversation service is not available.'}
+        
+        if not self.analyzer or not hasattr(self.analyzer, 'openai_client') or not self.analyzer.openai_client:
+             logging.error("Cannot process query: OpenAI client not available via ConversationAnalyzer.")
+             return {'error': 'OpenAI client is not available for analysis.'}
+             
+        openai_client = self.analyzer.openai_client # Use the client initialized by the analyzer
+
+        # --- 1. Generate Query Embedding ---
+        try:
+            query_embedding = _get_openai_embedding(query, openai_client)
+            if not query_embedding:
+                logging.error("Failed to generate embedding for the query.")
+                return {'error': 'Could not generate embedding for the query.'}
+            # Log first few dimensions of the query embedding
+            logging.info(f"Successfully generated query embedding. Start: {query_embedding[:5]}...")
+        except Exception as e:
+             logging.error(f"Exception during query embedding: {e}", exc_info=True)
+             return {'error': 'Failed to generate query embedding.'}
+
+        # --- 2. Find Similar Conversations ---
+        try:
+            limit = 10 # How many relevant summaries to fetch
+            threshold = 0.35 # SET new permanent threshold based on testing
+            logging.info(f"Calling find_similar_conversations with threshold={threshold}, limit={limit}") # Log params
+            similar_conversations = self.conversation_service.find_similar_conversations(
+                query_vector=query_embedding,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit,
+                similarity_threshold=threshold
+            )
+            
+            # --- Enhanced Logging --- 
+            num_found = len(similar_conversations) if similar_conversations else 0
+            logging.info(f"find_similar_conversations returned {num_found} results.")
+            if num_found > 0:
+                 # Log details of the top match
+                 top_match = similar_conversations[0]
+                 logging.info(f"Top match: ID={top_match.get('id')}, ExtID={top_match.get('external_id')}, Score={top_match.get('similarity')}, Summary='{str(top_match.get('summary'))[:100]}...'")
+            # --- End Enhanced Logging ---
+            
+            if not similar_conversations:
+                logging.warning(f"No similar conversations found matching the query criteria (Threshold: {threshold}).")
+                # Modified return message for debugging
+                return {'answer': f"DEBUG: Vector search returned 0 results meeting the similarity threshold ({threshold}) for the selected date range."}
+                # Original: return {'answer': "I couldn't find any conversations matching that description in the selected date range."}
+            
+            logging.info(f"Retrieved {len(similar_conversations)} relevant conversation summaries (Threshold: {threshold}).")
+        except Exception as e:
+            logging.error(f"Exception during similarity search: {e}", exc_info=True)
+            return {'error': 'Failed to search for similar conversations.'}
+
+        # --- 3. Prepare Context ---
+        context = "\n\n---Retrieved Conversation Summaries:---"
+        for i, conv in enumerate(similar_conversations):
+            context += f"\nConversation {i+1} (ID: {conv.get('external_id', 'N/A')}, Similarity: {conv.get('similarity', 0.0):.4f}):\nSummary: {conv.get('summary', '[No Summary]')}\n---"
+        
+        # Check context length (optional, but good practice)
+        # Use tiktoken if available for accurate count, else estimate
+        try:
+            import tiktoken
+            # Assuming gpt-4o uses cl100k_base encoding
+            encoding = tiktoken.get_encoding("cl100k_base") 
+            context_tokens = len(encoding.encode(context))
+            logging.info(f"Prepared context with estimated {context_tokens} tokens.")
+            # Add check/truncation if context_tokens exceed a threshold
+        except ImportError:
+            logging.warning("tiktoken not found. Cannot accurately estimate context token count.")
+        except Exception as token_err:
+             logging.warning(f"Error estimating token count: {token_err}")
+
+
+        # --- 4. Construct LLM Prompt ---
+        # Modified system prompt for Lily persona
+        system_prompt = (
+            f"You are Lily, an AI agent at Psychic Source. You are reporting on conversation analysis based "
+            f"on transcripts of calls between yourself (as the agent) and users (Curious Callers). "
+            f"Use ONLY the provided conversation summaries below to answer the user's question about these conversations. "
+            f"Respond in the first person (e.g., 'I found that...', 'My analysis shows...'). "
+            f"Do not make up information. If the answer isn't in the summaries, say so clearly. "
+            f"Be concise and directly address the question."
+        )
+        
+        user_prompt = f"User Question: {query}\n{context}"
+
+        # --- 5. Call LLM for Answer Generation ---
+        try:
+            logging.info(f"Sending prompt to LLM ({self.analyzer.model_name or 'default'}) for final answer...")
+            # Use the chat completions endpoint
+            completion = openai_client.chat.completions.create(
+                model=self.analyzer.model_name or "gpt-4o", # Use model from analyzer or default
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2, # Lower temperature for more factual answers
+                max_tokens=1000 # Adjust as needed
+            )
+            
+            answer = completion.choices[0].message.content.strip()
+            logging.info("Received answer from LLM.")
+            return {'answer': answer}
+
+        except Exception as e:
+            logging.error(f"Exception during LLM call for answer generation: {e}", exc_info=True)
+            return {'error': 'Failed to get answer from the analysis model.'}
 
     # Comment out or remove the old helper methods if they are no longer needed
     # def _calculate_sentiment_overview(self, conversations):
