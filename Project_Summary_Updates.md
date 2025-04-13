@@ -999,3 +999,16 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **Outstanding Issue (Count):** Identified a persistent bug where the date-range conversation count on the 'Themes & Sentiment' page always shows the total count. Diagnosis points to the date filters (`.gte`/`.lte`) in `SupabaseConversationService.get_conversation_count` not being applied correctly by the `supabase-py` query builder. Tried using `count='exact'` and fetching/counting IDs; both methods failed to return a filtered count. Needs further investigation or a workaround (e.g., Supabase RPC function).
 
 ## Agent Session Learnings (RAG Implementation - Phase 1 - April 13, 2025)
+
+## Agent Session Summary (April 13, 2025 - RAG UI / CSS Debug)
+
+*   **Goal:** Implement RAG Plan Step 7 (UI/UX Enhancements), specifically 7a (Contextual Linking) and 7b (Transcript Modal).
+*   **Progress:**
+    *   Step 7a (Linking): Implemented backend logic to include `external_id` in RAG query context/prompt and frontend JS to create clickable `(ID: ...)` links in the response. Debugged several backend issues (`AttributeError`, similarity threshold) to make the RAG query pipeline functional.
+    *   Step 7b (Modal): Added transcript modal HTML structure. Implemented `showTranscriptModal` JS to fetch transcript data via API and `renderTranscriptInModal` to create the necessary HTML elements with iMessage-style CSS classes. Added cache clearing to sync task start. Fixed JS errors related to duplicate declarations and missing function definitions.
+*   **Blockers & Findings:**
+    *   **Modal Styling Failure:** The transcript modal displays the correct data but fails to render the iMessage chat bubble styling, appearing "bare bones". CSS rules targeting the modal (`#transcriptModal`) exist in `style.css`, and the JS appears to apply the correct classes. The root cause is suspected to be CSS specificity/conflicts or JS interference.
+    *   **Recurring CSS Issues:** This is the second major instance of encountering perplexing CSS behavior that resisted standard fixes (previously: accordion scrolling). This strengthens suspicion of foundational issues in CSS structure, conflicts, or JS interactions.
+    *   **LLM Reliability (Minor):** Observed an instance where the LLM failed to return the requested JSON list format for theme correlation, returning a dictionary instead. Temporarily bypassed this analysis step.
+    *   **Tooling Issue:** The AI edit tool repeatedly failed to apply necessary corrections to `app/services/analysis_service.py`, requiring manual file replacement.
+*   **Decision:** Paused RAG UI enhancement work. The next session will focus on a **code review/audit** of CSS, JS rendering, and HTML structure to diagnose the recurring styling problems.

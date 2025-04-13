@@ -149,6 +149,15 @@ let ragResponseContent = null;
 let ragErrorDisplay = null;
 let ragSubmitSpinner = null;
 
+// NEW: Transcript Modal elements
+let transcriptModal = null; // Instance of the modal
+let transcriptModalElement = null;
+let transcriptModalLabel = null;
+let transcriptModalBody = null;
+let transcriptLoading = null;
+let transcriptError = null;
+let transcriptContent = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Themes & Sentiment Refactored JS Loaded - Page-specific init");
 
@@ -225,6 +234,22 @@ document.addEventListener('DOMContentLoaded', () => {
         ragErrorDisplay: !!ragErrorDisplay,
         ragSubmitSpinner: !!ragSubmitSpinner
     });
+
+    // *** Assign Transcript Modal Elements ***
+    transcriptModalElement = document.getElementById('transcriptModal');
+    transcriptModalLabel = document.getElementById('transcriptModalLabel');
+    transcriptModalBody = document.getElementById('transcriptModalBody');
+    transcriptLoading = document.getElementById('transcript-loading');
+    transcriptError = document.getElementById('transcript-error');
+    transcriptContent = document.getElementById('transcript-content');
+
+    // *** Initialize Transcript Modal Instance ***
+    if (transcriptModalElement) {
+        transcriptModal = new bootstrap.Modal(transcriptModalElement);
+        console.log("Transcript modal instance created.");
+    } else {
+        console.error("Could not find transcript modal element (#transcriptModal).");
+    }
 
     // Setup event listeners (including the new RAG button listener)
     setupEventListeners();
@@ -1183,88 +1208,174 @@ function clearPlaceholders() {
 }
 
 /**
- * Placeholder function to simulate opening the transcript modal.
- * @param {string} conversationId - The ID of the conversation to view.
+ * Placeholder/Implementation for showing the transcript modal.
+ * Fetches conversation details and renders transcript.
+ * @param {string} externalId - The external ID of the conversation to show.
  */
-function showTranscriptModal(conversationId) {
-    console.log(`Placeholder: Would open transcript modal for conversation ID: ${conversationId}`);
-    // In a real implementation, this would:
-    // 1. Fetch transcript data using the conversationId.
-    // 2. Populate the modal's content area.
-    // 3. Show the Bootstrap modal (e.g., using new bootstrap.Modal(...).show()).
-    alert(`Placeholder: Show transcript for ID ${conversationId}`); // Simple alert for now
+async function showTranscriptModal(externalId) {
+    console.log(`[showTranscriptModal] Attempting to show transcript for ID: ${externalId}`);
+
+    if (!transcriptModal || !transcriptModalBody || !transcriptLoading || !transcriptError || !transcriptContent) {
+        console.error("Transcript modal elements not initialized. Cannot show transcript.");
+        alert("Transcript viewer component is not ready. Please try again later.");
+        return;
+    }
+
+    // Reset modal state
+    transcriptLoading.style.display = 'block';
+    transcriptError.style.display = 'none';
+    transcriptContent.style.display = 'none';
+    transcriptContent.innerHTML = ''; // Clear previous transcript
+    if(transcriptModalLabel) transcriptModalLabel.textContent = `Conversation: ${externalId}`;
+
+    // Show the modal (with loading indicator visible)
+    transcriptModal.show();
+
+    try {
+        // Fetch conversation details from the API
+        const apiUrl = `/api/conversations/${encodeURIComponent(externalId)}`;
+        console.log(`[showTranscriptModal] Fetching data from: ${apiUrl}`);
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            let errorMsg = `HTTP error ${response.status}`; 
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch (e) { /* Ignore if response not JSON */ }
+            throw new Error(errorMsg);
+        }
+
+        const data = await response.json();
+        console.log(`[showTranscriptModal] Received data for ${externalId}:`, data);
+
+        if (data && data.transcript && Array.isArray(data.transcript)) {
+            // Render the transcript using iMessage style
+            renderTranscriptInModal(data.transcript);
+            transcriptContent.style.display = 'block';
+        } else {
+            throw new Error("Invalid or missing transcript data received from server.");
+        }
+
+    } catch (error) {
+        console.error(`Error fetching or rendering transcript for ${externalId}:`, error);
+        transcriptError.textContent = `Failed to load transcript: ${error.message}`;
+        transcriptError.style.display = 'block';
+    } finally {
+        // Hide loading indicator
+        transcriptLoading.style.display = 'none';
+    }
+}
+
+/**
+ * Renders the transcript messages into the modal body using iMessage styling.
+ * @param {Array} transcript - The array of transcript messages.
+ */
+function renderTranscriptInModal(transcript) {
+    if (!transcriptContent) return;
+    transcriptContent.innerHTML = ''; // Clear previous content
+
+    if (!transcript || transcript.length === 0) {
+        transcriptContent.innerHTML = '<p class="text-muted text-center">No transcript messages found.</p>';
+        return;
+    }
+
+    const listGroup = document.createElement('div');
+    listGroup.className = 'list-group transcript-list'; // Add a class for potential styling
+
+    transcript.forEach(message => {
+        const messageCard = document.createElement('div');
+        const isUser = message.role === 'user';
+        messageCard.className = `card transcript-message mb-2 shadow-sm ${isUser ? 'ms-auto bg-primary text-white' : 'me-auto bg-light'}`;
+        messageCard.style.maxWidth = '75%';
+        messageCard.style.width = 'fit-content'; // Make card fit content
+
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body p-2';
+
+        const speakerSpan = document.createElement('span');
+        speakerSpan.className = 'fw-bold d-block mb-1 small';
+        speakerSpan.textContent = isUser ? 'You (Caller)' : 'Lily (Psychic)'; 
+        speakerSpan.style.color = isUser ? '#E0E0E0' : themeColors.darkGray; // Lighter text for user bubble
+
+        const messageText = document.createElement('p');
+        messageText.className = 'mb-1 small';
+        messageText.textContent = message.content;
+
+        const timestampSpan = document.createElement('span');
+        timestampSpan.className = 'timestamp-label text-muted d-block text-end small mt-1'; 
+        timestampSpan.style.fontSize = '0.75em'; // Smaller timestamp
+        timestampSpan.style.color = isUser ? '#E0E0E0' : themeColors.textMuted; // Keep inline style for specific color override
+        timestampSpan.textContent = message.timestamp ? Formatter.dateTime(message.timestamp) : 'No timestamp';
+
+        cardBody.appendChild(speakerSpan);
+        cardBody.appendChild(messageText);
+        cardBody.appendChild(timestampSpan);
+        messageCard.appendChild(cardBody);
+        
+        // Create a wrapper div for alignment
+        const wrapperDiv = document.createElement('div');
+        wrapperDiv.className = `d-flex ${isUser ? 'justify-content-end' : 'justify-content-start'}`;
+        wrapperDiv.appendChild(messageCard);
+
+        listGroup.appendChild(wrapperDiv);
+    });
+
+    transcriptContent.appendChild(listGroup);
 }
 
 /**
  * Sets up event listeners after the DOM is ready.
- * Includes listeners for transcript links and category list items.
+ * Includes listeners for RAG submit button and category list items.
  */
 function setupEventListeners() {
-    const contentArea = document.getElementById('analysis-content');
-    if (contentArea) {
-        contentArea.addEventListener('click', (event) => {
-            const linkElement = event.target.closest('.transcript-link');
-            const categoryItem = event.target.closest('.category-list-item');
-
-            if (linkElement) {
-                // --- Transcript Link Handling (Placeholder) ---
-                event.preventDefault(); 
-                const conversationId = linkElement.dataset.conversationId;
-                if (conversationId && conversationId !== 'null') {
-                    showTranscriptModal(conversationId);
-                } else {
-                    console.warn("Clicked transcript link but conversation ID is missing or null.");
-                }
-            } else if (categoryItem) {
-                // --- Category List Item Click Handling ---
-                event.preventDefault();
-                const categoryName = categoryItem.dataset.categoryName;
-                const quotesJson = categoryItem.dataset.quotes;
-                
-                console.log(`Category item clicked: ${categoryName}`);
-
-                if (categoryName && quotesJson && categoryModal) {
-                    try {
-                        const quotes = JSON.parse(quotesJson);
-                        // Update modal title
-                        if (categoryModalTitle) {
-                            categoryModalTitle.textContent = categoryName || 'Category Details';
-                        }
-                        // Update modal body
-                        if (categoryModalBody) {
-                            populateModalBody(quotes);
-                        }
-                        // Show the modal
-                        categoryModal.show();
-                    } catch (e) {
-                        console.error("Error parsing quotes JSON or showing modal:", e);
-                         if (categoryModalBody) {
-                             categoryModalBody.innerHTML = '<p class="text-danger">Error loading quotes.</p>';
-                         }
-                         if (categoryModalTitle) {
-                             categoryModalTitle.textContent = 'Error';
-                         }
-                         categoryModal.show(); // Show modal even with error
-                    }
-                } else {
-                    console.warn("Missing category data or modal instance for clicked item.", {categoryName, quotesJson, categoryModal: !!categoryModal });
-                }
-            }
-        });
-         console.log("Delegated event listeners for transcript links AND category items added to #analysis-content.");
-    } else {
-        console.error("Could not find #analysis-content to attach event listeners.");
-    }
-
-    // *** Add listener for the RAG submit button ***
+    // Listener for RAG Submit Button
     if (ragSubmitBtn) {
         ragSubmitBtn.addEventListener('click', submitRagQuery);
+        console.log("Event listener attached to RAG submit button.");
     } else {
         console.error("Could not find RAG submit button to attach listener.");
     }
+
+    // Delegated listener for category items (if using the category list modal)
+    const analysisContentArea = document.getElementById('analysis-content');
+    if (analysisContentArea && categoryModal) { // Check if category modal exists
+        analysisContentArea.addEventListener('click', (event) => {
+            const categoryItem = event.target.closest('.category-list-item');
+            if (categoryItem) {
+                event.preventDefault();
+                const categoryName = categoryItem.dataset.categoryName;
+                const quotesJson = categoryItem.dataset.quotes;
+                console.log(`Category item clicked: ${categoryName}`);
+                if (categoryName && quotesJson) {
+                    try {
+                        const quotes = JSON.parse(quotesJson);
+                        if (categoryModalTitle) categoryModalTitle.textContent = categoryName || 'Category Details';
+                        if (categoryModalBody) populateModalBody(quotes);
+                        categoryModal.show();
+                    } catch (e) {
+                        console.error("Error parsing quotes JSON or showing category modal:", e);
+                        if (categoryModalBody) categoryModalBody.innerHTML = '<p class="text-danger">Error loading quotes.</p>';
+                        if (categoryModalTitle) categoryModalTitle.textContent = 'Error';
+                        categoryModal.show();
+                    }
+                } else {
+                     console.warn("Missing category data for clicked item.");
+                }
+            }
+        });
+        console.log("Delegated event listener attached for category list items.");
+    } else if (!analysisContentArea){
+         console.error("Could not find #analysis-content to attach delegated listeners.");
+    } else if (!categoryModal) {
+         console.warn("#analysis-content found, but categoryModal instance is missing. No category item listener attached.");
+    }
+    
+    // Note: Listeners for transcript links are now handled inline in the link creation within submitRagQuery
+    // and potentially within renderPositiveInteractions if those links are also meant to open the transcript modal.
+    // If positive interaction links should also open the modal, update that rendering function.
 }
 
-// --- NEW MODAL POPULATION FUNCTION ---
 /**
  * Populates the category detail modal body with a list of quotes.
  * @param {Array<object>} quotes - Array of quote objects for the category.
@@ -1303,18 +1414,17 @@ function populateModalBody(quotes) {
             link.dataset.conversationId = quoteData.conversation_id;
              // Store quote text in data attribute for potential highlighting later
             link.dataset.quoteText = quoteData.quote_text || ''; 
+            // Make the quote link call showTranscriptModal
+            link.onclick = (e) => { e.preventDefault(); showTranscriptModal(quoteData.conversation_id); };
             link.innerHTML = `<i class="bi bi-quote me-1"></i>${quoteData.quote_text || "Empty Quote"}`;
             quoteTextContainer.appendChild(link);
         } else {
             quoteTextContainer.innerHTML = `<i class="bi bi-quote me-1 text-muted"></i><span class="text-muted">${quoteData.quote_text || "Empty Quote"}</span>`;
         }
 
-        if (quoteData.sentiment_label) {
-            const sentimentBadge = document.createElement('span');
-            sentimentBadge.className = `badge rounded-pill ms-2 ${getSentimentClassFromLabel(quoteData.sentiment_label)}`;
-            sentimentBadge.textContent = quoteData.sentiment_label;
-            quoteTextContainer.appendChild(sentimentBadge);
-        }
+        // Optionally add sentiment badge if needed (adapting from positive interactions logic)
+        // if (quoteData.sentiment_label || quoteData.sentiment_score !== undefined) { ... }
+
         listItem.appendChild(quoteTextContainer);
         listGroup.appendChild(listItem);
     });
@@ -1330,82 +1440,92 @@ function populateModalBody(quotes) {
     }
 }
 
-// --- NEW: Function to submit RAG query ---
+/**
+ * Submit the RAG query to the backend.
+ */
 async function submitRagQuery() {
+    console.log("[submitRagQuery] Submitting RAG query...");
     if (!ragQueryInput || !ragSubmitBtn || !ragResponseArea || !ragResponseContent || !ragErrorDisplay || !ragSubmitSpinner) {
-        console.error("RAG Query UI elements not found. Cannot submit query.");
+        console.error("RAG Query UI elements not found. Cannot submit.");
         return;
     }
 
     const query = ragQueryInput.value.trim();
     if (!query) {
-        ragErrorDisplay.textContent = "Please enter a question.";
+        ragErrorDisplay.textContent = 'Please enter a query.';
         ragErrorDisplay.style.display = 'block';
-        ragResponseArea.style.display = 'none';
         return;
     }
 
-    // Get current date range
-    const selectedButton = document.querySelector('#date-range-selector .date-range-btn.active');
-    const timeframe = selectedButton ? selectedButton.dataset.timeframe : 'last_7_days';
-    const { startDate, endDate } = getDatesFromTimeframe(timeframe);
+    // Get current date range from the active button/stored state
+    // Use the same logic as the main date range selector
+    const selectedTimeframe = document.querySelector('#date-range-selector .btn-group .btn.active')?.dataset.timeframe || '7d'; 
+    const { startDate, endDate } = getDatesFromTimeframe(selectedTimeframe); 
+    
+    console.log(`[submitRagQuery] Using timeframe: ${selectedTimeframe}, Dates: ${startDate} to ${endDate}`);
 
-    console.log(`Submitting RAG Query: "${query}" for ${startDate} to ${endDate}`);
-
-    // --- UI Updates for Loading State ---
+    // Show loading state
     ragSubmitBtn.disabled = true;
-    if (ragSubmitSpinner) ragSubmitSpinner.style.display = 'inline-block';
+    ragSubmitSpinner.style.display = 'inline-block';
     ragResponseArea.style.display = 'none';
-    ragResponseContent.textContent = ''; // Clear previous response
+    ragResponseContent.innerHTML = ''; // Clear previous response
     ragErrorDisplay.style.display = 'none';
 
     try {
-        const payload = {
-            query: query,
-            start_date: startDate,
-            end_date: endDate
-        };
-        // const result = await API.post('/api/themes-sentiment/query', payload);
-        
-        // Replace API.post with standard fetch
         const response = await fetch('/api/themes-sentiment/query', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                 // Add CSRF token header if needed by your Flask setup
-                // 'X-CSRFToken': getCsrfToken() 
+                'Accept': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ 
+                query: query,
+                start_date: startDate,
+                end_date: endDate
+            })
         });
-        
-        if (!response.ok) {
-            // Attempt to get error message from response body, else use status text
-            let errorMsg = `HTTP error! status: ${response.status}`;
-            try {
-                 const errorData = await response.json();
-                 errorMsg = errorData.error || errorMsg;
-            } catch (e) { /* Ignore parsing error if body is not JSON */ }
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            const errorMsg = data.error || `HTTP error ${response.status}`;
+            console.error("Error fetching RAG response:", errorMsg);
             throw new Error(errorMsg);
         }
-        
-        const result = await response.json(); // Parse JSON body
 
-        if (result && result.answer) {
-            ragResponseContent.textContent = result.answer;
-            ragResponseArea.style.display = 'block';
-        } else if (result && result.error) {
-            throw new Error(result.error); // Throw error to be caught below
+        // Display the result
+        ragResponseArea.style.display = 'block';
+        
+        // --- NEW: Parse and linkify IDs --- 
+        let answerHtml = data.answer;
+        if (answerHtml) {
+            const idRegex = /\(ID:\s*([^)]+)\)/g;
+            answerHtml = answerHtml.replace(idRegex, (match, externalId) => {
+                // Basic check to ensure externalId looks reasonable (e.g., not empty)
+                if (externalId && externalId.trim()) {
+                    // Create a link that calls a JS function (to be implemented in 7b)
+                    return `<a href="#" class="text-primary fw-bold text-decoration-none rag-conversation-link" data-conversation-id="${externalId.trim()}" onclick="showTranscriptModal(\'${externalId.trim()}\'); return false;">${match}</a>`;
+                } else {
+                    // Return the original match if ID is invalid
+                    return match; 
+                }
+            });
+            // Convert newlines to <br> for HTML display
+            answerHtml = answerHtml.replace(/\n/g, '<br>');
         } else {
-            throw new Error("Received an unexpected response from the server.");
+            answerHtml = '<p class="text-muted">No answer received.</p>';
         }
+        
+        ragResponseContent.innerHTML = answerHtml; 
+        // --- END NEW --- 
 
     } catch (error) {
-        console.error("Error submitting RAG query:", error);
-        ragErrorDisplay.textContent = `Error: ${error.message || 'Could not process your query.'}`;
+        console.error("Error in submitRagQuery:", error);
+        ragErrorDisplay.textContent = `Error: ${error.message || 'Could not process query.'}`;
         ragErrorDisplay.style.display = 'block';
     } finally {
-        // --- Restore UI State ---
+        // Hide loading state
         ragSubmitBtn.disabled = false;
-        if (ragSubmitSpinner) ragSubmitSpinner.style.display = 'none';
+        ragSubmitSpinner.style.display = 'none';
     }
 } 

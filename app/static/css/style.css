@@ -960,3 +960,91 @@ h1, h2, h3, h4, h5, h6 {
     display: block; /* Change from flex to block */
     min-height: auto; /* Remove min-height */
 } 
+
+/* =========================== */
+
+/* --- Transcript Viewer --- */
+/* Styles for the main transcript viewer page - these might need duplication/generalization for the modal */
+.transcript-viewer-container {
+    /* Specific container styles if any */
+}
+
+/* === iMessage Style Transcript Bubbles (Ensure these apply to both viewer and modal) === */
+
+/* Target elements within the original viewer OR the new modal */
+#transcript-viewer-container .transcript-message, 
+#transcriptModal .transcript-message {
+    /* Shared styles for message cards */
+    /* These styles were previously applied directly by JS, 
+       but defining them here ensures consistency and better separation */
+    max-width: 75%;
+    width: fit-content;
+}
+
+#transcript-viewer-container .transcript-list .d-flex, 
+#transcriptModal .transcript-list .d-flex {
+     /* Ensures the flex alignment works correctly in both contexts */
+}
+
+#transcript-viewer-container .transcript-message .card-body,
+#transcriptModal .transcript-message .card-body {
+    padding: 0.5rem 0.75rem; /* Slightly adjusted padding */
+}
+
+#transcript-viewer-container .transcript-message .speaker-label,
+#transcriptModal .transcript-message .speaker-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
+}
+
+#transcript-viewer-container .transcript-message .message-text,
+#transcriptModal .transcript-message .message-text {
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem; /* Slightly smaller font */
+    white-space: pre-wrap; /* Ensure line breaks are respected */
+}
+
+#transcript-viewer-container .transcript-message .timestamp-label,
+#transcriptModal .transcript-message .timestamp-label {
+    font-size: 0.75em; 
+    display: block;
+    text-align: right;
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+/* User message specific styles */
+#transcript-viewer-container .transcript-message.ms-auto, /* User messages */
+#transcriptModal .transcript-message.ms-auto {
+    background-color: var(--primary-color); 
+    color: var(--white);
+}
+
+#transcript-viewer-container .transcript-message.ms-auto .speaker-label,
+#transcriptModal .transcript-message.ms-auto .speaker-label,
+#transcript-viewer-container .transcript-message.ms-auto .timestamp-label,
+#transcriptModal .transcript-message.ms-auto .timestamp-label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Agent message specific styles */
+#transcript-viewer-container .transcript-message.me-auto, /* Agent messages */
+#transcriptModal .transcript-message.me-auto {
+    background-color: var(--light-gray);
+    color: var(--dark-gray);
+    border: 1px solid var(--border-gray);
+}
+
+#transcript-viewer-container .transcript-message.me-auto .speaker-label,
+#transcriptModal .transcript-message.me-auto .speaker-label {
+    color: var(--primary-color);
+}
+
+#transcript-viewer-container .transcript-message.me-auto .timestamp-label,
+#transcriptModal .transcript-message.me-auto .timestamp-label {
+    color: var(--text-muted);
+}
+
+/* --- Themes & Sentiment Page --- */

@@ -614,7 +614,7 @@ class SupabaseConversationService:
         return base_stats
 
     # --- Vector Search Method ---
-    def find_similar_conversations(self, query_vector: List[float], start_date: Optional[str] = None, end_date: Optional[str] = None, limit: int = 10, similarity_threshold: float = 0.75) -> List[Dict[str, Any]]:
+    def find_similar_conversations(self, query_vector: List[float], start_date: Optional[str] = None, end_date: Optional[str] = None, limit: int = 10, similarity_threshold: float = 0.75) -> Dict[str, Any]:
         """
         Finds conversations with embeddings semantically similar to the query vector,
         filtered by date range.
@@ -627,15 +627,17 @@ class SupabaseConversationService:
             similarity_threshold: The minimum similarity score (cosine distance) for a match.
 
         Returns:
-            A list of dictionaries, each containing info about a similar conversation
-            (e.g., id, external_id, summary, score), or an empty list on error/no match.
+            A dictionary containing:
+            - 'conversations': A list of dictionaries, each containing info about a similar conversation
+                               (e.g., id, external_id, summary, score).
+            - 'error': An error message string if an issue occurred, otherwise None.
         """
         if not self.initialized or not self.supabase or not self.supabase.client:
             logging.error("Supabase client not available in find_similar_conversations")
-            return []
+            return {'conversations': [], 'error': "Supabase client not initialized"} # Return dict
         if not query_vector:
             logging.error("No query vector provided for similarity search.")
-            return []
+            return {'conversations': [], 'error': "No query vector provided"} # Return dict
 
         try:
             # Convert dates to ISO strings for the function
@@ -657,7 +659,11 @@ class SupabaseConversationService:
                 'end_iso': end_dt_iso # Pass None if not provided
             }
 
-            logging.info(f"Calling RPC match_conversations with limit={limit}, threshold={similarity_threshold}, start={start_date}, end={end_date}")
+            # --- LOWER THE THRESHOLD FOR TESTING --- 
+            test_threshold = 0.35 # Lowered from 0.75
+            params['similarity_threshold'] = test_threshold
+            logging.info(f"Calling RPC match_conversations with limit={limit}, threshold={test_threshold}, start={start_date}, end={end_date}")
+            # --- END THRESHOLD ADJUSTMENT ---
             
             # Execute the RPC function (assumes it exists in Supabase)
             response = self.supabase.client.rpc('match_conversations', params).execute()
@@ -665,14 +671,14 @@ class SupabaseConversationService:
             if response.data:
                 logging.info(f"Found {len(response.data)} similar conversations.")
                 # The RPC function should return a list of dicts with id, external_id, summary, score
-                return response.data
+                return {'conversations': response.data} # Return dict
             else:
                 logging.info("No similar conversations found matching the criteria.")
-                return []
+                return {'conversations': []} # Return dict with empty list
 
         except Exception as e:
             logging.error(f"Error calling RPC match_conversations: {e}", exc_info=True)
-            return [] # Return empty list on error
+            return {'conversations': [], 'error': f"Error during similarity search: {e}"} # Return dict with error
 
     # --- Method to Replace Old DB Logic (Keep ONE copy) ---
     def get_filtered_conversations(self, start_date=None, end_date=None, limit=100, offset=0):

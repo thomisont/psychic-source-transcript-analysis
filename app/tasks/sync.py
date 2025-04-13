@@ -24,11 +24,14 @@ from postgrest import APIResponse # Add this import if not already present
 import openai # Added
 import os # Added
 from typing import List, Dict
+import time
 
 # Import necessary components (use absolute imports)
 from app.extensions import db
 from app.models import Conversation, Message
 from app.api.elevenlabs_client import ElevenLabsClient # We need the client directly here
+from app.services.supabase_conversation_service import SupabaseConversationService # Import the service
+from app.services.analysis_service import AnalysisService # Import for cache clearing
 
 # Import SupabaseClient (add path to ensure it's available)
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -79,11 +82,34 @@ def get_embedding(turns: List[Dict[str, str]], client):
 
 def sync_new_conversations(app, full_sync=False):
     """
-    Fetches recent conversations from ElevenLabs and adds any new ones 
-    or updates existing ones missing summaries to the database. 
-    Requires app context.
-    Optimized to reduce API detail calls.
+    Fetches new conversations from ElevenLabs API, processes them, and stores them 
+    in the Supabase database via the SupabaseConversationService.
+
+    Handles incremental updates efficiently by:
+    1. Fetching existing conversation IDs and summary status from Supabase.
+    2. Calling the /details endpoint ONLY for NEW conversations or existing ones MISSING summaries.
+    3. Skipping API calls for existing conversations that already have summaries (unless full_sync=True).
     """
+    start_time = time.time()
+    logging.info(f"SYNC TASK: Starting conversation sync (Full Sync: {full_sync})...")
+
+    # --- TEMPORARY CACHE CLEAR --- 
+    # Clear analysis cache at the start of sync to ensure fresh analysis after data update.
+    try:
+        if hasattr(app, 'analysis_service') and app.analysis_service and hasattr(app.analysis_service, 'clear_cache'):
+             app.analysis_service.clear_cache()
+             logging.info("SYNC TASK: Cleared AnalysisService cache at start of sync.")
+        else:
+             logging.warning("SYNC TASK: Could not clear analysis cache at start - service not found or no clear_cache method.")
+    except Exception as cache_clear_err:
+         logging.error(f"SYNC TASK: Error clearing analysis cache at start: {cache_clear_err}", exc_info=True)
+    # --- END TEMPORARY CACHE CLEAR ---
+
+    # Ensure services are available
+    if not hasattr(app, 'elevenlabs_client') or not app.elevenlabs_client:
+        logging.error("Sync Task: ElevenLabs client is not properly configured. Aborting.")
+        return {"status": "error", "message": "Client not configured"}, 500
+
     with app.app_context():
         logging.info(f"Starting conversation sync task... (Full Sync: {full_sync})")
         initial_count = 0
