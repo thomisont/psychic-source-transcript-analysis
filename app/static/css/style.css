@@ -675,15 +675,17 @@ h1, h2, h3, h4, h5, h6 {
     /* border-top-right-radius: 18px; */ /* Removed - Handled by avatar-container */
 }
 
-/* Caller Bubble Style */
+/* Caller Bubble Style - REMOVE THIS ENTIRE BLOCK */
+/*
 .caller-message .message-bubble {
-    /* background-color: #0d6efd; */ /* Removed - Handled by avatar-container */
-    /* color: white; */ /* Removed - Handled by avatar-container */
-    /* border-top-right-radius: 4px; */ /* Removed - Handled by avatar-container */
-    /* border-bottom-right-radius: 18px; */ /* Removed - Handled by avatar-container */
-    /* border-bottom-left-radius: 18px; */ /* Removed - Handled by avatar-container */
-    /* border-top-left-radius: 18px; */ /* Removed - Handled by avatar-container */
+    background-color: #0d6efd; 
+    color: white;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 18px;
+    border-bottom-left-radius: 18px;
+    border-top-left-radius: 18px;
 }
+*/
 
 /* Timestamp styling */
 .message-timestamp {
@@ -763,6 +765,14 @@ h1, h2, h3, h4, h5, h6 {
 /* =========================== */
 
 /* === Transcript Modal Specific Styles === */
+
+/* Make the modal body a flex container to enable alignment */
+/*
+#transcriptModal .modal-body {
+    display: flex;
+    flex-direction: column;
+}
+*/
 
 .transcript-container {
     max-height: 60vh; /* Or adjust as needed */
@@ -1017,34 +1027,70 @@ h1, h2, h3, h4, h5, h6 {
 
 /* User message specific styles */
 #transcript-viewer-container .transcript-message.ms-auto, /* User messages */
-#transcriptModal .transcript-message.ms-auto {
+#transcriptModal .caller-message .message-bubble { /* User messages - Target .message-bubble */
     background-color: var(--primary-color); 
     color: var(--white);
 }
 
 #transcript-viewer-container .transcript-message.ms-auto .speaker-label,
-#transcriptModal .transcript-message.ms-auto .speaker-label,
+#transcriptModal .caller-message .speaker-label,
 #transcript-viewer-container .transcript-message.ms-auto .timestamp-label,
-#transcriptModal .transcript-message.ms-auto .timestamp-label {
+#transcriptModal .caller-message .timestamp-label {
     color: rgba(255, 255, 255, 0.8);
 }
 
 /* Agent message specific styles */
 #transcript-viewer-container .transcript-message.me-auto, /* Agent messages */
-#transcriptModal .transcript-message.me-auto {
+#transcriptModal .agent-message .message-bubble { /* Agent messages - Target .message-bubble */
     background-color: var(--light-gray);
     color: var(--dark-gray);
     border: 1px solid var(--border-gray);
 }
 
 #transcript-viewer-container .transcript-message.me-auto .speaker-label,
-#transcriptModal .transcript-message.me-auto .speaker-label {
+#transcriptModal .agent-message .speaker-label {
     color: var(--primary-color);
 }
 
 #transcript-viewer-container .transcript-message.me-auto .timestamp-label,
-#transcriptModal .transcript-message.me-auto .timestamp-label {
+#transcriptModal .agent-message .timestamp-label {
     color: var(--text-muted);
 }
 
 /* --- Themes & Sentiment Page --- */
+
+/* User message specific styles */
+#transcriptModal .caller-message .message-bubble { /* User messages - Target .message-bubble */
+    /* Style to match main viewer: Light background, dark text */
+    background-color: var(--light-gray);
+    color: var(--dark-gray);
+    border: 1px solid var(--border-gray);
+    position: relative; 
+    z-index: 10; 
+    opacity: 1; 
+}
+
+/* Set explicit dark color for caller labels/timestamps */
+#transcriptModal .caller-message .speaker-label,
+#transcriptModal .caller-message .timestamp-label {
+    color: var(--text-muted); /* Use standard muted color */
+}
+
+/* Agent message specific styles */
+#transcriptModal .agent-message .message-bubble { /* Agent messages - Target .message-bubble */
+    /* Style to match main viewer: Purple background, dark text */
+    background-color: var(--primary-light-shade); /* Use variable for light purple */ 
+    color: var(--dark-gray);
+    position: relative; 
+    z-index: 10; 
+    opacity: 1; 
+}
+
+/* Adjust agent label/timestamp colors if needed */
+#transcriptModal .agent-message .speaker-label {
+    color: var(--primary-color); /* Use variable */ 
+}
+
+#transcriptModal .agent-message .timestamp-label {
+    color: var(--text-muted); /* Use variable */
+}

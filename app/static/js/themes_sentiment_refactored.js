@@ -1251,7 +1251,7 @@ async function showTranscriptModal(externalId) {
 
         if (data && data.transcript && Array.isArray(data.transcript)) {
             // Render the transcript using iMessage style
-            renderTranscriptInModal(data.transcript);
+            renderTranscriptInModal(data);
             transcriptContent.style.display = 'block';
         } else {
             throw new Error("Invalid or missing transcript data received from server.");
@@ -1271,57 +1271,116 @@ async function showTranscriptModal(externalId) {
  * Renders the transcript messages into the modal body using iMessage styling.
  * @param {Array} transcript - The array of transcript messages.
  */
-function renderTranscriptInModal(transcript) {
-    if (!transcriptContent) return;
-    transcriptContent.innerHTML = ''; // Clear previous content
+function renderTranscriptInModal(data) {
+    console.log("[renderTranscriptInModal - V_Compare] START. Received data:", data);
 
-    if (!transcript || transcript.length === 0) {
-        transcriptContent.innerHTML = '<p class="text-muted text-center">No transcript messages found.</p>';
+    if (!transcriptContent || !transcriptError) {
+        console.error("[renderTranscriptInModal] Transcript content or error display element not found.");
         return;
     }
 
-    const listGroup = document.createElement('div');
-    listGroup.className = 'list-group transcript-list'; // Add a class for potential styling
+    // Clear previous content and error messages
+    transcriptContent.innerHTML = '';
+    transcriptError.style.display = 'none';
+    transcriptContent.style.display = 'none'; // Hide until populated
 
-    transcript.forEach(message => {
-        const messageCard = document.createElement('div');
-        const isUser = message.role === 'user';
-        messageCard.className = `card transcript-message mb-2 shadow-sm ${isUser ? 'ms-auto bg-primary text-white' : 'me-auto bg-light'}`;
-        messageCard.style.maxWidth = '75%';
-        messageCard.style.width = 'fit-content'; // Make card fit content
+    // Use the 'transcript' array and expect 'role'/'content'/'timestamp' keys
+    const transcriptMessages = data.transcript;
 
-        const cardBody = document.createElement('div');
-        cardBody.className = 'card-body p-2';
+    // Check if transcript data is valid
+    if (!transcriptMessages || !Array.isArray(transcriptMessages) || transcriptMessages.length === 0) {
+        console.warn("[renderTranscriptInModal] No valid transcript messages found in data.transcript:", transcriptMessages);
+        transcriptError.textContent = 'No transcript messages available for this conversation.';
+        transcriptError.style.display = 'block';
+        return;
+    }
 
-        const speakerSpan = document.createElement('span');
-        speakerSpan.className = 'fw-bold d-block mb-1 small';
-        speakerSpan.textContent = isUser ? 'You (Caller)' : 'Lily (Psychic)'; 
-        speakerSpan.style.color = isUser ? '#E0E0E0' : themeColors.darkGray; // Lighter text for user bubble
+    const listContainer = document.createElement('div'); 
+    listContainer.className = 'transcript-list'; // Use a container div
 
-        const messageText = document.createElement('p');
-        messageText.className = 'mb-1 small';
-        messageText.textContent = message.content;
+    try {
+        transcriptMessages.forEach((message, index) => {
+            console.log(`[renderTranscriptInModal] Processing message ${index}:`, message);
+            
+            // Basic validation for role and content
+            if (!message || typeof message.role !== 'string' || typeof message.content !== 'string') {
+                console.warn(`[renderTranscriptInModal] Skipping invalid message ${index}:`, message);
+                return; 
+            }
+            
+            // Determine speaker and alignment based on role
+            const isAgent = message.role.toLowerCase() === 'agent';
+            const rowClass = isAgent ? 'agent-message' : 'caller-message'; // Parent row class for alignment/styling
+            const speakerLabel = isAgent ? 'Lily (Psychic)' : 'Curious Caller'; // *** Use "Curious Caller" ***
+            const avatarIcon = isAgent ? 'fas fa-headset' : 'fas fa-user'; // Font Awesome icons
 
-        const timestampSpan = document.createElement('span');
-        timestampSpan.className = 'timestamp-label text-muted d-block text-end small mt-1'; 
-        timestampSpan.style.fontSize = '0.75em'; // Smaller timestamp
-        timestampSpan.style.color = isUser ? '#E0E0E0' : themeColors.textMuted; // Keep inline style for specific color override
-        timestampSpan.textContent = message.timestamp ? Formatter.dateTime(message.timestamp) : 'No timestamp';
+            // Main row container (controls left/right via CSS)
+            const messageRow = document.createElement('div');
+            messageRow.className = `${rowClass} mb-3`; // Add margin bottom to the row
 
-        cardBody.appendChild(speakerSpan);
-        cardBody.appendChild(messageText);
-        cardBody.appendChild(timestampSpan);
-        messageCard.appendChild(cardBody);
-        
-        // Create a wrapper div for alignment
-        const wrapperDiv = document.createElement('div');
-        wrapperDiv.className = `d-flex ${isUser ? 'justify-content-end' : 'justify-content-start'}`;
-        wrapperDiv.appendChild(messageCard);
+            // Group container (aligns avatar and bubble)
+            const messageGroup = document.createElement('div');
+            messageGroup.className = 'message-group d-flex align-items-end'; // Use flex for avatar/bubble alignment
 
-        listGroup.appendChild(wrapperDiv);
-    });
+            // Avatar Element
+            const avatarContainer = document.createElement('div');
+            avatarContainer.className = `avatar-container ${isAgent ? 'me-2' : 'ms-2 order-1'}`; 
+            avatarContainer.innerHTML = `<i class="${avatarIcon} fa-lg"></i>`; // Slightly larger icon?
 
-    transcriptContent.appendChild(listGroup);
+            // Bubble Element (plain div)
+            const messageBubble = document.createElement('div');
+            messageBubble.className = 'message-bubble d-flex flex-column'; // Bubble container
+
+            // Speaker Name inside Bubble
+            const speakerNameSpan = document.createElement('span');
+            speakerNameSpan.className = 'speaker-label mb-1'; // Class for speaker name
+            speakerNameSpan.textContent = speakerLabel;
+
+            // Message Text inside Bubble
+            const messageTextSpan = document.createElement('span');
+            messageTextSpan.className = 'message-text'; // Class for message text
+            messageTextSpan.textContent = message.content || '(No text content)'; // Use .content
+
+            // Timestamp inside Bubble
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'timestamp mt-1 align-self-end'; // Class for timestamp, aligned right
+            // Use message.timestamp and Formatter.time (like working version)
+            timestampSpan.textContent = message.timestamp ? Formatter.time(message.timestamp) : 'Unknown time';
+
+            // Assemble bubble content
+            messageBubble.appendChild(speakerNameSpan);
+            messageBubble.appendChild(messageTextSpan);
+            messageBubble.appendChild(timestampSpan);
+
+            // Assemble message group (avatar + bubble)
+            // Order depends on speaker
+            if (isAgent) {
+                messageGroup.appendChild(avatarContainer);
+                messageGroup.appendChild(messageBubble);
+            } else {
+                 messageGroup.appendChild(messageBubble); // Bubble first for caller
+                 messageGroup.appendChild(avatarContainer); // Avatar second for caller
+            }
+                         
+            // Append the group to the row
+            messageRow.appendChild(messageGroup);
+
+            // Add the complete row to the main container
+            listContainer.appendChild(messageRow); 
+        }); // End forEach message
+
+        // Append the populated list group to the main content area
+        transcriptContent.appendChild(listContainer);
+        transcriptContent.style.display = 'block'; // Show the populated content
+
+    } catch (error) {
+        console.error("[renderTranscriptInModal] Error processing messages:", error);
+        transcriptError.textContent = 'An error occurred while rendering the transcript.';
+        transcriptError.style.display = 'block';
+        transcriptContent.style.display = 'none';
+    }
+
+    console.log("[renderTranscriptInModal] END.");
 }
 
 /**

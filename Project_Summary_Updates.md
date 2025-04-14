@@ -990,25 +990,42 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **Backend Caching:** The caching mechanism for the themes/sentiment analysis seems overly aggressive or incorrectly keyed, leading to stale data being served. This needs immediate investigation in the backend Python code (Flask route and caching logic).
 *   **Backend Analysis:** While caching is the prime suspect, there's a secondary possibility of a bug in the `ConversationAnalyzer` service's aggregation logic when handling larger datasets (>300 conversations).
 
-## Agent Session Learnings (RAG Refinement - April 14, 2025)
+## Agent Session Learnings (CSS Audit - April 14, 2025)
 
-*   **RAG Context:** Refactored the RAG pipeline for the 'Themes & Sentiment' page analysis (`AnalysisService.get_full_themes_sentiment_analysis`) to use **full transcripts** as context for the LLM instead of just summaries. This was necessary because analysis based on summaries proved too sparse compared to previous benchmarks.
-*   **Targeted RAG:** Implemented a multi-step RAG process within `_get_rag_categorized_quotes`. Separate, targeted vector searches and LLM prompts are now used for (1) Questions & Concerns and (2) Positive Interactions, each using full transcript context. This improves context relevance for specific analysis goals.
-*   **Caching:** Modified the background sync task (`app/tasks/sync.py`) to automatically clear the Flask-Caching analysis cache (`app.analysis_service.clear_cache()`) upon successful completion. This ensures analysis reflects newly synced data more quickly.
-*   **UI Polishing:** Added info tooltips to explain the RAG process for each analysis section. Improved loading indicator timing.
-*   **Outstanding Issue (Count):** Identified a persistent bug where the date-range conversation count on the 'Themes & Sentiment' page always shows the total count. Diagnosis points to the date filters (`.gte`/`.lte`) in `SupabaseConversationService.get_conversation_count` not being applied correctly by the `supabase-py` query builder. Tried using `count='exact'` and fetching/counting IDs; both methods failed to return a filtered count. Needs further investigation or a workaround (e.g., Supabase RPC function).
+*   **Goal:** Diagnose and fix persistent CSS styling issues, particularly the transcript modal (`#transcriptModal`) on the "Themes & Sentiment" page not matching the main Transcript Viewer's iMessage style.
+*   **Debugging Process:** Involved iterative static analysis (`style.css`, `themes_sentiment_refactored.js`), dynamic browser inspection, and comparison with the working main Transcript Viewer (`transcript_viewer.js`). Multiple attempts were made to correct CSS overrides and JavaScript rendering logic.
+*   **Findings & Fixes:**
+    *   Resolved initial styling failures caused by conflicting Bootstrap utility classes (`bg-light`) and legacy/duplicate CSS rules.
+    *   Corrected JavaScript data handling in the modal renderer (`renderTranscriptInModal`) to use the correct API response keys (`data.transcript`, `message.role`, `message.content`).
+    *   Identified that missing text ("...") in subsequent user messages originates from the upstream API/data source, not frontend rendering.
+    *   Corrected speaker label text in the modal.
+*   **Persistent Issues:**
+    *   **Modal Styling Mismatch:** Despite numerous fixes, the modal's bubble colors remain reversed compared to the main viewer (Agent=Gray/Caller=Purple in modal vs. Agent=Purple/Caller=Gray in main viewer). Inspector shows the seemingly correct CSS rules are active, but the visual render is incorrect.
+    *   **Intermittent JS Behavior:** Observed inconsistent generation of hyperlinks in the RAG query response, possibly due to caching or LLM variability.
+*   **Codebase Insights:** Debugging CSS conflicts within Bootstrap modals requires careful attention to specificity and potential interference from Bootstrap's own styles/JS. Discrepancies between expected and actual API data structures can manifest as styling bugs. Frontend rendering issues can mask upstream data problems.
 
-## Agent Session Learnings (RAG Implementation - Phase 1 - April 13, 2025)
+## Project Update: April 15, 2025 - Supabase MCP Integration Strategy
 
-## Agent Session Summary (April 13, 2025 - RAG UI / CSS Debug)
+### Summary
+This session focused on integrating the official Supabase Model Context Protocol (MCP) server, which was found to be already configured and enabled in the Cursor environment. Initial attempts to set up a different, simpler MCP server (`gevans3000/supabase-mcp`) were abandoned upon discovery of the official integration.
 
-*   **Goal:** Implement RAG Plan Step 7 (UI/UX Enhancements), specifically 7a (Contextual Linking) and 7b (Transcript Modal).
-*   **Progress:**
-    *   Step 7a (Linking): Implemented backend logic to include `external_id` in RAG query context/prompt and frontend JS to create clickable `(ID: ...)` links in the response. Debugged several backend issues (`AttributeError`, similarity threshold) to make the RAG query pipeline functional.
-    *   Step 7b (Modal): Added transcript modal HTML structure. Implemented `showTranscriptModal` JS to fetch transcript data via API and `renderTranscriptInModal` to create the necessary HTML elements with iMessage-style CSS classes. Added cache clearing to sync task start. Fixed JS errors related to duplicate declarations and missing function definitions.
-*   **Blockers & Findings:**
-    *   **Modal Styling Failure:** The transcript modal displays the correct data but fails to render the iMessage chat bubble styling, appearing "bare bones". CSS rules targeting the modal (`#transcriptModal`) exist in `style.css`, and the JS appears to apply the correct classes. The root cause is suspected to be CSS specificity/conflicts or JS interference.
-    *   **Recurring CSS Issues:** This is the second major instance of encountering perplexing CSS behavior that resisted standard fixes (previously: accordion scrolling). This strengthens suspicion of foundational issues in CSS structure, conflicts, or JS interactions.
-    *   **LLM Reliability (Minor):** Observed an instance where the LLM failed to return the requested JSON list format for theme correlation, returning a dictionary instead. Temporarily bypassed this analysis step.
-    *   **Tooling Issue:** The AI edit tool repeatedly failed to apply necessary corrections to `app/services/analysis_service.py`, requiring manual file replacement.
-*   **Decision:** Paused RAG UI enhancement work. The next session will focus on a **code review/audit** of CSS, JS rendering, and HTML structure to diagnose the recurring styling problems.
+### Key Activities & Outcomes
+*   **MCP Discovery:** Confirmed the official Supabase MCP server is active via Cursor settings, providing tools like `execute_sql`, `get_logs`, `generate_typescript_types`, etc.
+*   **MCP Testing:** Successfully used `mcp_supabase_list_projects`, `mcp_supabase_list_tables`, and `mcp_supabase_execute_sql`. Found email patterns in the `messages` table (using the correct `text` column).
+*   **Strategy Definition:** Developed and documented a strategy (`supabase_mcp_strategy.md`) for leveraging MCP tools alongside the existing `supabase-py` library and Alembic for migrations.
+    *   `supabase-py`: Remains primary for core application data access (CRUD, RPC).
+    *   `mcp_supabase_execute_sql`: To be used during development for complex DB changes (policies, functions) and ad-hoc querying/debugging.
+    *   `mcp_supabase_get_logs`: For troubleshooting Supabase platform issues.
+    *   `mcp_supabase_generate_typescript_types`: To enhance frontend development type safety.
+    *   Alembic: Remains primary for version-controlled schema migrations.
+*   **TypeScript Types:** Generated TS types for the Supabase schema using `mcp_supabase_generate_typescript_types` and saved them to `app/static/types/supabase.ts`.
+
+### Codebase Learnings & Updates
+*   **Technology:** Officially integrated and utilizing the Supabase MCP server via Cursor.
+*   **Workflow:** Adopted a hybrid approach for database interactions: `supabase-py` for application logic, Alembic for schema migrations, and `mcp_supabase_execute_sql` for direct/complex changes during development. Added TS type generation (`mcp_supabase_generate_typescript_types`) to the workflow.
+*   **Database Schema:** Confirmed the column containing message content in the `messages` table is named `text`.
+*   **New Artifacts:** Added `supabase_mcp_strategy.md` and `app/static/types/supabase.ts`.
+*   **Development Environment:** MCP tools are accessed via the Cursor AI assistant (specifically the "Chat" mode, not necessarily the "Agent" mode). The MCP server command configured in Cursor settings (`npx ...`) handles the execution.
+
+### Next Steps
+The initial integration and strategy definition for Supabase MCP tools are complete. The project is ready for the next development task, potentially utilizing the new tools or strategy as appropriate.
