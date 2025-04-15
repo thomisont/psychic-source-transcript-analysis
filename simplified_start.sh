@@ -1,11 +1,9 @@
-
 #!/bin/bash
 
-echo "Starting application setup..."
+echo "Starting application in production mode..."
 
-# Install dependencies
-echo "Installing dependencies..."
-pip install -r requirements.txt
+# Install only production dependencies
+pip install -r requirements-prod.txt
 
 # Check for required environment variables
 echo "Checking environment variables..."
@@ -28,6 +26,5 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
-# Start the application
-echo "Starting application..."
-python run.py --host 0.0.0.0 --port 8080
+# Start with gunicorn for better production performance
+gunicorn --bind 0.0.0.0:8080 run:app
