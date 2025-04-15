@@ -1094,3 +1094,85 @@ h1, h2, h3, h4, h5, h6 {
 #transcriptModal .agent-message .timestamp-label {
     color: var(--text-muted); /* Use variable */
 }
+
+/* Ensure embedded widget stays in container */
+#agent-widget-embed-area {
+    display: flex; /* RE-ENABLE flexbox */
+    justify-content: center; /* Center horizontally */
+    /* align-items: center; */ /* Keep vertical centering disabled */
+    min-height: 300px; /* Ensure container has height */
+    padding-top: 2rem; /* Reduce Padding Top slightly */
+    padding-bottom: 1rem; 
+}
+
+#agent-widget-embed-area > elevenlabs-convai {
+    /* Override potential fixed/absolute */
+    position: relative !important; 
+    display: block !important; 
+    /* Keep max-width and margin auto for centering */
+    max-width: 400px; /* Adjust this width as needed for the widget */
+    width: 90%; /* Allow some flexibility */
+    margin-left: auto !important;
+    margin-right: auto !important;
+    /* Keep height: 100% removed */
+    min-height: 300px; /* Keep a min-height */
+}
+
+/* Container for email templates */
+#caller-email-content,
+#team-email-content {
+    max-height: 400px !important; /* Increased and added !important */
+    overflow-y: auto;
+    border: 1px solid var(--border-gray);
+    padding: 1rem;
+    background-color: var(--light-gray);
+    border-radius: 0.25rem;
+    margin-top: 0.5rem; /* Add some space above */
+}
+
+/* Center the embedded widget */
+#agent-widget-embed-area {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Align to top */
+    padding-top: 1rem; /* Add some padding above */
+    border: 1px solid var(--border-gray);
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    background-color: var(--light-gray);
+    min-height: 300px; /* Ensure it has some height */
+}
+
+/* Style the widget itself if needed (example) */
+#agent-widget-embed-area > elevenlabs-convai {
+    /* Add specific styles for the widget component if necessary */
+    /* e.g., width: 100%; max-width: 500px; */
+}
+
+/* Style for the prompt viewer */
+#agent-prompt-viewer {
+    max-height: 400px !important; /* Match email viewer height */
+    min-height: 400px; /* ADDED: Force minimum height */
+    overflow-y: auto; /* Ensure scrollbar appears if needed */
+    white-space: pre-wrap; /* Preserve line breaks and wrap text */
+    word-wrap: break-word; /* Break long words */
+    font-family: var(--bs-font-monospace); /* Optional: Use monospace for code-like feel */
+    font-size: 0.85rem; /* Slightly smaller font */
+}
+
+/* Force the card body containing the prompt to be taller */
+/* .prompt-column-card-body {
+    min-height: 850px; /* Adjust this value as needed for visual alignment */
+/* } */ /* Commented out - Trying flex approach instead */
+
+/* Ensure cards within the admin accordion row attempt to fill height */
+#agentAdminAccordion .row > .col-md-6 > .card {
+    height: 100%;
+    display: flex; /* Ensure card itself uses flex */
+    flex-direction: column; /* Stack card header/body vertically */
+}
+
+/* Ensure the card-body within these cards can grow */
+#agentAdminAccordion .row > .col-md-6 > .card > .card-body {
+    flex-grow: 1;
+}

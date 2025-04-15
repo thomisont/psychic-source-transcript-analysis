@@ -791,6 +791,7 @@ class ElevenLabsClient:
             # Create the result object
             result = {
                 'id': conversation_id,
+                'agent_id': data.get('agent_id') or metadata.get('agent_id'),
                 'start_time': start_time,
                 'end_time': end_time,
                 'duration': duration,
@@ -805,6 +806,7 @@ class ElevenLabsClient:
         # Create a basic structure (fallback)
         result = {
             'id': data.get('id', ''),
+            'agent_id': data.get('agent_id'),
             'start_time': data.get('start_time', ''),
             'end_time': data.get('end_time', ''),
             'duration': data.get('duration', 0),

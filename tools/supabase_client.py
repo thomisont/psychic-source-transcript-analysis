@@ -51,6 +51,9 @@ class SupabaseClient:
         try:
             if create_client:
                 self.client = create_client(self.url, self.key)
+                # Log the type AND available methods/attributes of the created client
+                logging.info(f"Type of self.client after initialization: {type(self.client)}") 
+                logging.info(f"Attributes/Methods available on self.client: {dir(self.client)}")
                 logging.info("Official Supabase client initialized successfully.")
             else:
                 raise ImportError("create_client function not available from supabase library.")
@@ -121,115 +124,70 @@ class SupabaseClient:
             raise
 
     def execute_sql(self, sql: str, params: dict = None):
-        """Executes a SQL query using the execute_sql RPC function in Supabase."""
+        """Executes a raw SQL query using the 'execute_sql' RPC function in Supabase."""
         if not self.client:
             raise Exception("Supabase client not initialized")
+            
+        # Our RPC function 'execute_sql' expects 'query_sql' and 'query_params'
+        rpc_params = {'query_sql': sql, 'query_params': None}
+        
+        if params:
+            # If params are provided, try to JSON encode them for the RPC function
+            try:
+                 rpc_params['query_params'] = json.dumps(params)
+            except TypeError as json_err:
+                 logging.error(f"Failed to JSON encode params for execute_sql RPC: {params}, Error: {json_err}")
+                 raise ValueError(f"Invalid parameters for execute_sql RPC: {json_err}")
+        
+        logging.debug(f"Calling Supabase RPC 'execute_sql' with SQL: {sql[:150]}... Params: {rpc_params['query_params']}")
         
         try:
-            # Prepare the parameters for the RPC call
-            rpc_params = {'query_sql': sql}
-            if params:
-                # Ensure params is a valid JSON object string if not None
-                try:
-                     rpc_params['query_params'] = json.dumps(params)
-                except TypeError as json_err:
-                     logging.error(f"Failed to JSON encode params for execute_sql: {params}, Error: {json_err}")
-                     raise ValueError(f"Invalid parameters for execute_sql: {json_err}")
-            else:
-                rpc_params['query_params'] = None # Pass SQL NULL if no params
-
-            logging.debug(f"Calling Supabase RPC 'execute_sql' with SQL: {sql[:100]}... Params: {rpc_params['query_params']}")
-            
-            # Call the RPC function named 'execute_sql'
+            # Call the RPC function WE CREATED named 'execute_sql'
             response = self.client.rpc('execute_sql', rpc_params).execute()
             
-            # >>> IMPROVE ERROR HANDLING <<<
-            logging.debug(f"RPC execute_sql raw response: {response}") # Log raw response
+            logging.debug(f"RPC execute_sql raw response: {response}")
 
-            # Check for underlying HTTP errors first if possible (depends on supabase-py version)
-            # Example: if hasattr(response, 'error') and response.error:
-            #     logging.error(f"Supabase client error: {response.error}")
-            #     raise Exception(f"Supabase client error: {response.error}")
+            # Check response structure
+            if hasattr(response, 'data'):
+                response_data = response.data
+                # Check if the RPC returned an error structure (as defined in our function)
+                if isinstance(response_data, dict) and response_data.get('error'):
+                     error_info = response_data['error']
+                     sqlstate = response_data.get('sqlstate', 'N/A')
+                     logging.error(f"Supabase function 'execute_sql' returned error object: {error_info} (SQLSTATE: {sqlstate})")
+                     raise Exception(f"Supabase Function Error: {error_info} (SQLSTATE: {sqlstate})")
+                # Assume success if no error structure found
+                return response_data
+            else:
+                logging.error(f"Supabase RPC response did not contain 'data'. Response: {response}")
+                raise Exception("Unexpected response format from Supabase RPC execution.")
 
-            # Check response data type and content
-            if not hasattr(response, 'data'):
-                 logging.error(f"Supabase RPC response for execute_sql lacked 'data' attribute. Response: {response}")
-                 raise Exception("Supabase RPC response missing 'data' attribute.")
-                 
-            response_data = response.data
-            logging.debug(f"RPC execute_sql data type: {type(response_data)}, content: {str(response_data)[:200]}...")
-
-            # Handle potential error message returned *within* the data payload
-            # Check if data itself is the error string (as seen in logs)
-            if isinstance(response_data, str) and 'error' in response_data.lower():
-                 logging.error(f"Supabase RPC returned an error string in data: {response_data}")
-                 # Try to extract a more specific message if it follows a pattern, otherwise use the string
-                 error_message = response_data
-                 raise Exception(f"Supabase RPC Error: {error_message}")
-            # Check if data is a dictionary containing an error key (as the Supabase function intended on EXCEPTION)
-            elif isinstance(response_data, dict) and response_data.get('error'):
-                error_info = response_data['error']
-                sqlstate = response_data.get('sqlstate', 'N/A')
-                logging.error(f"Supabase function returned error object: {error_info} (SQLSTATE: {sqlstate})")
-                raise Exception(f"Supabase Function Error: {error_info} (SQLSTATE: {sqlstate})")
-            # Optional: Check for other non-JSON array results if needed
-            elif not isinstance(response_data, list):
-                 logging.warning(f"Supabase RPC execute_sql returned unexpected data type: {type(response_data)}. Expected list (JSON array). Data: {str(response_data)[:200]}")
-                 # Depending on strictness, either return as is, or raise an error
-                 # raise Exception(f"Unexpected data format from execute_sql: {type(response_data)}")
-                 pass # Allow non-list results for now, might need adjustment
-
-            # If no error detected, return the data
-            return response_data
-            # >>> END IMPROVED ERROR HANDLING <<<
-        
         except Exception as e:
-            # Catch other exceptions like network errors, client errors, or re-raised errors
+            # Catch errors during RPC call or re-raised errors
             logging.error(f"Error during RPC call 'execute_sql': {e}\nSQL: {sql}\nParams: {params}", exc_info=True)
-            raise # Re-raise the exception
+            # Re-raise a generic error for the route handler
+            raise Exception(f"Database query execution failed: {e}")
 
     # --- RPC Function Calls (using supabase-py) ---
-    def get_tables(self): # Keep direct request as example or if RPC fails
-        # >>> REWRITE to use execute_sql('SELECT 1') as a connection test <<<
-        logging.debug("Attempting Supabase connection test via execute_sql('SELECT 1')...")
+    def get_tables(self): 
+        logging.debug("Attempting Supabase connection test via sql('SELECT 1')...")
         try:
-            # Use the existing execute_sql method which calls the RPC function we created
-            result = self.execute_sql('SELECT 1') # REMOVED SEMICOLON
-            # Simple check: If execute_sql didn't raise an error and returned something, assume connected.
-            # More specific checks could be added based on expected result format.
+            # Use the CORRECTED execute_sql method for the connection test
+            result = self.execute_sql('SELECT 1') 
             if result is not None:
                 logging.debug("Supabase connection test successful.")
-                # Return an empty list to satisfy original callers expecting a list of tables, 
-                # even though we aren't actually getting tables anymore.
+                # Return an empty list for now, as the purpose is just the check
                 return [] 
             else:
                 logging.warning("Supabase connection test (execute_sql) returned None or empty result.")
                 raise ConnectionError("Supabase connection test returned unexpected data.")
         except Exception as e:
             logging.error(f"Supabase connection test failed: {e}", exc_info=True)
-            # Reraise the exception so the caller knows the check failed
             raise ConnectionError(f"Supabase connection check failed: {e}")
 
-        # >>> REMOVE old implementation <<<
-        # endpoint = f"{self.url}/rest/v1/rpc/get_tables"
-        # try:
-        #     response = requests.post(endpoint, headers=self.headers, json={})
-        #     response.raise_for_status()
-        #     return response.json()
-        # except Exception as e:
-        #     logging.warning(f"RPC call to get_tables failed: {e}. Falling back to SQL query.")
-        #     # NOTE: This fallback will now fail if execute_sql is removed!
-        #     # Consider removing this fallback or implementing it differently if get_tables RPC fails.
-        #     # For now, returning empty list on failure.
-        #     logging.error(f"Cannot execute fallback SQL query for get_tables as execute_sql is removed.")
-        #     return [] # Return empty list if RPC fails
-
     def get_schema(self, table_name):
-        # This method relied on execute_sql. It needs to be refactored or removed.
-        # For now, let's return an empty list or raise an error.
-        logging.warning(f"get_schema for {table_name} cannot run as execute_sql is removed. Returning empty list.")
+        logging.warning(f"get_schema for {table_name} is not implemented with the standard client. Returning empty list.")
         return [] 
-        # OR: raise NotImplementedError("get_schema needs reimplementation without execute_sql")
 
     # ... (DataFrame methods can be adapted or removed if not used) ...
     def query_to_dataframe(self, table_name, select="*", filters=None, limit=None, order=None):

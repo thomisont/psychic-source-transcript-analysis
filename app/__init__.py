@@ -190,8 +190,7 @@ def create_app(test_config=None):
     from app.api.elevenlabs_client import ElevenLabsClient
     try:
         app.elevenlabs_client = ElevenLabsClient(
-            api_key=os.getenv('ELEVENLABS_API_KEY', ''),
-            agent_id=os.getenv('ELEVENLABS_AGENT_ID', '')
+            api_key=os.getenv('ELEVENLABS_API_KEY', '')
         )
         logging.info("ElevenLabs client initialized and attached to app context.")
     except Exception as e:
@@ -273,10 +272,10 @@ def create_app(test_config=None):
         
         logging.info(f"Service Status - Conversation: {'OK (' + service_mode + ')' if app.conversation_service else 'Failed'}, Analysis: {'OK' if app.analysis_service else 'Failed'}, Export: {'OK' if app.export_service else 'Failed'}")
         
-        if hasattr(app, 'elevenlabs_client') and app.elevenlabs_client and app.elevenlabs_client.api_key and app.elevenlabs_client.agent_id:
-            logging.info("Main ElevenLabsClient available on app context with API key and Agent ID.")
+        if hasattr(app, 'elevenlabs_client') and app.elevenlabs_client and app.elevenlabs_client.api_key:
+            logging.info("Main ElevenLabsClient available on app context with API key.")
         elif hasattr(app, 'elevenlabs_client') and app.elevenlabs_client:
-             logging.warning("Main ElevenLabsClient available on app context but MISSING API key or Agent ID.")
+             logging.warning("Main ElevenLabsClient available on app context but MISSING API key.")
         else:
              logging.warning("Main ElevenLabsClient FAILED to initialize or is not attached to app context.")
 

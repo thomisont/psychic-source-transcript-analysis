@@ -12,6 +12,7 @@ from dateutil import parser # For robust date parsing
 import time
 from collections import Counter
 import pytz  # Import pytz
+from flask import current_app # *** ADD IMPORT ***
 
 # Add system path to include tools directory
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -47,10 +48,10 @@ class SupabaseConversationService:
         self.cache = {}
         logging.info("Conversation service cache cleared")
     
-    def get_conversation_count(self, start_date=None, end_date=None) -> int:
+    def get_conversation_count(self, start_date=None, end_date=None, agent_id: Optional[str] = None) -> int:
         """
-        Gets the count of conversations within an optional date range.
-        Uses the 'created_at' field of the conversations table for filtering.
+        Gets the count of conversations within an optional date range, filtered by agent_id.
+        Uses the 'created_at' field and 'agent_id' of the conversations table for filtering.
         NOTE: This counts conversations records, which might differ slightly from counts
         based on message activity if conversations exist without messages.
         """
@@ -59,8 +60,6 @@ class SupabaseConversationService:
              return 0
 
         try:
-            # === ALTERNATIVE COUNT STRATEGY ===
-            # Select only IDs and count the results length
             query = self.supabase.client.table('conversations').select("id") # Select only ID
             
             start_dt_iso = None
@@ -75,6 +74,12 @@ class SupabaseConversationService:
                 end_dt_iso = end_dt.isoformat()
                 query = query.lte('created_at', end_dt_iso)
                 
+            # +++ Apply agent_id filter +++
+            if agent_id:
+                query = query.eq('agent_id', agent_id)
+                logging.info(f"Applying agent_id filter: {agent_id}")
+            # +++ End agent_id filter +++
+
             # Execute the query to get IDs
             response = query.execute()
             
@@ -85,49 +90,21 @@ class SupabaseConversationService:
             
             # Count the number of rows returned
             count = len(response.data) if response.data else 0
-            logging.info(f"Retrieved count {count} via ID fetch for conversations ({start_dt_iso} to {end_dt_iso}).")
+            logging.info(f"Retrieved count {count} via ID fetch for conversations ({start_dt_iso} to {end_dt_iso}, agent: {agent_id}).")
             return count
-            # === END ALTERNATIVE COUNT STRATEGY ===
-            
-            # === ORIGINAL COUNT STRATEGY (Commented Out) ===
-            # query = self.supabase.client.table('conversations').select("*", count='exact')
-            # 
-            # start_dt_iso = None
-            # if start_date:
-            #     start_dt = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
-            #     start_dt_iso = start_dt.isoformat()
-            #     query = query.gte('created_at', start_dt_iso)
-            # 
-            # end_dt_iso = None
-            # if end_date:
-            #     end_dt = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
-            #     end_dt_iso = end_dt.isoformat()
-            #     query = query.lte('created_at', end_dt_iso)
-            #     
-            # # Execute the query to get the count
-            # response = query.execute()
-            # 
-            # # --- Log the full response object --- 
-            # logging.debug(f"Supabase count query response object: {response}")
-            # # --- End Log ---
-            # 
-            # count = response.count
-            # logging.info(f"Retrieved count {count} for conversations ({start_dt_iso} to {end_dt_iso}) using standard method.")
-            # return count if count is not None else 0
-            # === END ORIGINAL COUNT STRATEGY ===
             
         except Exception as e:
-            logging.error(f"Error in get_conversation_count using standard method: {e}", exc_info=True)
+            logging.error(f"Error in get_conversation_count (agent: {agent_id}): {e}", exc_info=True)
             return 0
     
-    def get_conversations(self, start_date=None, end_date=None, limit=100, offset=0) -> Dict[str, Any]:
+    def get_conversations(self, start_date=None, end_date=None, limit=100, offset=0, agent_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Retrieves a paginated list of conversations, filtered by message timestamps 
-        within the specified date range.
+        Retrieves a paginated list of conversations, filtered by message timestamps
+        within the specified date range AND by agent_id.
         
         Process:
         1. Calls the Supabase RPC function `get_conversation_ids_in_range` to get IDs
-           of conversations having messages within the start/end date.
+           of conversations having messages within the start/end date AND matching agent_id.
         2. Fetches the full conversation data (including nested messages) for ALL matching IDs.
         3. Processes the fetched data, calculating duration and formatting transcripts.
         4. Sorts the processed conversations by start time (created_at) in Python.
@@ -154,31 +131,27 @@ class SupabaseConversationService:
                  return {"conversations": [], "total_count": 0, "error": "Invalid date format provided"}
 
             # --- Call the RPC function to get relevant conversation IDs --- 
-            logging.info(f"Calling RPC get_conversation_ids_in_range with start={start_dt_iso}, end={end_dt_iso}")
+            logging.info(f"Calling RPC get_conversation_ids_in_range with start={start_dt_iso}, end={end_dt_iso}, agent_id={agent_id}")
             rpc_params = {
                 'start_iso': start_dt_iso,
-                'end_iso': end_dt_iso
+                'end_iso': end_dt_iso,
+                'target_agent_id': agent_id # Pass agent_id to RPC
             }
-            # Handle None dates - pass them as None/null to the function?
-            # Adjust params if the function expects nulls or specific defaults
-            if start_dt_iso is None:
-                 # Assuming the function handles NULL start, or set a very old date?
-                 # For now, let's pass None which should become NULL
-                 rpc_params['start_iso'] = None 
-            if end_dt_iso is None:
-                 # Assuming the function handles NULL end, or set future date?
-                 rpc_params['end_iso'] = None 
-            
+            # Handle None dates/agent_id
+            if start_dt_iso is None: rpc_params['start_iso'] = None
+            if end_dt_iso is None: rpc_params['end_iso'] = None
+            if agent_id is None: rpc_params['target_agent_id'] = None # Pass None if not specified
+
             id_response = self.supabase.client.rpc('get_conversation_ids_in_range', rpc_params).execute()
             
             if not hasattr(id_response, 'data') or id_response.data is None:
-                 logging.warning(f"RPC call get_conversation_ids_in_range returned no data or unexpected structure for range {start_date}-{end_date}")
-                 return {"conversations": [], "total_count": 0} # Return empty if no IDs found
+                 logging.warning(f"RPC call get_conversation_ids_in_range returned no data for range {start_date}-{end_date}, agent: {agent_id}")
+                 return {"conversations": [], "total_count": 0}
 
             conversation_ids_data = id_response.data
             conversation_ids = [item['conversation_id'] for item in conversation_ids_data if 'conversation_id' in item]
             total_count = len(conversation_ids)
-            logging.info(f"Found {total_count} matching conversation IDs for range {start_date}-{end_date}")
+            logging.info(f"Found {total_count} matching conversation IDs for range {start_date}-{end_date}, agent: {agent_id}")
 
             if not conversation_ids:
                  return {"conversations": [], "total_count": 0}
@@ -193,10 +166,10 @@ class SupabaseConversationService:
                 return {"conversations": [], "total_count": total_count} # Return total count but empty page
 
             # --- Fetch full conversation data for ALL matching IDs --- 
-            logging.info(f"Fetching full data for {len(paginated_ids)} conversations...") # Updated log
+            logging.info(f"Fetching full data for {len(paginated_ids)} conversations (agent: {agent_id})...")
             query = self.supabase.client.table('conversations').select(
-                "id, external_id, title, created_at, status, messages(*)"
-            ).in_('id', paginated_ids) # Filter by the list of IDs found
+                "id, external_id, title, created_at, status, agent_id, messages(*)" # Added agent_id to select
+            ).in_('id', paginated_ids)
             
             # REMOVED ordering at the Supabase query level
             # query = query.order('created_at', desc=True)
@@ -204,7 +177,7 @@ class SupabaseConversationService:
             # Execute query for full data
             response = query.execute()
             result_data = response.data
-            logging.info(f"Fetched {len(result_data)} full conversation records before sorting/pagination.")
+            logging.info(f"Fetched {len(result_data)} full conversation records (agent: {agent_id}).")
 
             # --- Process results --- 
             conversations = []
@@ -285,6 +258,7 @@ class SupabaseConversationService:
                 # Conversation data now includes the transcript
                 conversation_data = {
                     'conversation_id': row.get('external_id'),
+                    'agent_id': row.get('agent_id'), # Include agent_id in response
                     'title': row.get('title') or "Untitled",
                     'start_time': created_at_str, # Keep original string for response
                     'status': row.get('status'),
@@ -309,7 +283,7 @@ class SupabaseConversationService:
             for conv in paginated_conversations:
                 conv.pop('_sort_time', None)
 
-            logging.info(f"Returning {len(paginated_conversations)} conversations for page (offset={offset}, limit={limit}). Total matching range: {total_count}")
+            logging.info(f"Returning {len(paginated_conversations)} conversations for page (offset={offset}, limit={limit}, agent: {agent_id}). Total: {total_count}")
 
             return {
                 "conversations": paginated_conversations, # Return the paginated list
@@ -317,12 +291,13 @@ class SupabaseConversationService:
             }
             
         except Exception as e:
-            logging.error(f"Error in get_conversations using standard method: {e}", exc_info=True)
+            logging.error(f"Error in get_conversations (agent: {agent_id}): {e}", exc_info=True)
             return {"conversations": [], "total_count": 0, "error": str(e)}
     
     def get_conversation_details(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """
         Retrieves detailed information for a single conversation by its external_id.
+        Includes agent_id in the returned data.
         
         Process:
         1. Fetches the main conversation record (including cost, summary) using external_id.
@@ -339,7 +314,7 @@ class SupabaseConversationService:
             # Step 1: Fetch the conversation by external_id, including cost_credits AND summary
             logging.info(f"Fetching conversation details for external_id: {conversation_id}")
             conv_response = self.supabase.client.table('conversations') \
-                        .select("id, external_id, title, created_at, status, cost_credits, summary") \
+                        .select("id, external_id, title, created_at, status, cost_credits, summary, agent_id") \
                         .eq('external_id', str(conversation_id))\
                         .limit(1)\
                         .maybe_single()\
@@ -418,6 +393,7 @@ class SupabaseConversationService:
             conversation_data = {
                 'conversation_id': conversation.get('external_id'),
                 'id': conversation.get('id'), # Internal ID
+                'agent_id': conversation.get('agent_id'), # Include agent_id
                 'start_time': conversation.get('created_at'), # Conversation start
                 'status': conversation.get('status'),
                 'title': conversation.get('title') or "Untitled Conversation",
@@ -432,45 +408,61 @@ class SupabaseConversationService:
             return conversation_data
             
         except Exception as e:
-            logging.error(f"Error in get_conversation_details (two-step query): {e}", exc_info=True)
+            logging.error(f"Error in get_conversation_details: {e}", exc_info=True)
             return None # Return None on any exception
             
-    def get_dashboard_stats(self, start_date: str | None = None, end_date: str | None = None) -> dict:
+    def get_dashboard_stats(self, start_date: str | None = None, end_date: str | None = None, agent_id: Optional[str] = None) -> dict:
         """
-        Fetches aggregated statistics for the main dashboard based on message activity 
-        within the specified date range.
+        Fetches aggregated statistics for the main dashboard based on message activity
+        within the specified date range AND filtered by agent_id.
 
         Process:
-        1. Calls the Supabase RPC function `get_message_activity_in_range` which performs
-           the primary aggregation based on message timestamps (hourly/daily activity, volume, 
-           avg duration, peak time) and returns distinct conversation IDs found.
-        2. Performs secondary queries using the returned distinct IDs to calculate 
-           average cost and completion rate for conversations within that period.
+        1. Calls the Supabase RPC function `get_message_activity_in_range` (updated to accept agent_id)
+           which performs the primary aggregation based on message timestamps and agent_id.
+        2. Performs secondary queries using the returned distinct IDs (already filtered by agent)
+           to calculate average cost and completion rate.
         3. Cleans and combines the results into a dictionary for the dashboard API.
         """
         try:
-            logging.info(f"Calling Supabase RPC get_message_activity_in_range with start: {start_date}, end: {end_date}")
-            # Prepare parameters for the RPC call. Pass None directly if dates are not provided.
-            params = {'start_iso': start_date, 'end_iso': end_date}
+            logging.info(f"Calling Supabase RPC get_message_activity_in_range with start: {start_date}, end: {end_date}, agent_id: {agent_id}")
+            # Prepare parameters for the RPC call, including agent_id
+            params = {
+                'start_iso': start_date,
+                'end_iso': end_date,
+                'target_agent_id': agent_id # Pass agent_id to RPC
+            }
+            if agent_id is None: params['target_agent_id'] = None # Ensure None is passed if not specified
 
             # Execute the Supabase function
             response = self.supabase.client.rpc('get_message_activity_in_range', params).execute()
             logging.debug(f"Raw response from get_message_activity_in_range: {response}")
 
-            if not response.data:
-                logging.warning("Received empty data from get_message_activity_in_range RPC.")
+            # *** CORRECTED CHECK FOR VALID RESPONSE DATA ***
+            # Check if response.data exists and is either a dict (single row) or a non-empty list
+            valid_response = False
+            if response.data:
+                 if isinstance(response.data, dict):
+                     valid_response = True
+                 elif isinstance(response.data, list) and len(response.data) > 0:
+                     valid_response = True
+            
+            if not valid_response:
+                logging.warning(f"RPC call get_message_activity_in_range returned invalid or empty data for range {start_date}-{end_date}, agent: {agent_id}. Response: {response.data}")
                 # Return a default structure indicating no data, matching expected keys by frontend
                 return {
                     'activity_by_hour': {}, 'activity_by_day': {}, 'daily_volume': {},
                     'daily_avg_duration': {}, 'total_conversations_period': 0,
                     'avg_duration_seconds': 0, 'peak_time_hour': None,
-                    'distinct_conversation_ids': [], # Ensure all expected keys are present
-                    'avg_cost_credits': 0.0 # Add missing key with default value
+                    'distinct_conversation_ids': [], 
+                    'avg_cost_credits': 0.0, 
+                    'completion_rate': 0.0,
+                    'month_to_date_cost': None,
+                    'monthly_credit_budget': current_app.config.get('MONTHLY_CREDIT_BUDGET', 2000000) 
                 }
+            # *** END CORRECTED CHECK ***
 
-
-            # The RPC function returns the JSON object directly in response.data
-            stats_data = response.data
+            # The RPC function might return the dict directly or in a list
+            stats_data = response.data[0] if isinstance(response.data, list) else response.data 
 
             # Basic validation/logging of received data
             if not isinstance(stats_data, dict):
@@ -506,13 +498,13 @@ class SupabaseConversationService:
                     stats_data[key] = {}
 
 
-            # --- Calculate Average Cost (Requires separate query) ---
+            # --- Calculate Average Cost (Uses IDs already filtered by agent in RPC) ---
             distinct_ids_for_cost = stats_data.get('distinct_conversation_ids')
             avg_cost_credits = 0.0
 
             if distinct_ids_for_cost:
                 try:
-                    logging.debug(f"Fetching cost_credits for {len(distinct_ids_for_cost)} conversation IDs from RPC result.")
+                    logging.debug(f"Fetching cost_credits for {len(distinct_ids_for_cost)} conversation IDs (agent: {agent_id}).")
                     # Fetch cost_credits for the specific conversations identified by the RPC
                     cost_response = self.supabase.client.table('conversations') \
                         .select('id, cost_credits') \
@@ -536,30 +528,22 @@ class SupabaseConversationService:
                         logging.info(f"Calculated average cost: {avg_cost_credits} from {num_convs_with_cost} conversations.")
                     else:
                         logging.warning("No cost data found for the specified conversation IDs.")
-                except APIError as e:
-                     logging.error(f"Supabase API error fetching cost data: {e}", exc_info=True)
-                     # Keep avg_cost_credits as 0.0 if cost fetch fails
                 except Exception as e:
-                     logging.error(f"Unexpected error fetching cost data: {e}", exc_info=True)
-                     # Keep avg_cost_credits as 0.0
+                    logging.error(f"Unexpected error fetching cost data (agent: {agent_id}): {e}", exc_info=True)
             else:
-                logging.warning("No distinct conversation IDs returned from RPC, cannot calculate average cost.")
+                logging.warning(f"No distinct conversation IDs returned from RPC (agent: {agent_id}), cannot calculate average cost.")
 
-            # Add the calculated (or default 0.0) average cost to the results
             stats_data['avg_cost_credits'] = avg_cost_credits
 
-            # --- Calculate Completion Rate (Requires another query using existing IDs) ---
-            # Added April 2025 to replace metric from removed Engagement page.
-            # Uses the distinct conversation IDs returned by the main RPC call.
+            # --- Calculate Completion Rate (Uses IDs already filtered by agent in RPC) ---
             completed_count = 0
             completion_rate = 0.0
             total_conversations_in_period = stats_data.get('total_conversations_period', 0)
 
             if distinct_ids_for_cost and total_conversations_in_period > 0:
                 try:
-                    logging.debug(f"Fetching count of completed conversations for {len(distinct_ids_for_cost)} IDs.")
+                    logging.debug(f"Fetching count of completed conversations for {len(distinct_ids_for_cost)} IDs (agent: {agent_id}).")
                     # Count completed conversations among those identified by the RPC
-                    # ASSUMPTION: 'completed' is the status for completed conversations
                     completed_response = self.supabase.client.table('conversations') \
                         .select('id', count='exact') \
                         .in_('id', distinct_ids_for_cost) \
@@ -573,31 +557,58 @@ class SupabaseConversationService:
                     else:
                          logging.warning("Could not retrieve count of completed conversations.")
 
-                except APIError as e:
-                     logging.error(f"Supabase API error fetching completed conversation count: {e}", exc_info=True)
-                     # Keep completion_rate as 0.0 if count fetch fails
                 except Exception as e:
-                     logging.error(f"Unexpected error fetching completed conversation count: {e}", exc_info=True)
-                     # Keep completion_rate as 0.0
+                    logging.error(f"Unexpected error fetching completed conversation count (agent: {agent_id}): {e}", exc_info=True)
             elif total_conversations_in_period == 0:
-                 logging.info("Total conversations period is 0, completion rate is 0.")
+                 logging.info(f"Total conversations period is 0 (agent: {agent_id}), completion rate is 0.")
             else: # distinct_ids_for_cost is empty
-                logging.warning("No distinct conversation IDs returned from RPC, cannot calculate completion rate.")
+                logging.warning(f"No distinct conversation IDs returned from RPC (agent: {agent_id}), cannot calculate completion rate.")
 
-            # Add the calculated (or default 0.0) completion rate to the results
             stats_data['completion_rate'] = completion_rate
 
+            # --- NEW: Calculate Month-to-Date Cost --- 
+            month_to_date_cost = 0
+            try:
+                now = datetime.now(timezone.utc)
+                start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                
+                # Query conversations created this month (using created_at)
+                # Apply agent_id filter here too!
+                query = self.supabase.client.table('conversations') \
+                    .select('cost_credits', count='exact') \
+                    .gte('created_at', start_of_month.isoformat())
+                    # .lte('created_at', now.isoformat()) # Don't strictly need end date
+                
+                if agent_id:
+                    query = query.eq('agent_id', agent_id)
+                    
+                monthly_cost_response = query.execute()
+                
+                if monthly_cost_response.data:
+                    for conv in monthly_cost_response.data:
+                        cost = conv.get('cost_credits')
+                        if cost is not None and isinstance(cost, (int, float)):
+                            month_to_date_cost += cost
+                logging.info(f"Calculated month-to-date cost ({start_of_month.strftime('%Y-%m-%d')} to now, agent: {agent_id}): {month_to_date_cost}")
+            except Exception as mtd_err:
+                 logging.error(f"Error calculating month-to-date cost: {mtd_err}", exc_info=True)
+                 month_to_date_cost = None # Indicate error
 
-            logging.debug(f"Processed stats data being returned: {stats_data}")
+            stats_data['month_to_date_cost'] = month_to_date_cost
+            # --- END NEW MTD COST --- 
+            
+            # --- Get Budget from Config --- 
+            monthly_budget = current_app.config.get('MONTHLY_CREDIT_BUDGET', 2000000) # Default if not set
+            stats_data['monthly_credit_budget'] = monthly_budget
+            # --- End Get Budget --- 
+
+            logging.debug(f"Processed stats data being returned (agent: {agent_id}): {stats_data}")
             return stats_data
 
-        except APIError as e:
-            logging.error(f"Supabase API error calling get_message_activity_in_range: {e}", exc_info=True)
-            return {'error': f"Database API error: {e.message}"}
         except Exception as e:
-            logging.error(f"Unexpected error fetching dashboard stats: {e}", exc_info=True)
-            # Generic error for unexpected issues
-            return {'error': f"An unexpected error occurred: {str(e)}"}
+            logging.error(f"Supabase error calling RPC or processing stats (agent: {agent_id}): {e}", exc_info=True)
+            # Return dict with error key
+            return {'error': f"Database function error: {str(e)}"}
 
     def _empty_stats(self, error_payload: Optional[Dict] = None) -> Dict[str, Any]:
         """Returns a default empty structure for dashboard stats, optionally including an error."""

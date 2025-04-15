@@ -25,6 +25,9 @@ let currentConversationId = null;
  * @param {Function} onDateChangeCallback - Function to call when a timeframe button is clicked.
  */
 function initializeGlobalDateRangeSelector(onDateChangeCallback) {
+    // +++ Add Debug Log +++
+    console.log("DEBUG (main.js): ENTERING initializeGlobalDateRangeSelector function.");
+    // +++ End Debug Log +++
     console.log("Initializing global date range selector [Listeners Only]...");
     const timeframeButtons = document.querySelectorAll('.date-range-btn');
     const dateRangeDisplay = document.getElementById('date-range-display'); // Optional
@@ -34,34 +37,41 @@ function initializeGlobalDateRangeSelector(onDateChangeCallback) {
         return;
     }
 
+    // *** DEFINE initiallyActiveButton earlier ***
+    const initiallyActiveButton = document.querySelector('.date-range-btn.active');
+    const buttons = timeframeButtons; // Alias for clarity in later fallback
+
     timeframeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            // Update visual state
-            timeframeButtons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            const timeframe = this.dataset.timeframe;
-            console.log("Date range button clicked:", timeframe);
-
-            // Store in session storage
-            sessionStorage.setItem('selectedTimeframe', timeframe);
-
-            // Update optional display
-            if (dateRangeDisplay) {
-                const friendlyName = this.textContent;
-                dateRangeDisplay.textContent = friendlyName;
-            }
-
-            // Call the page-specific callback
-            if (typeof onDateChangeCallback === 'function') {
-                onDateChangeCallback(timeframe);
-            } else {
-                console.error("onDateChangeCallback is not a function or was not provided.");
-            }
+        // *** ADD LOG ***
+        console.log(`Attaching listener to date button: ${button.dataset.timeframe}`, button);
+        button.addEventListener('click', function(event) { // Pass event to handler
+            // Use the specific handler function defined below
+            handleTimeframeChange(event, onDateChangeCallback); 
         });
     });
 
-    // --- Removed logic for triggering initial load --- 
-    // The page-specific script is now responsible for its own initial load.
+    // Set initial active state (now variable is defined)
+    if (initiallyActiveButton) {
+        // initiallyActiveButton.classList.add('active'); // Already has class
+        console.log("Initial active button found in global selector");
+        // Trigger initial load *only* if a callback is provided
+        if (onDateChangeCallback) { 
+            const initialTimeframe = initiallyActiveButton.dataset.timeframe || 'last_30_days';
+            console.log(`Triggering initial load via callback with timeframe: ${initialTimeframe}`);
+            onDateChangeCallback(initialTimeframe);
+        } else {
+             console.log("No initial load callback provided to global date selector.");
+        }
+    } else if (buttons.length > 0) {
+        // Fallback: activate the first button if none are marked active
+        buttons[0].classList.add('active');
+        console.log("Fallback: Activated first button in global selector");
+        if (onDateChangeCallback) {
+            const initialTimeframe = buttons[0].dataset.timeframe || 'last_30_days';
+            console.log(`Triggering initial load via callback with timeframe: ${initialTimeframe}`);
+            onDateChangeCallback(initialTimeframe);
+        }
+    }
 
     console.log("Global date range listeners attached.");
 }
@@ -284,4 +294,34 @@ async function updateApiStatus() {
 
 // Final check: Ensure DOMContentLoaded listeners inside page-specific files 
 // correctly identify their page and execute.
+
+// --- Shared Event Handler ---
+// This function is called when a date range button is clicked.
+function handleTimeframeChange(event, loadDataCallback) {
+    // *** ADD LOG ***
+    console.log("handleTimeframeChange triggered!"); 
+    const clickedButton = event.target.closest('.date-range-btn');
+    if (!clickedButton) return; // Ignore clicks not on a button
+
+    const timeframe = clickedButton.dataset.timeframe;
+    if (!timeframe) return;
+
+    console.log(`Date range button clicked: ${timeframe}`);
+
+    // Remove active class from all buttons in this group
+    const parentGroup = clickedButton.closest('.btn-group');
+    if (parentGroup) {
+        parentGroup.querySelectorAll('.date-range-btn').forEach(btn => btn.classList.remove('active'));
+    }
+    // Add active class to the clicked button
+    clickedButton.classList.add('active');
+
+    // Trigger the data loading callback if provided
+    if (typeof loadDataCallback === 'function') {
+        console.log(`Calling loadDataCallback with timeframe: ${timeframe}`);
+        loadDataCallback(timeframe);
+    } else {
+        console.warn("loadDataCallback is not a function or was not provided.");
+    }
+}
 

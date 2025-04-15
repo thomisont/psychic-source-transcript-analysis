@@ -90,7 +90,7 @@
     </div>
     
     <!-- Main Content -->
-    <main class="container mt-4" id="content">
+    <main class="container-fluid mt-4" id="content">
         {% block content %}{% endblock %}
     </main>
     
@@ -191,6 +191,9 @@
     </script>
     
     {% block scripts %}{% endblock %}
+
+    {# NEW: Preload ElevenLabs Widget Script #}
+    <script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
 
     <!-- Sync Status Modal -->
     <div class="modal fade" id="syncStatusModal" tabindex="-1" aria-labelledby="syncStatusModalLabel" aria-hidden="true">

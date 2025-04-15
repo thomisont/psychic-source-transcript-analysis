@@ -11,6 +11,7 @@ class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # Assuming an external ID is used, e.g., from ElevenLabs
     external_id = db.Column(db.String, unique=True, nullable=False, index=True)
+    agent_id = db.Column(db.String, nullable=True, index=True) # Added for multi-agent support
     title = db.Column(db.String, nullable=True) # Or extract from messages?
     # Ensure created_at is timezone aware
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -140,6 +140,24 @@ const Formatter = {
             return '--%'; // Fallback
         }
     },
+
+    /**
+     * Format a number using locale-specific settings (e.g., commas).
+     * @param {number} value - The number to format.
+     * @returns {string} Formatted number string or '--' if invalid.
+     */
+    number(value) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '--'; // Placeholder for invalid input
+        }
+        try {
+            return Number(value).toLocaleString(); // Use default locale
+        } catch (error) {
+            console.error('Error formatting number:', value, error);
+            return '--'; // Fallback
+        }
+    },
+
     // ADD Sentiment Label/Class Helpers
     sentimentLabel(score) {
         if (score === null || score === undefined || isNaN(score)) return 'N/A';
@@ -263,6 +281,33 @@ const UI = {
                  toastContainer.removeChild(toast);
             }
         });
+    },
+
+    /**
+     * Sets the active state for timeframe buttons.
+     * @param {string} timeframe - The data-timeframe value of the button to activate.
+     */
+    setActiveTimeframeButton(timeframe) {
+        console.log(`UI.setActiveTimeframeButton called with timeframe: ${timeframe}`);
+        const timeframeButtons = document.querySelectorAll('.date-range-btn');
+        if (!timeframeButtons.length) {
+            console.warn('.date-range-btn elements not found for setActiveTimeframeButton');
+            return;
+        }
+        
+        let foundActive = false;
+        timeframeButtons.forEach(btn => {
+            if (btn.dataset.timeframe === timeframe) {
+                btn.classList.add('active');
+                foundActive = true;
+                console.log(` - Activated button:`, btn);
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        if (!foundActive) {
+             console.warn(`setActiveTimeframeButton: No button found for timeframe '${timeframe}'`);
+        }
     }
 };
 

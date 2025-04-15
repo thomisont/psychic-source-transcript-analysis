@@ -303,6 +303,7 @@ def sync_new_conversations(app, full_sync=False):
                                 # Insert Conversation directly 
                                 conv_data = {
                                     'external_id': external_id,
+                                    'agent_id': adapted_data.get('agent_id'),
                                     'title': adapted_data.get('title', f"Conversation {external_id[:8]}"),
                                     'created_at': created_at_iso, 
                                     'status': conv_status,
@@ -310,6 +311,8 @@ def sync_new_conversations(app, full_sync=False):
                                     'summary': conv_summary_str,
                                     'embedding': embedding_vector
                                 }
+                                # Log agent_id being inserted
+                                logging.info(f"Sync Task: Preparing INSERT for {external_id}. Agent ID from adapted_data: {adapted_data.get('agent_id')}")
                                 conv_result = supabase.insert('conversations', conv_data)
                                 if not conv_result: 
                                     raise Exception(f"Supabase insert conversation failed for {external_id}, no result returned.")
@@ -376,9 +379,11 @@ def sync_new_conversations(app, full_sync=False):
                                      'cost_credits': cost_value_int,
                                      'status': conv_status,
                                      'summary': conv_summary_str,
-                                     'embedding': embedding_vector
-                                     # Add other fields if they can change and should be updated
+                                     'embedding': embedding_vector,
+                                     'agent_id': adapted_data.get('agent_id')
                                  }
+                                 # Log agent_id being updated
+                                 logging.info(f"Sync Task: Preparing UPDATE for {external_id}. Agent ID from adapted_data: {adapted_data.get('agent_id')}")
                                  response: APIResponse = supabase.client.table('conversations') \
                                                      .update(update_data) \
                                                      .eq('external_id', external_id) \

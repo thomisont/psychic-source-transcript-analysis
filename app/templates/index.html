@@ -113,11 +113,19 @@
             <p class="text-muted">Overview of conversation analytics</p>
         </div>
         <div class="col-md-4 text-end">
-            <div id="date-range-selector" class="btn-group date-filter" role="group" aria-label="Date range options">
+            <div id="date-range-selector" class="btn-group date-filter mb-2" role="group" aria-label="Date range options">
                 <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="last_7_days">7 Days</button>
                 <button type="button" class="btn btn-outline-primary date-range-btn active" data-timeframe="last_30_days">30 Days</button>
                 <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="last_90_days">90 Days</button>
                 <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="all_time">All</button>
+            </div>
+            {# Agent Selector Dropdown #}
+            <div class="d-flex justify-content-end align-items-center">
+                 <label for="agent-selector" class="form-label me-2 mb-0">Agent:</label>
+                 <select class="form-select form-select-sm w-auto" id="agent-selector">
+                     <option selected>Loading Agents...</option>
+                     {# Options will be populated by JavaScript #}
+                 </select>
             </div>
         </div>
     </div>
@@ -144,7 +152,14 @@
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="stat-card h-100">
                 <div class="stat-card-header">
-                    <div class="stat-metric-name">Conversations</div>
+                    <div class="stat-metric-name">
+                        Conversations
+                        <i class="bi bi-info-circle ms-1" 
+                           data-bs-toggle="tooltip" 
+                           data-bs-placement="top" 
+                           title="Counts conversations for the selected agent that had message activity within the selected date range.">
+                        </i>
+                    </div>
                     <div class="stat-icon-container bg-viz-1">
                         <i class="bi bi-chat-dots stat-icon"></i>
                     </div>
@@ -223,9 +238,28 @@
             </div>
         </div>
         
-        <!-- Placeholder for potential 6th card -->
-        <div class="col-lg-4 col-md-6 mb-4"> 
-             <!-- Add 6th card here if needed -->
+        <!-- NEW Monthly Cost KPI Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="stat-card h-100">
+                <div class="stat-card-header">
+                    <div class="stat-metric-name">Month-to-Date Cost</div>
+                    <div class="stat-icon-container bg-info"> <!-- Different color? -->
+                        <i class="bi bi-calendar-month stat-icon"></i>
+                    </div>
+                </div>
+                <div class="stat-card-body">
+                    <div id="mtd-cost" class="stat-metric-value">--</div>
+                    <div class="stat-metric-trend">Credits used this month</div>
+                    <!-- Progress Bar -->
+                    <div class="progress mt-2" style="height: 10px;">
+                      <div id="mtd-cost-progress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">0%</small>
+                        <small id="mtd-cost-budget-label" class="text-muted">Budget: --</small>
+                    </div>
+                </div>
+            </div>
         </div>
     </div> {# End of second KPI row #}
     
@@ -234,7 +268,7 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="volume-chart-container">
-                    <h5 class="card-title">Call Volume Trends</h5>
+                    <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts distinct conversations with message activity within the selected period/agent, based on message timestamps."></i></h5>
                     <canvas id="callVolumeChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No volume data for this period.</div>
                 </div>
@@ -243,7 +277,7 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="duration-chart-container">
-                    <h5 class="card-title">Call Duration Trends</h5>
+                    <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Calculates average conversation duration (based on message timestamps) for conversations active within the selected period/agent."></i></h5>
                     <canvas id="callDurationChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No duration data for this period.</div>
                 </div>
@@ -251,11 +285,12 @@
         </div>
     </div>
 
-    <div class="row">
+    {# Add margin-bottom to this row #}
+    <div class="row mb-4">
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="hourly-chart-container">
-                    <h5 class="card-title">Hourly Activity</h5>
+                    <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts total messages sent/received per hour of the day across the selected period/agent, based on message timestamps."></i></h5>
                     <canvas id="hourlyActivityChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No hourly activity data.</div>
                 </div>
@@ -264,14 +299,116 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="weekday-chart-container">
-                    <h5 class="card-title">Weekday Activity</h5>
+                    <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts total messages sent/received per day of the week across the selected period/agent, based on message timestamps."></i></h5>
                     <canvas id="weekdayActivityChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No weekday activity data.</div>
                 </div>
             </div>
         </div>
     </div>
+
+    {# === NEW: Agent Administration Section === #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="accordion" id="agentAdminAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingAdmin">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdmin" aria-expanded="false" aria-controls="collapseAdmin">
+                            Agent Administration (<span id="admin-selected-agent-name">Loading...</span>)
+                        </button>
+                    </h2>
+                    <div id="collapseAdmin" class="accordion-collapse collapse" aria-labelledby="headingAdmin" data-bs-parent="#agentAdminAccordion">
+                        <div class="accordion-body">
+                            <div class="row">
+                                {# Column 1: Widget & Prompt #}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body prompt-column-card-body">
+                                            <h5 class="card-title">Interact & View Prompt</h5>
+                                            <h6>Interact with Agent:</h6>
+                                            <div id="agent-widget-embed-area" class="mb-3 border rounded p-2" style="min-height: 200px;">
+                                                Loading widget...
+                                            </div>
+                                            <h6>System Prompt:</h6>
+                                            <div id="agent-prompt-viewer" class="bg-light p-2 rounded">Loading prompt...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {# Column 2: Email Templates #}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Email Templates</h5>
+                                            <h6>Team Notification Email:</h6>
+                                            <div id="team-email-viewer" class="border p-2 rounded mb-3">Loading template...</div>
+                                            <h6>Caller Follow-up Email:</h6>
+                                            <div id="caller-email-viewer" class="border p-2 rounded">Loading template...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {# === END: Agent Administration Section === #}
+
+    {# === NEW: Ask Lilly SQL Section === #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="accordion" id="askLillySqlAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingSql">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSql" aria-expanded="false" aria-controls="collapseSql">
+                            Ask Lilly SQL <i class="bi bi-database ms-2"></i>
+                        </button>
+                    </h2>
+                    <div id="collapseSql" class="accordion-collapse collapse" aria-labelledby="headingSql" data-bs-parent="#askLillySqlAccordion">
+                        <div class="accordion-body">
+                            <div class="mb-3">
+                                <label for="sql-query-input" class="form-label">Ask a question about conversation data:</label>
+                                <textarea class="form-control" id="sql-query-input" rows="3" placeholder="e.g., Show me messages containing email addresses..."></textarea>
+                            </div>
+                            <button id="submit-sql-query-btn" class="btn btn-success">Query Database</button>
+                            <div id="sql-query-loading" class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <div class="mt-3">
+                                <h6>Results: <span id="sql-query-count" class="ms-2 small text-muted"></span> <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Count reflects records returned by the specific SQL query executed above."></i></h6>
+                                <pre id="sql-query-executed" class="text-muted small border-bottom pb-2 mb-2"></pre> 
+                                <div id="sql-query-results" class="bg-light p-2 rounded" style="max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">Submit a query to see results.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {# === END: Ask Lilly SQL Section === #}
+
 </div>
+
+{# === NEW: Agent Widget Modal === #}
+<div class="modal fade" id="agentWidgetModal" tabindex="-1" aria-labelledby="agentWidgetModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="agentWidgetModalLabel">Interact with Agent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="agent-widget-modal-body" style="min-height: 60vh;">
+        <!-- Widget embed code will be injected here -->
+        <p>Loading widget...</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{# === END: Agent Widget Modal === #}
 
 <!-- Debug panel (hidden by default) -->
 <div id="debug-panel" class="position-fixed bottom-0 end-0 p-3 bg-dark text-light" style="max-width: 400px; display: none; max-height: 300px; overflow-y: auto; z-index: 1050; opacity: 0.9;">

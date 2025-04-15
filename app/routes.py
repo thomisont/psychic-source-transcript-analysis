@@ -547,19 +547,35 @@ def api_status():
 
         # --- ElevenLabs Check ---
         try:
-            if hasattr(current_app, 'elevenlabs_client') and current_app.elevenlabs_client:
-                if current_app.elevenlabs_client.api_key and current_app.elevenlabs_client.agent_id:
-                    status['elevenlabs']['status'] = 'connected'
-                    status['elevenlabs']['message'] = 'ElevenLabs API client configured'
-                else:
-                    status['elevenlabs']['status'] = 'disconnected'
-                    status['elevenlabs']['message'] = 'Client configured but missing key/agent ID'
+            client = getattr(current_app, 'elevenlabs_client', None)
+            if client and client.api_key:
+                # Client object exists and seems configured, try a real API call
+                current_app.logger.info("API Status: Attempting ElevenLabs client.test_connection()...")
+                try:
+                    is_connected = client.test_connection() # Use the correct test method
+                    current_app.logger.info(f"API Status: test_connection() response: {is_connected}") 
+                    
+                    if is_connected:
+                        status['elevenlabs']['status'] = 'connected'
+                        status['elevenlabs']['message'] = 'ElevenLabs API client connected and verified.'
+                    else:
+                        status['elevenlabs']['status'] = 'error' # Or 'disconnected'
+                        status['elevenlabs']['message'] = 'API connection test failed. Key invalid or service unreachable.'
+                        current_app.logger.warning(f"API Status: test_connection() returned false.")
+                except Exception as api_call_e:
+                    status['elevenlabs']['status'] = 'error' # Or 'disconnected'
+                    status['elevenlabs']['message'] = f'API connection test failed: {str(api_call_e)[:100]}'
+                    current_app.logger.error(f"API Status: test_connection() call failed: {api_call_e}", exc_info=True) # Log the exception
+            elif client:
+                status['elevenlabs']['status'] = 'disconnected'
+                status['elevenlabs']['message'] = 'Client configured but missing API key' # Updated message
             else:
                  status['elevenlabs']['status'] = 'disconnected'
                  status['elevenlabs']['message'] = 'Client not initialized'
         except Exception as e:
             status['elevenlabs']['status'] = 'error'
-            status['elevenlabs']['message'] = f"ElevenLabs Error: {str(e)[:100]}"
+            status['elevenlabs']['message'] = f"ElevenLabs Check Error: {str(e)[:100]}"
+            current_app.logger.error(f"API Status: Outer exception during ElevenLabs check: {e}", exc_info=True) # Log outer exception
 
         # --- Analysis Service Check ---
         try:

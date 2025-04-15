@@ -897,15 +897,6 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **Environment:** Added rule to use `python run.py` for server startup.
 *   **Current Status:** Dashboard KPIs and charts load data, but the `total_conversations_period` count is inconsistent and illogical across different date ranges, indicating an ongoing issue in the backend calculation within `SupabaseConversationService.get_dashboard_stats`. 
 
-## Agent Session Learnings (Dashboard Fix & Cleanup - 2025-04-11)
-
-*   **Dashboard Data Source:** Dashboard (`/`) statistics are entirely driven by the Supabase RPC function `get_message_activity_in_range` and a subsequent query within `SupabaseConversationService.get_dashboard_stats` specifically for average cost.
-*   **Frontend Dependencies (`dashboard.js`):** Relies heavily on `utils.js` for `Formatter` (date, duration, hour, cost), `API`, and `UI` objects. It also relies on `main.js` for the `initializeGlobalDateRangeSelector` function. Correct HTML IDs are crucial for selectors.
-*   **Chart Initialization (`dashboard.js`):** Chart instances must be created *before* `updateChart` is called. Initializing them within the data loading function (`loadDashboardStats`) just before updating the UI (`updateDashboardUI`) proved robust. The helper `initializeChart` provides a common creation pattern.
-*   **Formatting (`utils.js`):** The `Formatter` object in `utils.js` is the central place for formatting data for display (dates, durations, hours, costs). Ensure methods exist here before using them elsewhere (e.g., `Formatter.hour`, `Formatter.cost` were added).
-*   **Backend Service (`supabase_conversation_service.py`):** The `get_dashboard_stats` method now cleanly separates fetching core stats via RPC and fetching supplemental data (like cost) via a separate query based on IDs from the RPC result.
-*   **Supabase Function (`get_message_activity_in_range`):** Requires careful structuring, particularly `WITH` clauses (CTEs), to ensure all parts of the query can access necessary intermediate results. Using a single, large `WITH` clause resolved visibility issues. 
-
 ## Project Update: April 11, 2025 - Engagement Metrics Consolidation & Dashboard Fixes
 
 *   **Goal:** Consolidate useful features from the redundant `Engagement Metrics` page into the main `Dashboard` and remove the old page.
@@ -950,82 +941,142 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 *   **Data Dependency (Links):** Features like the "View" transcript link in accordions rely directly on non-null values (`conversation_id`) in the API data. The current sample/LLM data seems to consistently return `null` for these, preventing link rendering. Verification is needed when real data with IDs is present.
 *   **JS DOM Timing & Null Checks:** Assigning element references via `getElementById` *after* `DOMContentLoaded` is crucial. Adding `if (element)` checks before accessing `.textContent` or `.style` properties, especially within `try...catch` blocks and async callbacks, is essential for preventing runtime errors when elements might be unexpectedly missing or `null`.
 
-## Agent Session Summary (April 12, 2025 - Themes & Sentiment UI Refinement)
+## Agent Session Summary (April 14, 2025 - Dashboard Enhancements Phase 1-3 Setup)
 
 **1. Where We've Been:**
 
-*   Reviewed the previous session's focus on fixing JavaScript data rendering on the `/themes-sentiment` page.
-*   Addressed outstanding UI issues: accordion scrolling, missing links (due to null `conversation_id` in data), and positive interactions list layout.
-*   Attempted numerous CSS and JavaScript solutions to fix accordion scrolling (targeting `.accordion-body`, `.accordion-collapse`, `.list-group`, using `!important`, using `shown.bs.collapse` JS event). Observed scrollbar flashing, indicating styles applied but were overridden, likely by Bootstrap's JS or CSS during/after animation.
-*   Used a diagnostic `div` to confirm the container *could* scroll, but the `ul.list-group` inside was not having its height calculated correctly by the browser (stuck at 122px despite visible content), preventing overflow. CSS attempts to force `height: auto` or `display: block` on the `ul` failed.
-*   Pivoted away from the problematic accordion scrolling.
-*   Implemented a "Modal per Category" display:
-    *   Replaced accordion HTML with simple list containers (`#common-questions-list`, `#concerns-skepticism-list`).
-    *   Added a generic Bootstrap modal (`#categoryDetailModal`).
-    *   Refactored JS (`themes_sentiment_refactored.js`) to remove accordion logic, render Top 5 categories as clickable links (`renderCategoryLists`), populate the modal with Top 5 quotes (`populateModalBody`), add event listeners for category clicks, and limit positive interactions list to Top 10 (`renderPositiveInteractions`).
-*   Refined category list item appearance (badges, spacing).
-*   Restored dashboard KPI card styling (`.stat-card` in `style.css`) which was broken by earlier general CSS changes.
-*   Diagnosed why lists showed fewer items than expected (e.g., 2/1/3 instead of 5/5/10): Confirmed via console and server logs that for the default 7-day date range, this was the actual amount of data returned by the API.
-*   Tested with the "All" time range (875 conversations found). **Problem:** The API still returned the same minimal data (2/1/3 items), despite logs showing 300+ conversations being processed by the LLM.
+*   Pivoted from previous UI/CSS work to implementing the **Dashboard Enhancement Plan**, focusing on Phases 1-3: Multi-Agent Support, Agent Administration Panel, and Ad-Hoc SQL Query Interface.
+*   **Phase 1 (Multi-Agent):**
+    *   Added `agent_id` column to the `conversations` table schema (manually via Supabase UI due to tool limitations).
+    *   Updated the `Conversation` model (`app/models.py`) to include `agent_id`.
+    *   Updated `ElevenLabsClient` (`app/api/elevenlabs_client.py`) to extract `agent_id` from API responses.
+    *   Updated the sync task (`app/tasks/sync.py`) to store the extracted `agent_id` during inserts/updates and added specific logging.
+    *   Added agent configurations (IDs, names) to `config.py`, including a new agent "Lilly For Members".
+    *   Updated the `.env` file with the correct variable name (`ELEVENLABS_AGENT_ID_CURIOUS`) and the new agent ID.
+    *   Created the `/api/agents` endpoint (`app/api/routes.py`) to serve agent configurations.
+    *   Updated `SupabaseConversationService` methods (`get_conversations`, `get_conversation_details`, `get_dashboard_stats`) to accept and filter by `agent_id`. (Requires manual update of corresponding Supabase RPC functions).
+    *   Updated the `/api/dashboard/stats` route (`app/api/routes.py`) to accept `agent_id` and pass it to the service.
+    *   Updated `dashboard.js` to fetch agents, populate a selector dropdown, store the selection, and pass `agent_id` to the dashboard stats API.
+    *   Debugged several issues preventing dashboard data load:
+        *   `agent_id` column initially `NULL` -> Resolved by running `sync.py`.
+        *   `sync.py` `full_sync` flag not being passed by API route -> Fixed API route handler (`/api/sync-conversations`).
+        *   Agent ID placeholder used instead of real ID -> Corrected `.env` variable name (`ELEVENLABS_AGENT_ID_CURIOUS`).
+    *   Fixed a dashboard layout issue ("squished left") by changing `container` to `container-fluid` in `base.html`.
+    *   Investigated dashboard conversation count discrepancy (824 vs 1021 total records); determined the count reflects conversations *with message activity* within the timeframe for the selected agent. Added a tooltip to the KPI in `index.html` and `dashboard.js` to clarify this.
+*   **Phase 2 (Admin Panel):**
+    *   Added collapsible accordion section UI to `index.html`.
+    *   Created backend API endpoints (`app/api/routes.py`):
+        *   `/api/agents/<agent_id>/widget-config` (returns mocked data).
+        *   `/api/agents/<agent_id>/prompt` (returns mocked data).
+        *   `/api/email-templates/<template_name>` (reads static HTML files, creates placeholders if missing).
+    *   Created placeholder email template files (`app/templates/email/...`).
+    *   Updated `dashboard.js` to fetch and display admin data (prompt, emails) and handle the widget launch button (using mocked config).
+*   **Phase 3 (SQL Query Interface):**
+    *   Added collapsible accordion section UI to `index.html`.
+    *   Created backend API endpoint `/api/sql-query` (`app/api/routes.py`) with placeholder logic for LLM translation/validation and basic query execution via `supabase-py`.
+    *   Updated `dashboard.js` to handle form submission and display results.
 
-**2. What Has Been Fixed:**
+**2. What Has Been Fixed/Achieved:**
 
-*   Frontend UI switched from accordions to a "Modal per Category" list display for Common Questions and Concerns/Skepticism.
-*   Category lists render the Top 5 available categories based on count.
-*   Positive Interactions list renders the Top 10 available interactions based on sentiment score.
-*   Clicking a category opens a modal showing the Top 5 quotes for that category.
-*   Category list item styling is improved (name and badge display correctly).
-*   Dashboard KPI card styling is restored.
-*   Transcript links are correctly attached to quotes (but currently trigger a placeholder function).
+*   The core backend and frontend infrastructure for multi-agent filtering on the dashboard is implemented (Phase 1 setup complete, pending RPC update).
+*   The `agent_id` column was successfully added to the database and populated via the sync task after configuration fixes.
+*   Dashboard data now loads correctly based on the selected agent ID from the configuration.
+*   The dashboard layout issue has been fixed.
+*   The conversation count KPI has a clarifying tooltip.
+*   Basic UI and mocked/file-reading backend APIs for the Agent Administration panel (Phase 2) are in place.
+*   Basic UI and placeholder backend API for the Ad-Hoc SQL Query interface (Phase 3) are in place.
+*   Configuration for a new agent ("Lilly For Members") was added.
 
-**3. Current Task & Problem:**
+**3. Current Task & State:**
 
-*   **Primary Issue:** The backend API endpoint (`/api/themes-sentiment/full-analysis-v2`) is returning stale or incomplete analysis data, especially for larger date ranges ("All" time). Although the backend logs show hundreds of conversations being fetched and processed by the LLM for the "All" range, the API response consistently contains only the minimal data (2/1/3 items). Server logs show `Returning cached themes/sentiment data for 2025-04-05-2025-04-12` repeatedly, even when different date ranges are selected via the UI. This strongly suggests a **backend caching issue**, where either the cache key is not generated correctly based on the requested dates, or the cache is not being invalidated properly.
-*   **Secondary Task (Deferred):** Implement the actual transcript viewer functionality. This requires building a new modal, a backend API endpoint (`/api/transcript/<id>`), and frontend JS to fetch, render, and highlight quotes.
+*   The primary blockers preventing dashboard data from loading have been resolved. The dashboard correctly displays data filtered by agent ID.
+*   The initial setup for Phases 1, 2, and 3 is complete according to the refined plan.
+*   The next logical step is to move into **Phase 4: Refinements**, specifically replacing mocked API responses (widget, prompt) or implementing the SQL query LLM/validation.
 
 **4. Codebase Learnings & Guidance:**
 
-*   **Frontend Rendering:** The JS (`themes_sentiment_refactored.js`) correctly renders the data it receives but is dependent on the backend providing accurate and complete data.
-*   **CSS:** Bootstrap overrides can be complex. Unrelated styles (`overflow: hidden` on `.stat-card`) can cause unexpected side effects. The list height calculation issue remains unexplained but was bypassed by changing the UI pattern.
-*   **Backend Caching:** The caching mechanism for the themes/sentiment analysis seems overly aggressive or incorrectly keyed, leading to stale data being served. This needs immediate investigation in the backend Python code (Flask route and caching logic).
-*   **Backend Analysis:** While caching is the prime suspect, there's a secondary possibility of a bug in the `ConversationAnalyzer` service's aggregation logic when handling larger datasets (>300 conversations).
+*   **Configuration:** Environment variables are key (`.env`), and mismatches between `.env` names and `config.py` usage (`os.environ.get`) can cause subtle bugs (e.g., `ELEVENLABS_AGENT_ID` vs `ELEVENLABS_AGENT_ID_CURIOUS`). Server restarts are required after `.env` changes.
+*   **Sync Task:** The `sync.py` task is complex and optimized; modifying it requires care. The `full_sync` parameter must be explicitly passed from the triggering mechanism (API route).
+*   **Dashboard Stats Logic:** The primary dashboard count (`total_conversations_period`) relies on the `get_message_activity_in_range` RPC function, which counts *distinct conversations based on associated message activity within the specified date range and for the selected agent*. It's not a total record count.
+*   **CSS/Layout:** Bootstrap's `.container` vs `.container-fluid` significantly impacts layout, especially when nesting. Check `base.html` for wrapping containers.
+*   **Tooling Issues (Persistent):**
+    *   `run_terminal_cmd` provides unreliable feedback (e.g., reporting failures on success, not creating files like Alembic revisions). Requires verification through logs or file system checks.
+    *   `mcp_supabase_execute_sql` faces persistent permission errors in this environment, preventing its use for DDL or SELECT queries. Manual Supabase dashboard actions are currently required for schema changes and possibly for diagnostic queries.
 
-## Agent Session Learnings (CSS Audit - April 14, 2025)
+## Agent Session Summary (April 15, 2025 - Dashboard Cost Tracking & Admin Panel)
 
-*   **Goal:** Diagnose and fix persistent CSS styling issues, particularly the transcript modal (`#transcriptModal`) on the "Themes & Sentiment" page not matching the main Transcript Viewer's iMessage style.
-*   **Debugging Process:** Involved iterative static analysis (`style.css`, `themes_sentiment_refactored.js`), dynamic browser inspection, and comparison with the working main Transcript Viewer (`transcript_viewer.js`). Multiple attempts were made to correct CSS overrides and JavaScript rendering logic.
-*   **Findings & Fixes:**
-    *   Resolved initial styling failures caused by conflicting Bootstrap utility classes (`bg-light`) and legacy/duplicate CSS rules.
-    *   Corrected JavaScript data handling in the modal renderer (`renderTranscriptInModal`) to use the correct API response keys (`data.transcript`, `message.role`, `message.content`).
-    *   Identified that missing text ("...") in subsequent user messages originates from the upstream API/data source, not frontend rendering.
-    *   Corrected speaker label text in the modal.
-*   **Persistent Issues:**
-    *   **Modal Styling Mismatch:** Despite numerous fixes, the modal's bubble colors remain reversed compared to the main viewer (Agent=Gray/Caller=Purple in modal vs. Agent=Purple/Caller=Gray in main viewer). Inspector shows the seemingly correct CSS rules are active, but the visual render is incorrect.
-    *   **Intermittent JS Behavior:** Observed inconsistent generation of hyperlinks in the RAG query response, possibly due to caching or LLM variability.
-*   **Codebase Insights:** Debugging CSS conflicts within Bootstrap modals requires careful attention to specificity and potential interference from Bootstrap's own styles/JS. Discrepancies between expected and actual API data structures can manifest as styling bugs. Frontend rendering issues can mask upstream data problems.
+**1. Where We've Been:**
+*   Continued implementing the Dashboard Enhancement Plan (`dashboard_enhancement_plan.md`).
+*   Focused on Phase 2 (Agent Admin Panel - Widget, Prompt, Emails) and adding new cost tracking metrics.
+*   Attempted various methods for displaying the ElevenLabs agent widget.
+*   Added Month-to-Date cost tracking based on a new 2M credit monthly budget.
 
-## Project Update: April 15, 2025 - Supabase MCP Integration Strategy
+**2. What Has Been Fixed/Achieved:**
+*   **Cost Tracking:**
+    *   Added `MONTHLY_CREDIT_BUDGET` (default 2M) to `config.py`.
+    *   Updated `SupabaseConversationService.get_dashboard_stats` to calculate `month_to_date_cost` (using `created_at`, filtered by `agent_id`) and return it along with the configured budget. Fixed `UnboundLocalError` related to `current_app` scope and improved handling of RPC response data structures.
+    *   Added a "Month-to-Date Cost" KPI card and a dynamic progress bar to the dashboard (`index.html`).
+    *   Updated `dashboard.js` (`updateDashboardUI`) to correctly populate the new cost KPI and progress bar, including adding a `Formatter.number` function to `utils.js`.
+*   **Agent Admin Panel:**
+    *   Updated backend endpoint (`/api/agents/<id>/widget-config`) to return the correct HTML embed code for each agent.
+    *   Resolved issue where prompt/email data wasn't displaying: Added an event listener (`shown.bs.collapse`) in `dashboard.js` to fetch admin data and call `updateAdminPanelUI` *after* the accordion section is expanded, ensuring the target DOM elements exist.
+    *   The prompt (mocked), email templates (from files), and the agent widget now load correctly within the accordion *after* it's opened.
+*   **Widget Display:**
+    *   Switched from a modal-based approach to embedding the widget directly in the admin panel (`index.html`, `dashboard.js`).
+    *   Adjusted CSS (`style.css`) to center the widget horizontally within its container (`#agent-widget-embed-area`) using flexbox and padding. Current centering is acceptable but could be fine-tuned.
+*   **API Status:** Fixed the ElevenLabs API status check in `/api/status` (`app/routes.py`) by using the correct `test_connection()` method instead of a non-existent one and ensuring the main client doesn't require an `agent_id` at initialization (`app/__init__.py`). The status indicator is now green.
+*   **General:** Fixed various JavaScript errors (`ReferenceError`, `TypeError`, syntax errors) that were preventing UI updates or interactions. Fixed minor layout overlap between charts and the admin panel.
 
-### Summary
-This session focused on integrating the official Supabase Model Context Protocol (MCP) server, which was found to be already configured and enabled in the Cursor environment. Initial attempts to set up a different, simpler MCP server (`gevans3000/supabase-mcp`) were abandoned upon discovery of the official integration.
+**3. Current State:**
+*   The main dashboard KPIs, charts, and new cost tracking elements are functional and display data correctly based on the selected agent and date range.
+*   The Agent Administration panel correctly loads and displays the mocked system prompt, email template contents, and the embedded interactive agent widget *after* the user expands the accordion section.
+*   The widget is horizontally centered within its container but positioned slightly towards the top.
 
-### Key Activities & Outcomes
-*   **MCP Discovery:** Confirmed the official Supabase MCP server is active via Cursor settings, providing tools like `execute_sql`, `get_logs`, `generate_typescript_types`, etc.
-*   **MCP Testing:** Successfully used `mcp_supabase_list_projects`, `mcp_supabase_list_tables`, and `mcp_supabase_execute_sql`. Found email patterns in the `messages` table (using the correct `text` column).
-*   **Strategy Definition:** Developed and documented a strategy (`supabase_mcp_strategy.md`) for leveraging MCP tools alongside the existing `supabase-py` library and Alembic for migrations.
-    *   `supabase-py`: Remains primary for core application data access (CRUD, RPC).
-    *   `mcp_supabase_execute_sql`: To be used during development for complex DB changes (policies, functions) and ad-hoc querying/debugging.
-    *   `mcp_supabase_get_logs`: For troubleshooting Supabase platform issues.
-    *   `mcp_supabase_generate_typescript_types`: To enhance frontend development type safety.
-    *   Alembic: Remains primary for version-controlled schema migrations.
-*   **TypeScript Types:** Generated TS types for the Supabase schema using `mcp_supabase_generate_typescript_types` and saved them to `app/static/types/supabase.ts`.
+**4. Codebase Learnings & Guidance:**
+*   **DOM Timing/Accordions:** Updates for content inside dynamically shown elements (like Bootstrap accordions) should be triggered by events indicating the element is visible (e.g., `shown.bs.collapse`), not just initial page load, to ensure target elements exist.
+*   **Variable Scope (JS):** Be careful with variable scope, especially when combining global utility functions (`main.js`) with page-specific logic (`dashboard.js`). Ensure variables are defined before use (e.g., `initiallyActiveButton` error).
+*   **API Endpoint Design:** When adding new dashboard features, consider if existing endpoints (like `/api/dashboard/stats`) can be extended or if dedicated endpoints are cleaner.
+*   **CSS Specificity/Frameworks:** Overriding default framework styles (like Bootstrap accordions or potentially third-party widget components like `elevenlabs-convai`) might require specific selectors or `!important` (use sparingly). Flexbox vs. block/margin auto can have different centering results depending on the child element.
+*   **Backend Error Handling:** Ensure comprehensive `try...except` blocks in service methods and route handlers, especially when dealing with external APIs or database calls (like RPC functions). Handle potential `None` or unexpected data structures (e.g., RPC returning dict vs list) gracefully. Import necessary exceptions or use generic `Exception`. Ensure variables like `current_app` are accessible in all required scopes (e.g., import at module level if needed in exception handlers).
+*   **Client Initialization:** Ensure shared clients (like `ElevenLabsClient` on `current_app`) are initialized with only the necessary config for their global purpose (e.g., the main client might only need the API key for status checks, not an `agent_id`).
+*   **Utility Functions:** Centralize formatting logic (like in `utils.js -> Formatter`) and ensure required functions exist before calling them.
 
-### Codebase Learnings & Updates
-*   **Technology:** Officially integrated and utilizing the Supabase MCP server via Cursor.
-*   **Workflow:** Adopted a hybrid approach for database interactions: `supabase-py` for application logic, Alembic for schema migrations, and `mcp_supabase_execute_sql` for direct/complex changes during development. Added TS type generation (`mcp_supabase_generate_typescript_types`) to the workflow.
-*   **Database Schema:** Confirmed the column containing message content in the `messages` table is named `text`.
-*   **New Artifacts:** Added `supabase_mcp_strategy.md` and `app/static/types/supabase.ts`.
-*   **Development Environment:** MCP tools are accessed via the Cursor AI assistant (specifically the "Chat" mode, not necessarily the "Agent" mode). The MCP server command configured in Cursor settings (`npx ...`) handles the execution.
+**5. Next Steps / Current Issue:**
+*   The immediate next step is likely **Phase 2 Refinement**: Replace the mocked response in the `/api/agents/<agent_id>/prompt` endpoint with actual logic to fetch the agent's system prompt (e.g., from ElevenLabs API via `ElevenLabsClient`, or potentially a configuration file/database if stored internally).
+*   Alternatively, could begin **Phase 3 Implementation**: Develop the backend logic for the `/api/sql-query` endpoint, including LLM integration for NL-to-SQL translation and strict validation.
+*   Minor Refinement: Fine-tune the CSS (`padding-top` on `#agent-widget-embed-area`) for better vertical centering of the embedded widget.
 
-### Next Steps
-The initial integration and strategy definition for Supabase MCP tools are complete. The project is ready for the next development task, potentially utilizing the new tools or strategy as appropriate.
+## Agent Session Summary (April 16, 2025 - Ad-Hoc SQL Implementation)
+
+*   **Goal:** Implement Phase 3 (Ad-Hoc SQL Query) and refine Phase 2 (Admin Panel) display.
+*   **Backend (`/api/sql-query`):**
+    *   Integrated OpenAI (`gpt-3.5-turbo`) for Natural Language to SQL translation.
+    *   Developed detailed prompt for LLM focusing on safe `SELECT` statements, schema awareness, date range handling (UTC, no `DATE()`), text search patterns (`~* \\yTERM\\y` vs. `ILIKE`), and error conditions (`INVALID` response).
+    *   Added robust validation for LLM-generated SQL (must start with `SELECT`, no forbidden keywords using `\\b` word boundaries, no forbidden patterns like semicolons or comments).
+    *   Added cleaning step for LLM output (remove Markdown fences, strip whitespace/semicolons).
+    *   Fixed `SupabaseClient.execute_sql` wrapper method to correctly call the custom `execute_sql` RPC function (`client.rpc(\'execute_sql\', ...)`).
+    *   Fixed SQL syntax error by removing trailing semicolon before execution in the database function.
+*   **Frontend (`dashboard.js`, `index.html`, `style.css`):**
+    *   Refined display of SQL query results:
+        *   Changed results container from `<pre>` to `<div>` to allow HTML rendering.
+        *   Used `.innerHTML` (was `.textContent`) to render `<strong>` tags.
+        *   Added display of the executed SQL query above the results.
+        *   Formatted results into readable blocks (Conversation ID, Context).
+        *   Implemented highlighting of the inferred search term (quoted term or last word fallback) using `<strong>` tags.
+        *   Added fallback logic to display `conversation.summary` as context if `message.text` is not present in results.
+        *   Added display of the total record count returned by the query.
+    *   Added info tooltips to chart titles and the SQL results heading to explain data sources/calculations.
+    *   Updated Admin Panel:
+        *   Replaced mocked system prompt with actual prompts loaded from `config.py`.
+        *   Added "Lilly For Members" prompt to config.
+        *   Renamed/reordered agent list ("For Members Lilly" placed second).
+        *   Adjusted team email template display (`h2` to `p>strong`) to match example.
+        *   Attempted various CSS fixes for prompt viewer height alignment; issue persists and is deferred.
+*   **Learnings:**
+    *   Confirmed `supabase-py` `SyncClient` requires `client.rpc()` for custom function calls, not `.sql()`.
+    *   Database `EXECUTE` dislikes trailing semicolons.
+    *   LLM SQL generation requires very specific prompting and robust cleaning/validation on the backend.
+    *   Frontend needs `.innerHTML` for rendering HTML tags, `.textContent` for plain text. Type safety matters (`String()`).
+    *   Vertical alignment in the Admin Panel's two-column layout remains problematic.
+
+*(Previous session summaries follow)*
