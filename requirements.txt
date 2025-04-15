@@ -20,5 +20,7 @@ spacy>=3.5.0
 python-dateutil 
 sqlalchemy
 flask-caching
-supabase-py>=2.0.0
+supabase-py
+httpx>=0.23.0
 tiktoken>=0.6.0
+markdown>=3.4.0

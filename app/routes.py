@@ -49,9 +49,95 @@ def test_db_connection():
 def index():
     """Home page with dashboard overview"""
     try:
+        # Hardcoded README.md content for simplicity and reliability
+        readme_content = """
+<h1>Psychic Source Transcript Analysis Tool</h1>
+
+<p>A web application for analyzing call transcripts from ElevenLabs' Conversational Voice Agent for Psychic Source with additional outbound calling capabilities.</p>
+
+<h2>Current Features</h2>
+
+<ul>
+<li><strong>Conversation Browser</strong>: View and search through psychic reading conversations with an iMessage-style transcript viewer</li>
+<li><strong>Dashboard</strong>: Interactive overview with KPIs, charts, and metrics showing conversation data</li>
+<li><strong>Agent Selection</strong>: Support for multiple Lilly agents (filter dashboard by agent)</li>
+<li><strong>Admin Panel</strong>: View agent prompts, email templates, and interact directly with the agent through a widget</li>
+<li><strong>Ad-Hoc SQL Querying</strong>: Ask questions about conversation data in natural language (LLM-translated to SQL)</li>
+<li><strong>Outbound Calling</strong>: Make personalized outbound calls to previous callers using ElevenLabs' voice synthesis</li>
+<li><strong>Sentiment Analysis</strong>: Analyze the emotional tone of conversations</li>
+<li><strong>Topic Extraction</strong>: Identify key themes and topics discussed</li>
+<li><strong>Data Visualization</strong>: Interactive charts and graphs showing trends and patterns</li>
+</ul>
+
+<h2>Architecture</h2>
+
+<p>The application uses a service-oriented architecture with Supabase as the primary database:</p>
+
+<ul>
+<li><strong>Flask Backend</strong>: Handles API requests, data processing, and rendering</li>
+<li><strong>Service Layer</strong>: Separates business logic from API integration and presentation</li>
+<li><strong>Supabase Integration</strong>: PostgreSQL-based cloud database for scalable data storage</li>
+<li><strong>ElevenLabs API Integration</strong>: Retrieves conversation data and enables outbound calling</li>
+<li><strong>Analysis Engine</strong>: Processes conversation data to extract insights</li>
+<li><strong>Responsive UI</strong>: Bootstrap-based interface with Chart.js visualizations</li>
+</ul>
+
+<h2>Outbound Calling System</h2>
+
+<p>The application includes a complete outbound calling system:</p>
+
+<ul>
+<li><strong>Client Library</strong>: JavaScript and Python clients for initiating calls</li>
+<li><strong>FastAPI Service</strong>: REST API for managing outbound calls</li>
+<li><strong>ElevenLabs Integration</strong>: Uses ElevenLabs' text-to-speech for natural-sounding calls</li>
+<li><strong>Twilio Integration</strong>: Handles actual phone call placement and status updates</li>
+<li><strong>Hospitality Feature</strong>: Personalized follow-up calls to previous customers</li>
+</ul>
+
+<h2>Recent Updates</h2>
+
+<h3>1. Dashboard Enhancements (April 2025)</h3>
+
+<ul>
+<li><strong>Multi-Agent Support</strong>: Added ability to filter dashboard by different Lilly agents</li>
+<li><strong>Agent Administration Panel</strong>: Added viewing of agent prompts and email templates</li>
+<li><strong>Natural Language SQL Interface</strong>: Added ability to query the database using plain English</li>
+<li><strong>Cost Tracking</strong>: Added month-to-date cost tracking with budget visualization</li>
+<li><strong>UI Improvements</strong>: Enhanced card design and tooltips for better information display</li>
+</ul>
+
+<h3>2. Supabase Integration (April 2025)</h3>
+
+<ul>
+<li>Migrated data storage from SQLAlchemy to Supabase for improved scalability</li>
+<li>Implemented hybrid approach with fallback to original database if needed</li>
+<li>Updated sync task to write data to Supabase</li>
+<li>Created RPC functions for custom queries</li>
+<li>Updated services to use Supabase client</li>
+</ul>
+
+<h3>3. Outbound Calling System (April 2025)</h3>
+
+<ul>
+<li>Added complete outbound calling functionality with ElevenLabs integration</li>
+<li>Created hospitality calling feature for personalized customer follow-up</li>
+<li>Implemented both JavaScript and Python clients</li>
+<li>Added FastAPI service for call management</li>
+<li>Created documentation with function maps</li>
+</ul>
+
+<h3>4. Fun Features (April 2025)</h3>
+
+<ul>
+<li>Added expandable Tom images in the Fun section</li>
+<li>Added function map visualization for the outbound calling system</li>
+<li>Enhanced documentation and sample data</li>
+</ul>
+"""
+        
         # Add debug logging to help identify rendering issues
-        logging.info("Rendering index.html template")
-        return render_template('index.html')
+        logging.info("Rendering index.html template with hardcoded README content")
+        return render_template('index.html', readme_content=readme_content)
     except Exception as e:
         # Log the error but still try to render something
         logging.error(f"Error rendering index page: {e}", exc_info=True)

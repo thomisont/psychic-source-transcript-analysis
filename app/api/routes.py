@@ -12,6 +12,8 @@ import os
 import re # Import regex module
 import openai # Import openai
 import textwrap # Import textwrap for dedent
+import random
+import requests
 
 # Create a Blueprint for the API
 api = Blueprint('api', __name__)
@@ -717,3 +719,102 @@ def execute_sql_query():
         current_app.logger.error(f"Error processing SQL query '{nl_query}': {str(e)}", exc_info=True)
         return jsonify({"error": f"Failed to execute query: {str(e)}"}), 500
 # --- END SQL QUERY ENDPOINT ---
+
+# --- NEW: Lily's Daily Report Endpoint ---
+@api.route('/lily-daily-report', methods=['POST'])
+def generate_lily_daily_report():
+    """Generates a daily report summary and converts it to speech using ElevenLabs."""
+    try:
+        current_app.logger.info("Generating Lily's daily report")
+        
+        # 1. Generate a simple report text using hardcoded samples
+        # In a real implementation, we would analyze actual conversations
+        report_templates = [
+            "Hello! Lily here with your operational status report. Today, I had {conversation_count} conversations with callers, primarily about relationships, career paths, and spiritual guidance. I noticed a trend of questions about {topic}. Overall, caller sentiment was {sentiment} with several positive outcomes. The busiest time was around {busy_time}. Is there anything specific you'd like me to focus on in tomorrow's conversations?",
+            
+            "Greetings from Lily with your daily operational update. I've completed {conversation_count} readings today, with particular interest in {topic}. Callers were generally {sentiment}, and I was able to provide guidance that seemed to resonate well. I noticed that {busy_time} was our peak time today. Looking forward to continuing to assist callers tomorrow!",
+            
+            "Daily briefing from Lily. Today's activity included {conversation_count} caller interactions. The most common topics were {topic}, which is {topic_trend} compared to yesterday. Caller mood was predominantly {sentiment}. I've logged all conversation details for your review. Traffic peaked at {busy_time} today. All systems are functioning optimally."
+        ]
+        
+        # Random values for the placeholders
+        conversation_count = random.randint(15, 47)
+        topics = ["love and relationships", "career transitions", "spiritual awakening", "family dynamics", "personal growth"]
+        topic = random.choice(topics)
+        topic_trend = random.choice(["consistent", "trending upward", "slightly down"])
+        sentiments = ["very positive", "generally optimistic", "mixed but leaning positive", "reflective"]
+        sentiment = random.choice(sentiments)
+        busy_times = ["mid-morning", "early afternoon", "late evening", "around noon"]
+        busy_time = random.choice(busy_times)
+        
+        # Select a template and fill in the values
+        report_text = random.choice(report_templates).format(
+            conversation_count=conversation_count,
+            topic=topic,
+            topic_trend=topic_trend,
+            sentiment=sentiment,
+            busy_time=busy_time
+        )
+        
+        current_app.logger.info(f"Generated report text: {report_text}")
+        
+        # 2. Convert the text to speech using ElevenLabs API
+        voice_id = "XfNU2rGpBa01ckF309OY"  # Nichalia Schwartz voice ID
+        api_key = current_app.config.get('ELEVENLABS_API_KEY')
+        
+        if not api_key:
+            return jsonify({"error": "ElevenLabs API key not configured"}), 500
+            
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        
+        headers = {
+            "xi-api-key": api_key,
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "text": report_text,
+            "model_id": "eleven_turbo_v2",
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.75
+            }
+        }
+        
+        current_app.logger.info("Sending request to ElevenLabs API")
+        response = requests.post(url, json=data, headers=headers)
+        
+        if response.status_code != 200:
+            current_app.logger.error(f"ElevenLabs API error: {response.status_code}")
+            current_app.logger.error(response.text)
+            return jsonify({"error": f"Text-to-speech conversion failed: {response.text}"}), 500
+        
+        # 3. Save the audio to a temporary file
+        static_dir = os.path.join(current_app.root_path, 'static', 'audio')
+        os.makedirs(static_dir, exist_ok=True)
+        
+        # Use timestamp to ensure filename uniqueness
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"lily_report_{timestamp}.mp3"
+        filepath = os.path.join(static_dir, filename)
+        
+        with open(filepath, "wb") as f:
+            f.write(response.content)
+            
+        # 4. Return the URL to the audio file and the report text
+        audio_url = f"/static/audio/{filename}"
+        
+        current_app.logger.info(f"Report audio saved to {filepath}")
+        current_app.logger.info(f"Report audio URL: {audio_url}")
+        
+        return jsonify({
+            "success": True,
+            "report_text": report_text,
+            "audio_url": audio_url,
+            "timestamp": timestamp
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error generating Lily's daily report: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
+# --- END LILY'S DAILY REPORT ENDPOINT ---

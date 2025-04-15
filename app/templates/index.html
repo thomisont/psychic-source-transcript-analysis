@@ -101,6 +101,11 @@
         height: 280px; /* Adjust as needed */
         max-height: 300px;
     }
+    
+    /* Custom style for Lily's report card */
+    .bg-purple {
+        background-color: #6a2b8a !important;
+    }
 </style>
 {% endblock %}
 
@@ -388,6 +393,180 @@
     </div>
     {# === END: Ask Lilly SQL Section === #}
 
+    {# === NEW: Future Features & Fun Section === #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="accordion" id="futureFeaturesAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingFuture">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFuture" aria-expanded="false" aria-controls="collapseFuture">
+                            Future Features & Fun <i class="bi bi-stars ms-2"></i>
+                        </button>
+                    </h2>
+                    <div id="collapseFuture" class="accordion-collapse collapse" aria-labelledby="headingFuture" data-bs-parent="#futureFeaturesAccordion">
+                        <div class="accordion-body">
+                            <div class="card mb-4">
+                                <div class="card-header bg-purple text-white">
+                                    <h5 class="mb-0">Lily's Daily Rundown</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Get a personalized audio summary of today's conversations and insights directly from Lily!</p>
+                                    
+                                    <button id="generate-lily-report-btn" class="btn btn-primary mb-3">
+                                        <i class="bi bi-soundwave me-2"></i>Hear Lily's Daily Briefing
+                                    </button>
+                                    
+                                    <div id="lily-report-loading" class="d-none">
+                                        <div class="d-flex align-items-center">
+                                            <strong>Lily is preparing your report...</strong>
+                                            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                                        </div>
+                                        <small class="text-muted mt-2">This may take a few seconds while Lily reviews the day's conversations.</small>
+                                    </div>
+                                    
+                                    <div id="lily-report-player" class="mt-3 d-none">
+                                        <h6>Your Daily Briefing is Ready:</h6>
+                                        <audio id="lily-audio-player" controls class="w-100">
+                                            <source id="lily-audio-source" src="" type="audio/mp3">
+                                            Your browser does not support the audio element.
+                                        </audio>
+                                        <div class="mt-2 text-muted small">
+                                            <i class="bi bi-info-circle me-1"></i>Using Nichalia Schwartz's voice from ElevenLabs
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- NEW Hospitality Outbound Calling Card -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-teal text-white">
+                                    <h5 class="mb-0">Hospitality Outbound Calls</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Demo our hospitality calling feature where Lily will make personalized follow-up calls to previous callers, referencing their conversation history.</p>
+                                    
+                                    <div class="mb-3">
+                                        <label for="outbound-call-recipient" class="form-label">Select a recipient for the demo call:</label>
+                                        <select id="outbound-call-recipient" class="form-select">
+                                            <option value="gary">Gary (Interested in career reading)</option>
+                                            <option value="michelle">Michelle (Seeking guidance about relationships)</option>
+                                            <option value="james">James (Asked about spiritual growth)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <button id="make-hospitality-call-btn" class="btn btn-primary mb-3">
+                                        <i class="bi bi-telephone-outbound me-2"></i>Make Hospitality Call
+                                    </button>
+                                    
+                                    <div id="hospitality-call-loading" class="d-none">
+                                        <div class="d-flex align-items-center">
+                                            <strong>Initiating call...</strong>
+                                            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
+                                        </div>
+                                        <small class="text-muted mt-2">Lily is connecting to the recipient and preparing the personalized greeting.</small>
+                                    </div>
+                                    
+                                    <div id="hospitality-call-status" class="mt-3 d-none">
+                                        <div class="alert alert-success">
+                                            <h6 class="alert-heading"><i class="bi bi-check-circle me-2"></i>Call Initiated!</h6>
+                                            <div id="hospitality-call-details">
+                                                <p>Lily is making an outbound call to <span id="hospitality-recipient-name">Gary</span>.</p>
+                                                <p class="mb-0 small"><strong>Personalized greeting:</strong> <span id="hospitality-greeting"></span></p>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 text-muted small">
+                                            <i class="bi bi-info-circle me-1"></i>This is a demonstration of the outbound calling feature. No actual call is being placed.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- END Hospitality Outbound Calling Card -->
+                            
+                            <!-- NEW Documentation Section -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">Documentation</h5>
+                                </div>
+                                <div class="card-body">
+                                    <h6>Project README</h6>
+                                    <div class="readme-container bg-light p-3 rounded">
+                                        <p class="text-muted"><i class="bi bi-file-text me-2"></i>Complete README file for the Psychic Source Transcript Analysis Tool:</p>
+                                        <div class="readme-content" style="max-height: 500px; overflow-y: auto;">
+                                            <div class="bg-white p-3 rounded border">
+                                                {% with readme_path = "README.md" %}
+                                                    {% if readme_content %}
+                                                        {{ readme_content|safe }}
+                                                    {% else %}
+                                                        <div class="alert alert-warning">
+                                                            <i class="bi bi-exclamation-triangle me-2"></i>
+                                                            README.md file could not be loaded. Please check that the file exists at the root of the project.
+                                                        </div>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-center mt-3">
+                                            <button class="btn btn-sm btn-outline-secondary" id="expandReadmeBtn">
+                                                <i class="bi bi-arrows-fullscreen me-1"></i> Toggle Fullscreen
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <h6 class="mt-4">Function Map</h6>
+                                    <div class="function-map-container bg-light p-3 rounded">
+                                        <p class="text-muted"><i class="bi bi-diagram-3 me-2"></i>Complete function map for the outbound calling system:</p>
+                                        <div class="function-map-image text-center">
+                                            <img src="{{ url_for('static', filename='images/Function Map - 2.png') }}" alt="Outbound Call Function Map" class="img-fluid rounded" style="max-width: 100%;">
+                                        </div>
+                                        <p class="mt-2 small">This diagram shows all API endpoints and client functions in the outbound calling system.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- END Documentation Section -->
+                            
+                            <!-- NEW Fun Section -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5 class="mb-0">Fun Stuff</h5>
+                                </div>
+                                <div class="card-body">
+                                    <h6>Tom Sweating the Details</h6>
+                                    <div class="fun-images-container d-flex flex-wrap justify-content-center gap-3 mt-3">
+                                        <div class="fun-image-item text-center">
+                                            <img src="{{ url_for('static', filename='images/Tom Sweating The Details .png') }}" 
+                                                 alt="Tom Sweating the Details" 
+                                                 class="img-fluid rounded expandable-image" 
+                                                 style="max-height: 200px; cursor: pointer;"
+                                                 data-bs-toggle="modal" 
+                                                 data-bs-target="#imageModal" 
+                                                 data-img-src="{{ url_for('static', filename='images/Tom Sweating The Details .png') }}"
+                                                 data-img-title="Tom Sweating the Details">
+                                            <p class="text-muted mt-2"><small>When your AI can't find or fix the bug, yet progress still needs to be made!</small></p>
+                                        </div>
+                                        <div class="fun-image-item text-center">
+                                            <img src="{{ url_for('static', filename='images/Tom with Cursor AI.png') }}" 
+                                                 alt="Tom with Cursor" 
+                                                 class="img-fluid rounded expandable-image" 
+                                                 style="max-height: 200px; cursor: pointer;"
+                                                 data-bs-toggle="modal" 
+                                                 data-bs-target="#imageModal" 
+                                                 data-img-src="{{ url_for('static', filename='images/Tom with Cursor AI.png') }}"
+                                                 data-img-title="Tom with Cursor AI">
+                                            <p class="text-muted mt-2"><small>Tom working on that perfect API integration</small></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- END Fun Section -->
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {# === END: Future Features & Fun Section === #}
+
 </div>
 
 {# === NEW: Agent Widget Modal === #}
@@ -422,11 +601,86 @@
         <div>Press Alt+D to toggle this panel</div>
     </div>
 </div>
+
+<!-- Image Modal for Expandable Images -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="expandedImage" src="" class="img-fluid rounded" alt="Expanded image">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Image expansion script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const imageModal = document.getElementById('imageModal');
+    if (imageModal) {
+        imageModal.addEventListener('show.bs.modal', function (event) {
+            // Button that triggered the modal
+            const trigger = event.relatedTarget;
+            
+            // Extract info from data attributes
+            const imgSrc = trigger.getAttribute('data-img-src');
+            const imgTitle = trigger.getAttribute('data-img-title');
+            
+            // Update the modal's content
+            const modalTitle = imageModal.querySelector('.modal-title');
+            const modalImage = document.getElementById('expandedImage');
+            
+            modalTitle.textContent = imgTitle;
+            modalImage.src = imgSrc;
+            modalImage.alt = imgTitle;
+        });
+    }
+    
+    // README viewer fullscreen toggle
+    const expandReadmeBtn = document.getElementById('expandReadmeBtn');
+    if (expandReadmeBtn) {
+        expandReadmeBtn.addEventListener('click', function() {
+            const readmeContainer = document.querySelector('.readme-container');
+            
+            if (readmeContainer.classList.contains('fullscreen')) {
+                // Exit fullscreen mode
+                readmeContainer.classList.remove('fullscreen');
+                this.innerHTML = '<i class="bi bi-arrows-fullscreen me-1"></i> Toggle Fullscreen';
+                
+                // Remove exit button if it exists
+                const exitBtn = readmeContainer.querySelector('.exit-fullscreen-btn');
+                if (exitBtn) {
+                    exitBtn.remove();
+                }
+            } else {
+                // Enter fullscreen mode
+                readmeContainer.classList.add('fullscreen');
+                this.innerHTML = '<i class="bi bi-fullscreen-exit me-1"></i> Exit Fullscreen';
+                
+                // Add an exit button to the fullscreen view
+                const exitBtn = document.createElement('button');
+                exitBtn.className = 'btn btn-sm btn-outline-secondary exit-fullscreen-btn';
+                exitBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+                exitBtn.addEventListener('click', function() {
+                    expandReadmeBtn.click(); // Trigger the toggle button
+                });
+                readmeContainer.appendChild(exitBtn);
+                
+                // Scroll to top of the README content
+                readmeContainer.querySelector('.readme-content').scrollTop = 0;
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <!-- Load dashboard-specific JavaScript -->
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-
 {% endblock %} 

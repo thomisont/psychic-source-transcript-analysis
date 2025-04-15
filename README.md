@@ -1,82 +1,58 @@
-## Project Reflection (April 9, 2025)
-
-1.  **Core Business Function:**
-    *   The application analyzes conversation transcripts (likely sourced from ElevenLabs) to provide insights into sentiment, themes, topics, and user interactions. The primary goal appears to be understanding customer/caller experiences, identifying common issues or questions, and tracking sentiment trends over time, likely for a service like Psychic Source.
-
-2.  **Original Technical Stack & Architecture:**
-    *   Python Flask web application.
-    *   SQLAlchemy ORM for interacting with a local or traditional PostgreSQL database.
-    *   Direct API integrations with ElevenLabs (for conversation data) and potentially OpenAI (for analysis).
-    *   Services (`ConversationService`, `AnalysisService`) handling business logic.
-    *   Flask routes (`app/routes.py`, `app/api/routes.py`) serving HTML templates and JSON data.
-    *   Basic HTML/CSS/JavaScript frontend, likely using Bootstrap and jQuery, for displaying dashboards and analysis results.
-
-3.  **Supabase Refactoring Initiative:**
-    *   **Goal:** Migrate the primary data store from the existing SQLAlchemy-managed database to Supabase (PostgreSQL backend) to improve scalability, reduce direct API load on ElevenLabs, and enable future features like vector search (`pgvector`).
-    *   **Strategy:** Implement a hybrid approach during the transition:
-        *   Create a new `SupabaseConversationService` to handle interactions with Supabase tables (`conversations`, `messages`).
-        *   Modify the data synchronization task (`run_sync_task.py`) to write data to *both* the old database and Supabase.
-        *   Refactor application components (API routes, services) to *prioritize* using `SupabaseConversationService` but fall back to the original `ConversationService` if Supabase isn't available or fails.
-        *   Inject the appropriate conversation service instance into dependent services like `AnalysisService`.
-
-4.  **Current State & Recent Actions:**
-    *   `SupabaseConversationService` has been created and integrated.
-    *   The sync task (`run_sync_task.py`) writes to Supabase.
-    *   A custom Supabase SQL function `execute_sql` was created to handle specific query needs.
-    *   The main Dashboard (`/`) and API Status (`/api/status`) have been updated to use the new service structure and reflect Supabase status. They appear to be working correctly, retrieving conversation counts from Supabase.
-    *   `AnalysisService` was refactored to accept a generic `conversation_service` dependency in its `__init__` method, aiming to decouple it from direct database access. Methods within `AnalysisService` (`get_conversation_ids`, `get_conversations_with_transcripts`) were updated to call the injected `conversation_service`.
-    *   The application factory (`create_app` in `app/__init__.py`) was updated to inject the primary `conversation_service` instance into `AnalysisService`.
-    *   A startup script (`start_supabase_app.sh`) was created to manage dependencies, checks, and server startup.
-
-5.  **Current Challenges & Blockers:**
-    *   **Themes & Sentiment Page:** This page (`/themes-sentiment`) remains broken. It fails to load data, showing errors like "Network response was not ok" and JavaScript console errors (`Cannot read properties of undefined (reading 'then')`).
-    *   **Service Initialization Errors:** Console logs reveal critical errors during application startup after recent refactoring attempts:
-        *   `TypeError: ConversationService.__init__() got an unexpected keyword argument 'db_session'` (Seen at 23:09, 23:17): This indicates that despite efforts to switch to Supabase, the *original* `ConversationService` (expecting `db` or `db_session`) is still being instantiated incorrectly in `app/__init__.py`, likely due to misconfiguration or the application not correctly selecting the Supabase service implementation.
-        *   `AttributeError: 'SupabaseClient' object has no attribute 'client'` (Seen at 23:14): This error occurs within the `SupabaseConversationService` when trying to use the `execute_sql` function via the `SupabaseClient` utility. It suggests an initialization or attribute access problem within the `SupabaseClient` wrapper (`tools/supabase_client.py`).
-    *   **Inconsistent Service Usage:** The application seems to be struggling to consistently use the intended `SupabaseConversationService`. Routes like `/api/themes-sentiment/data` rely on `AnalysisService`, which *should* be using the injected `SupabaseConversationService`, but the underlying errors suggest either the wrong service is being injected/used or the Supabase service itself has internal errors (`AttributeError`). The logs show `ConversationService initialized (Database Mode)` during startup, confirming the old service is still being activated, likely overriding or conflicting with the intended Supabase integration path for some parts of the app.
-
-6.  **Technical Guidance Summary:**
-    *   Continue adhering to PEP 8, type hinting, and clear documentation (docstrings).
-    *   Prioritize completing the Supabase migration for data fetching and analysis.
-    *   Focus on correctly initializing and injecting the `SupabaseConversationService` throughout the application, ensuring the old `ConversationService` is only used as a fallback if explicitly designed for, or phased out entirely.
-    *   Resolve the internal `AttributeError` within the `SupabaseClient` or `SupabaseConversationService`.
-    *   Ensure all data-accessing components (routes, services) consistently use the designated service layer (`SupabaseConversationService`).
-    *   Maintain comprehensive tests, especially around the service layer and data interactions.
-    *   Keep files concise (under 200-300 lines) and refactor where necessary.
-
----
-(Previous content below this line is potentially outdated or needs integration)
----
-
 # Psychic Source Transcript Analysis Tool
 
-A web application for analyzing call transcripts from ElevenLabs' Conversational Voice Agent for Psychic Source.
+A web application for analyzing call transcripts from ElevenLabs' Conversational Voice Agent for Psychic Source with additional outbound calling capabilities.
 
-## Features
+## Current Features
 
-- **Conversation Browser**: View and search through psychic reading conversations
+- **Conversation Browser**: View and search through psychic reading conversations with an iMessage-style transcript viewer
+- **Dashboard**: Interactive overview with KPIs, charts, and metrics showing conversation data
+- **Agent Selection**: Support for multiple Lilly agents (filter dashboard by agent)
+- **Admin Panel**: View agent prompts, email templates, and interact directly with the agent through a widget
+- **Ad-Hoc SQL Querying**: Ask questions about conversation data in natural language (LLM-translated to SQL)
+- **Outbound Calling**: Make personalized outbound calls to previous callers using ElevenLabs' voice synthesis
 - **Sentiment Analysis**: Analyze the emotional tone of conversations
 - **Topic Extraction**: Identify key themes and topics discussed
 - **Data Visualization**: Interactive charts and graphs showing trends and patterns
-- **Export Capabilities**: Export data in JSON, CSV, and Markdown formats
 
 ## Architecture
 
-The application uses a service-oriented architecture:
+The application uses a service-oriented architecture with Supabase as the primary database:
 
 - **Flask Backend**: Handles API requests, data processing, and rendering
 - **Service Layer**: Separates business logic from API integration and presentation
-- **ElevenLabs API Integration**: Communicates with the ElevenLabs API to retrieve conversation data
+- **Supabase Integration**: PostgreSQL-based cloud database for scalable data storage
+- **ElevenLabs API Integration**: Retrieves conversation data and enables outbound calling
 - **Analysis Engine**: Processes conversation data to extract insights
 - **Responsive UI**: Bootstrap-based interface with Chart.js visualizations
+
+## Outbound Calling System
+
+The application includes a complete outbound calling system:
+
+- **Client Library**: JavaScript and Python clients for initiating calls
+- **FastAPI Service**: REST API for managing outbound calls
+- **ElevenLabs Integration**: Uses ElevenLabs' text-to-speech for natural-sounding calls
+- **Twilio Integration**: Handles actual phone call placement and status updates
+- **Hospitality Feature**: Personalized follow-up calls to previous customers
+
+## Tech Stack
+
+- **Backend**: Python 3.12 with Flask
+- **Database**: Supabase (PostgreSQL)
+- **API Gateway**: FastAPI for the outbound calling service
+- **Frontend**: HTML/CSS/JS with Bootstrap 5 and Chart.js
+- **LLM Integration**: OpenAI for enhanced analysis and SQL query translation
+- **Authentication**: Supabase auth
+- **Deployment**: Supports Replit, traditional servers, and containerized environments
 
 ## Getting Started
 
 ### Prerequisites
 
 - Python 3.10 or higher
+- Supabase account and project
 - ElevenLabs API key
-- (Optional) OpenAI API key for enhanced analysis
+- OpenAI API key for enhanced analysis
 
 ### Installation
 
@@ -105,10 +81,25 @@ pip install -r requirements.txt
 Create a `.env` file in the project root:
 
 ```
+# ElevenLabs Configuration
 ELEVENLABS_API_KEY=your_elevenlabs_api_key
-ELEVENLABS_AGENT_ID=your_agent_id
-OPENAI_API_KEY=your_openai_api_key  # Optional
-SECRET_KEY=a_random_secret_key
+ELEVENLABS_AGENT_ID_CURIOUS=your_curious_caller_agent_id
+ELEVENLABS_VOICE_ID=your_voice_id
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+
+# Twilio for outbound calls
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
+
+# Flask Configuration
+SECRET_KEY=your_random_secret_key
 ```
 
 5. Download NLTK resources (if using NLP features):
@@ -117,29 +108,21 @@ SECRET_KEY=a_random_secret_key
 python nltk_setup.py
 ```
 
-### Running the Application
+### Starting the Application
 
-Start the development server:
+Use the simplified startup script:
+
+```bash
+bash simplified_start.sh
+```
+
+Or start directly with Python:
 
 ```bash
 python run.py
 ```
 
-Access the application at http://localhost:3000 or http://localhost:8080 (check the console output for the actual port).
-
-### Running Tests
-
-Run the test suite:
-
-```bash
-python run_tests.py
-```
-
-Test API integration specifically:
-
-```bash
-python test_api_integration.py
-```
+Access the application at http://localhost:8080 (check the console output for the actual port).
 
 ## Usage
 
@@ -150,8 +133,12 @@ The dashboard provides an overview of conversation metrics, including:
 - Total conversations
 - Average duration
 - Completion rate
+- Month-to-date cost tracking with budget indicator
 - Time-of-day distribution
 - Day-of-week distribution
+- Agent selection dropdown for filtering metrics by agent
+- Agent administration panel for viewing prompts and email templates
+- SQL query interface for ad-hoc data exploration
 
 ### Transcript Viewer
 
@@ -159,7 +146,7 @@ Browse and search conversations with:
 
 - Date range filtering
 - Full-text search
-- Detailed transcript view
+- iMessage-style transcript view
 - Sentiment highlighting
 
 ### Themes & Sentiment
@@ -171,14 +158,83 @@ Analyze the emotional tone and topics of conversations:
 - Theme-sentiment correlation
 - Common questions and concerns
 
-### Engagement Metrics
+### Outbound Calling
 
-Visualize engagement metrics with interactive charts:
+The dashboard includes an outbound calling demo, allowing you to:
 
-- Conversation volume over time
-- Average call duration
-- Time-of-day patterns
-- Completion rates
+- Select a recipient from a dropdown menu
+- Initiate a personalized outbound call with a customized greeting
+- View the call status and greeting message
+
+## Project Structure
+
+```
+/
+├── app/                      # Main application directory
+│   ├── __init__.py           # Application factory
+│   ├── routes.py             # Route definitions
+│   ├── api/                  # API integration
+│   │   ├── elevenlabs_client.py  # ElevenLabs API client
+│   │   └── routes.py            # API endpoints
+│   ├── services/             # Service layer
+│   │   ├── conversation_service.py     # Database conversation service
+│   │   ├── supabase_conversation_service.py  # Supabase implementation
+│   │   ├── analysis_service.py         # Analysis operations
+│   │   └── export_service.py           # Export operations
+│   ├── static/               # Static assets
+│   │   ├── css/              # Stylesheets
+│   │   ├── js/               # JavaScript files
+│   │   └── images/           # Images (Tom memes, function maps)
+│   ├── tasks/                # Background tasks
+│   │   └── sync.py           # Data synchronization with ElevenLabs
+│   ├── templates/            # HTML templates
+│   └── utils/                # Utility functions
+├── outbound_calls/           # Outbound calling system
+│   ├── app.py                # FastAPI outbound call service
+│   ├── client.py             # Python client for outbound calls
+│   ├── mcp_client.py         # ElevenLabs MCP client
+│   ├── outbound.py           # Core outbound functionality
+│   ├── outbound_client.js    # JavaScript client for web usage
+│   └── outbound_server.py    # Server endpoints
+├── tools/                    # Utility tools
+│   └── supabase_client.py    # Supabase client wrapper
+├── tests/                    # Test directory
+├── config.py                 # Configuration settings
+├── run.py                    # Application entry point
+└── requirements.txt          # Python dependencies
+```
+
+## Recent Updates
+
+### 1. Dashboard Enhancements (April 2025)
+
+- **Multi-Agent Support**: Added ability to filter dashboard by different Lilly agents
+- **Agent Administration Panel**: Added viewing of agent prompts and email templates
+- **Natural Language SQL Interface**: Added ability to query the database using plain English
+- **Cost Tracking**: Added month-to-date cost tracking with budget visualization
+- **UI Improvements**: Enhanced card design and tooltips for better information display
+
+### 2. Supabase Integration (April 2025)
+
+- Migrated data storage from SQLAlchemy to Supabase for improved scalability
+- Implemented hybrid approach with fallback to original database if needed
+- Updated sync task to write data to Supabase
+- Created RPC functions for custom queries
+- Updated services to use Supabase client
+
+### 3. Outbound Calling System (April 2025)
+
+- Added complete outbound calling functionality with ElevenLabs integration
+- Created hospitality calling feature for personalized customer follow-up
+- Implemented both JavaScript and Python clients
+- Added FastAPI service for call management
+- Created documentation with function maps
+
+### 4. Fun Features (April 2025)
+
+- Added expandable Tom images in the Fun section
+- Added function map visualization for the outbound calling system
+- Enhanced documentation and sample data
 
 ## API Documentation
 
@@ -200,71 +256,20 @@ The application is configured to run on Replit. Simply:
 
 ```bash
 pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:3000 "app:create_app()"
+gunicorn -w 4 -b 0.0.0.0:8080 "app:create_app()"
 ```
 
 2. Set up a reverse proxy (e.g., Nginx) to handle static files and SSL termination.
 
-## Development
-
-### Project Structure
-
-```
-/
-├── app/                      # Main application directory
-│   ├── __init__.py           # Application factory
-│   ├── routes.py             # Route definitions
-│   ├── api/                  # API integration
-│   │   ├── elevenlabs_client.py  # ElevenLabs API client
-│   │   └── data_processor.py     # Data processing logic
-│   ├── services/             # Service layer
-│   │   ├── conversation_service.py  # Conversation operations
-│   │   ├── analysis_service.py      # Analysis operations
-│   │   └── export_service.py        # Export operations
-│   ├── utils/                # Utility functions
-│   │   ├── cache.py          # Caching utilities
-│   │   ├── export.py         # Data export functionality
-│   │   └── analysis.py       # Data analysis functionality
-│   ├── static/               # Static assets
-│   │   ├── css/
-│   │   └── js/
-│   └── templates/            # HTML templates
-├── tests/                    # Test directory
-│   ├── unit/                 # Unit tests
-│   │   └── services/         # Service tests
-│   └── integration/          # Integration tests
-├── config.py                 # Configuration settings
-├── run.py                    # Application entry point
-└── requirements.txt          # Python dependencies
-```
-
-### Adding New Features
-
-1. Identify the service layer component to modify
-2. Add appropriate test cases
-3. Implement the feature
-4. Update the documentation
-
-### Coding Style
+## Development Guidelines
 
 - Follow PEP 8 for Python code
 - Use type hints where appropriate
 - Write comprehensive docstrings
 - Add unit tests for new functionality
-
-## Troubleshooting
-
-### Common Issues
-
-- **API Connection Issues**: Verify your API key and network connectivity
-- **Missing NLTK Resources**: Run `python nltk_setup.py` to download required resources
-- **Port Conflicts**: Change the port in `run.py` if the default port is in use
-
-### Getting Help
-
-- Check the logs in the console output
-- Review the API documentation for specific endpoints
-- Run the `test_api_integration.py` script to verify API connectivity
+- Keep files under 200-300 lines of code (refactor if necessary)
+- Avoid mock data in production code
+- Write thorough tests for all major functionality
 
 ## License
 
@@ -273,51 +278,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - ElevenLabs for their Conversational Voice Agent API
-- The Flask team for the web framework
-- Chart.js for data visualization capabilities
-
-## Project Reflection (April 9, 2025)
-
-1.  **Core Business Function:**
-    *   The application analyzes conversation transcripts (likely sourced from ElevenLabs) to provide insights into sentiment, themes, topics, and user interactions. The primary goal appears to be understanding customer/caller experiences, identifying common issues or questions, and tracking sentiment trends over time, likely for a service like Psychic Source.
-
-2.  **Original Technical Stack & Architecture:**
-    *   Python Flask web application.
-    *   SQLAlchemy ORM for interacting with a local or traditional PostgreSQL database.
-    *   Direct API integrations with ElevenLabs (for conversation data) and potentially OpenAI (for analysis).
-    *   Services (`ConversationService`, `AnalysisService`) handling business logic.
-    *   Flask routes (`app/routes.py`, `app/api/routes.py`) serving HTML templates and JSON data.
-    *   Basic HTML/CSS/JavaScript frontend, likely using Bootstrap and jQuery, for displaying dashboards and analysis results.
-
-3.  **Supabase Refactoring Initiative:**
-    *   **Goal:** Migrate the primary data store from the existing SQLAlchemy-managed database to Supabase (PostgreSQL backend) to improve scalability, reduce direct API load on ElevenLabs, and enable future features like vector search (`pgvector`).
-    *   **Strategy:** Implement a hybrid approach during the transition:
-        *   Create a new `SupabaseConversationService` to handle interactions with Supabase tables (`conversations`, `messages`).
-        *   Modify the data synchronization task (`run_sync_task.py`) to write data to *both* the old database and Supabase.
-        *   Refactor application components (API routes, services) to *prioritize* using `SupabaseConversationService` but fall back to the original `ConversationService` if Supabase isn't available or fails.
-        *   Inject the appropriate conversation service instance into dependent services like `AnalysisService`.
-
-4.  **Current State & Recent Actions:**
-    *   `SupabaseConversationService` has been created and integrated.
-    *   The sync task (`run_sync_task.py`) writes to Supabase.
-    *   A custom Supabase SQL function `execute_sql` was created to handle specific query needs.
-    *   The main Dashboard (`/`) and API Status (`/api/status`) have been updated to use the new service structure and reflect Supabase status. They appear to be working correctly, retrieving conversation counts from Supabase.
-    *   `AnalysisService` was refactored to accept a generic `conversation_service` dependency in its `__init__` method, aiming to decouple it from direct database access. Methods within `AnalysisService` (`get_conversation_ids`, `get_conversations_with_transcripts`) were updated to call the injected `conversation_service`.
-    *   The application factory (`create_app` in `app/__init__.py`) was updated to inject the primary `conversation_service` instance into `AnalysisService`.
-    *   A startup script (`start_supabase_app.sh`) was created to manage dependencies, checks, and server startup.
-
-5.  **Current Challenges & Blockers:**
-    *   **Themes & Sentiment Page:** This page (`/themes-sentiment`) remains broken. It fails to load data, showing errors like "Network response was not ok" and JavaScript console errors (`Cannot read properties of undefined (reading 'then')`).
-    *   **Service Initialization Errors:** Console logs reveal critical errors during application startup after recent refactoring attempts:
-        *   `TypeError: ConversationService.__init__() got an unexpected keyword argument 'db_session'` (Seen at 23:09, 23:17): This indicates that despite efforts to switch to Supabase, the *original* `ConversationService` (expecting `db` or `db_session`) is still being instantiated incorrectly in `app/__init__.py`, likely due to misconfiguration or the application not correctly selecting the Supabase service implementation.
-        *   `AttributeError: 'SupabaseClient' object has no attribute 'client'` (Seen at 23:14): This error occurs within the `SupabaseConversationService` when trying to use the `execute_sql` function via the `SupabaseClient` utility. It suggests an initialization or attribute access problem within the `SupabaseClient` wrapper (`tools/supabase_client.py`).
-    *   **Inconsistent Service Usage:** The application seems to be struggling to consistently use the intended `SupabaseConversationService`. Routes like `/api/themes-sentiment/data` rely on `AnalysisService`, which *should* be using the injected `SupabaseConversationService`, but the underlying errors suggest either the wrong service is being injected/used or the Supabase service itself has internal errors (`AttributeError`). The logs show `ConversationService initialized (Database Mode)` during startup, confirming the old service is still being activated, likely overriding or conflicting with the intended Supabase integration path for some parts of the app.
-
-6.  **Technical Guidance Summary:**
-    *   Continue adhering to PEP 8, type hinting, and clear documentation (docstrings).
-    *   Prioritize completing the Supabase migration for data fetching and analysis.
-    *   Focus on correctly initializing and injecting the `SupabaseConversationService` throughout the application, ensuring the old `ConversationService` is only used as a fallback if explicitly designed for, or phased out entirely.
-    *   Resolve the internal `AttributeError` within the `SupabaseClient` or `SupabaseConversationService`.
-    *   Ensure all data-accessing components (routes, services) consistently use the designated service layer (`SupabaseConversationService`).
-    *   Maintain comprehensive tests, especially around the service layer and data interactions.
-    *   Keep files concise (under 200-300 lines) and refactor where necessary. 
+- Supabase for database infrastructure
+- The Flask and FastAPI teams for the web frameworks
+- Chart.js for data visualization capabilities 

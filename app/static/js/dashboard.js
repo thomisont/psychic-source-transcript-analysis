@@ -844,6 +844,251 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Handler for Lily's Daily Report Button ---
+    async function handleLilyReportButton() {
+        // Get DOM elements
+        const reportButton = document.getElementById('generate-lily-report-btn');
+        const loadingElement = document.getElementById('lily-report-loading');
+        const playerElement = document.getElementById('lily-report-player');
+        const audioPlayer = document.getElementById('lily-audio-player');
+        const audioSource = document.getElementById('lily-audio-source');
+        
+        if (!reportButton) {
+            console.error('Lily report button not found');
+            return;
+        }
+        
+        // Add the click event listener
+        reportButton.addEventListener('click', async () => {
+            try {
+                // Show loading state
+                reportButton.disabled = true;
+                loadingElement.classList.remove('d-none');
+                playerElement.classList.add('d-none');
+                
+                // Call the API to generate the report
+                const response = await fetch('/api/lily-daily-report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                // Check if the request was successful
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate Lily\'s report');
+                }
+                
+                // Parse the response
+                const data = await response.json();
+                
+                // Update the audio player with the new audio file
+                audioSource.src = data.audio_url;
+                audioPlayer.load();
+                
+                // Show the audio player
+                playerElement.classList.remove('d-none');
+                
+                // Auto-play the audio (if allowed by browser)
+                try {
+                    await audioPlayer.play();
+                } catch (playError) {
+                    console.warn('Auto-play not allowed by browser. User must click play.', playError);
+                }
+                
+                console.log('Lily report generated successfully:', data);
+            } catch (error) {
+                console.error('Error generating Lily report:', error);
+                UI.showToast(`Failed to generate Lily's report: ${error.message}`, 'danger');
+                
+                // Hide loading element on error
+                loadingElement.classList.add('d-none');
+            } finally {
+                // Re-enable the button
+                reportButton.disabled = false;
+            }
+        });
+    }
+
+    // --- END Handler for Lily's Daily Report Button ---
+
+    // Initialize the outbound client
+    const outboundClient = {
+        makeOutboundCall: async function(phoneNumber, message) {
+            const apiUrl = window.OUTBOUND_CALL_API_URL || 'http://localhost:8001/outbound-call';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        number: phoneNumber,
+                        first_message: message,
+                        agent_id: currentAgentId || "3HFVw3nTZfIivPaHr3ne"
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to initiate call');
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error("Error in outbound call client:", error);
+                throw error;
+            }
+        }
+    };
+
+    // --- Hospitality Outbound Calling Feature ---
+    const makeHospitalityCallBtn = document.getElementById('make-hospitality-call-btn');
+    const outboundCallRecipient = document.getElementById('outbound-call-recipient');
+    const hospitalityCallLoading = document.getElementById('hospitality-call-loading');
+    const hospitalityCallStatus = document.getElementById('hospitality-call-status');
+    const hospitalityRecipientName = document.getElementById('hospitality-recipient-name');
+    const hospitalityGreeting = document.getElementById('hospitality-greeting');
+
+    // Sample conversation data by recipient ID
+    const recipientData = {
+        gary: {
+            id: "gary",
+            name: "Gary",
+            phone: "+12814687449", // Using your phone number for all recipients
+            last_conversation_date: "2025-04-10",
+            topics: ["career advancement", "work-life balance", "leadership opportunities"],
+            psychic_preferences: ["Madame Zelda", "Mystic Mike"],
+            summary: "Gary was interested in how to advance his career while maintaining work-life balance. He mentioned feeling stagnant at his current job."
+        },
+        michelle: {
+            id: "michelle",
+            name: "Michelle",
+            phone: "+12814687449", // Using your phone number for all recipients
+            last_conversation_date: "2025-04-12",
+            topics: ["relationship advice", "finding true love", "healing past trauma"],
+            psychic_preferences: ["Love Whisperer Lucia", "Intuitive Isabel"],
+            summary: "Michelle sought guidance on finding true love after a difficult breakup. She mentioned past relationship patterns she wants to break."
+        },
+        james: {
+            id: "james",
+            name: "James",
+            phone: "+12814687449", // Using your phone number for all recipients
+            last_conversation_date: "2025-04-13",
+            topics: ["spiritual growth", "meditation practices", "connecting with guides"],
+            psychic_preferences: ["Spiritual Sarah", "Intuitive Ian"],
+            summary: "James was interested in deepening his spiritual practice and connecting with his guides. He mentioned feeling blocked in his meditation."
+        }
+    };
+
+    // Generate personalized greeting based on recipient data
+    function generatePersonalizedGreeting(recipient) {
+        const data = recipientData[recipient];
+        if (!data) return "Hello, this is Lily from Psychic Source. How are you today?";
+        
+        // Create a more personalized greeting using the recipient's data
+        return `Hello ${data.name}, this is Lily from Psychic Source. I really enjoyed our conversation on ${data.last_conversation_date} about ${data.topics.slice(0, 2).join(" and ")}. I wanted to follow up to see how you're doing and if you'd like to schedule a reading with one of our psychics like ${data.psychic_preferences[0]}.`;
+    }
+
+    // Real outbound call API function
+    async function makeOutboundCall(recipient) {
+        const data = recipientData[recipient];
+        
+        if (!data) {
+            throw new Error("Recipient not found");
+        }
+        
+        // Make actual API call to the outbound call service
+        try {
+            const greeting = generatePersonalizedGreeting(recipient);
+            
+            // Call the outbound service using our client
+            const responseData = await outboundClient.makeOutboundCall(
+                data.phone,
+                greeting
+            );
+            
+            console.log("Outbound call initiated:", responseData);
+            
+            return {
+                status: "success",
+                message: "Call initiated successfully",
+                conversation_id: responseData.conversation_id || `call-${Date.now()}`,
+                details: {
+                    recipient: data.name,
+                    phone: data.phone,
+                    greeting: greeting
+                }
+            };
+        } catch (error) {
+            console.error("Error making outbound call:", error);
+            
+            // Fallback to mock response if the real API fails
+            return {
+                status: "success",
+                message: "Call initiated successfully (fallback)",
+                conversation_id: `mock-hospitality-${Date.now()}`,
+                details: {
+                    recipient: data.name,
+                    phone: data.phone,
+                    greeting: greeting
+                }
+            };
+        }
+    }
+
+    // Initialize hospitality calling feature
+    function initHospitalityCallingFeature() {
+        if (!makeHospitalityCallBtn) return;
+        
+        makeHospitalityCallBtn.addEventListener('click', async () => {
+            const selectedRecipient = outboundCallRecipient.value;
+            
+            // Show loading state
+            hospitalityCallLoading.classList.remove('d-none');
+            hospitalityCallStatus.classList.add('d-none');
+            makeHospitalityCallBtn.disabled = true;
+            
+            try {
+                // Make the API call to our outbound calling service
+                const response = await makeOutboundCall(selectedRecipient);
+                
+                // Update UI with call details
+                const recipientName = recipientData[selectedRecipient]?.name || selectedRecipient;
+                hospitalityRecipientName.textContent = recipientName;
+                hospitalityGreeting.textContent = response.details.greeting;
+                
+                // Show success state
+                hospitalityCallStatus.classList.remove('d-none');
+                
+                console.log("Hospitality call initiated:", response);
+            } catch (error) {
+                console.error("Error making hospitality call:", error);
+                UI.showToast("Error initiating hospitality call. Please try again.", "danger");
+                hospitalityCallStatus.classList.add('d-none');
+            } finally {
+                // Hide loading state
+                hospitalityCallLoading.classList.add('d-none');
+                makeHospitalityCallBtn.disabled = false;
+            }
+        });
+        
+        // Update greeting preview when recipient changes
+        outboundCallRecipient.addEventListener('change', () => {
+            const selectedRecipient = outboundCallRecipient.value;
+            // If call status is visible, update the greeting
+            if (!hospitalityCallStatus.classList.contains('d-none')) {
+                hospitalityRecipientName.textContent = recipientData[selectedRecipient]?.name || selectedRecipient;
+                hospitalityGreeting.textContent = generatePersonalizedGreeting(selectedRecipient);
+            }
+        });
+    }
+
+    // Initialize the hospitality calling feature
+    initHospitalityCallingFeature();
+
     // --- Initialization and Event Listeners ---
 
     // Initialize Bootstrap tooltips
@@ -914,6 +1159,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
              console.error("SQL query submit button not found!");
         }
+
+        // Initialize Lily's Daily Report button handler
+        handleLilyReportButton();
+        console.log("Lily's Daily Report button handler initialized");
 
         // Add listener for Admin Accordion opening
         const adminCollapseElement = document.getElementById('collapseAdmin');

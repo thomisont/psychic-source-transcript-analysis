@@ -1,7 +1,7 @@
-run = "bash start_supabase_app.sh"
+run = "bash simplified_start.sh"
 language = "python3"
 entrypoint = "run.py"
-modules = ["nix", "nodejs-20", "python-3.11", "python-3.12", "web"]
+modules = ["python-3.10:v18-20230807-322e88b"]
 
 [env]
 VIRTUAL_ENV = "/home/runner/${REPL_SLUG}/venv"
@@ -18,7 +18,7 @@ FLASK_RUN_PORT = "8080"
 language = "python3"
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-23_05"
 
 [packager]
 language = "python3"
@@ -65,7 +65,7 @@ type = "request"
 logging = {}
 
 [deployment]
-run = ["bash", "/home/runner/workspace/simplified_start.sh"]
+run = ["sh", "-c", "bash simplified_start.sh"]
 deploymentTarget = "cloudrun"
 
 [[ports]]
@@ -83,6 +83,14 @@ externalPort = 3002
 [[ports]]
 localPort = 5001
 externalPort = 3003
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
+[[ports]]
+localPort = 8001
+externalPort = 5173
 
 [[ports]]
 localPort = 8080
