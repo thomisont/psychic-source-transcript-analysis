@@ -1,6 +1,7 @@
+
 #!/bin/bash
 
-echo "Starting Psychic Source Analyzer setup..."
+echo "Starting application setup..."
 
 # Install dependencies
 echo "Installing dependencies..."
@@ -11,27 +12,22 @@ echo "Checking environment variables..."
 
 if [ -z "$SUPABASE_URL" ]; then
   echo "ERROR: SUPABASE_URL environment variable is not set!"
-  echo "Please set it in Replit Secrets."
-  echo "Using URL format: https://elrjsmvfkiyvzbspwxxf.supabase.co"
+  echo "Please set it in Deployment Secrets."
   exit 1
 fi
 
-if [ -z "$SUPABASE_KEY" ]; then
-  echo "ERROR: SUPABASE_KEY environment variable is not set!"
-  echo "Please set it in Replit Secrets."
+if [ -z "$SUPABASE_SERVICE_KEY" ]; then
+  echo "ERROR: SUPABASE_SERVICE_KEY environment variable is not set!"
+  echo "Please set it in Deployment Secrets."
   exit 1
 fi
 
-if [ -z "$ELEVENLABS_API_KEY" ]; then
-  echo "WARNING: ELEVENLABS_API_KEY environment variable is not set."
-  echo "ElevenLabs integration will not function correctly."
-fi
-
-if [ -z "$OPENAI_API_KEY" ]; then
-  echo "WARNING: OPENAI_API_KEY environment variable is not set."
-  echo "Analysis features requiring OpenAI will not function correctly."
+if [ -z "$DATABASE_URL" ]; then
+  echo "ERROR: DATABASE_URL environment variable is not set!"
+  echo "Please set it in Deployment Secrets."
+  exit 1
 fi
 
 # Start the application
-echo "Starting application on port 8080..."
-python run.py --port 8080 
+echo "Starting application..."
+python run.py --host 0.0.0.0 --port 8080
