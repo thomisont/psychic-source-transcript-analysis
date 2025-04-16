@@ -1079,4 +1079,94 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
     *   Frontend needs `.innerHTML` for rendering HTML tags, `.textContent` for plain text. Type safety matters (`String()`).
     *   Vertical alignment in the Admin Panel's two-column layout remains problematic.
 
-*(Previous session summaries follow)*
+## Agent Session Learnings (April 17, 2025 - Replit Deployment Troubleshooting)
+
+*   **Replit Environment Sensitivity:** Dependency installation in Replit can be sensitive to Python versions and pre-compiled wheel availability. Packages like `numpy` and `scikit-learn` might require flexible version specifiers (`>=`) instead of exact versions (`==`) in requirements files to allow `pip` to resolve compatible versions, especially when encountering build errors (`pyproject.toml` metadata issues).
+*   **Build Isolation:** For complex packages failing during installation (like `scikit-learn`), using `pip install --no-build-isolation` can sometimes resolve issues by using locally available build tools rather than an isolated environment.
+*   **Dependency Management Strategy:** The project utilizes multiple requirements files (`requirements.txt`, `requirements-prod.txt`, `requirements-deploy.txt`) and corresponding installation scripts (`pre_run.sh` for dev, `post_install.sh` for deploy). `requirements-deploy.txt` is intended as the most comprehensive list for installations. Scripts include explicit installs, retries (`--force-reinstall`), and verification steps for problematic packages.
+*   **Replit Configuration (`.replit`, `replit.nix`):** The `.replit` file dictates both local execution (`run = "bash pre_run.sh && python run.py"`) and deployment steps (`deployment.run = ["sh", "-c", "bash post_install.sh && python run.py --port 8080"]`). The `replit.nix` file manages system-level dependencies.
+*   **Startup Sequence:** The primary application entry point is `run.py`. Failures often manifest as `ModuleNotFoundError` due to the chain of imports starting from `app/__init__.py`.
+*   **Debugging Limitations:** Direct execution and log monitoring via agent tools (`run_terminal_cmd`) may not reliably capture full error output in the Replit environment. Relying on user-provided console logs is often necessary.
+
+## Project Update: April 2025 - Environment Stability & Dev Workflow
+
+### Session Summary (Agent Handoff)
+
+**Where We Have Been:**
+- The session focused on resolving persistent segmentation faults and memory errors when running the Flask app on Replit, especially when using PostgreSQL via psycopg2/psycopg2-binary.
+- A systematic isolation process was followed: all services and extensions were disabled, then re-enabled one by one (SQLAlchemy, Flask-Migrate, Flask-Caching) with SQLite as the backend. The app was stable in this configuration.
+- Switching back to PostgreSQL (with various psycopg2-binary versions) consistently caused segmentation faults, confirming a binary incompatibility between Replit and psycopg2.
+
+**What Has Been Fixed:**
+- The codebase now enforces the use of SQLite for all development on Replit, regardless of the DATABASE_URL environment variable. This is implemented in `config.py`:
+  ```python
+  if os.environ.get('FLASK_ENV') == 'production':
+      SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+  else:
+      SQLALCHEMY_DATABASE_URI = 'sqlite:///app.db'
+  ```
+- All Flask extensions (SQLAlchemy, Flask-Migrate, Flask-Caching) are now stable and enabled for dev.
+- The README has been updated with detailed documentation on the dev/prod environment split, workflow tips, and troubleshooting guidance.
+
+**What We Are Currently Working On:**
+- The environment is now stable for ongoing development on Replit using SQLite. The next planned step is to execute the "Agent swap process" to transition to the next Agent session and refresh context for new work.
+- Awaiting user direction for the next development focus after this handoff.
+
+**New Learnings & Tech Stack Notes:**
+- The codebase uses a service-oriented architecture with clear separation between business logic, API integration, and presentation.
+- Naming conventions are consistent: services are in `app/services/`, API clients in `app/api/`, and blueprints are registered in `app/__init__.py`.
+- The environment logic in `config.py` is now robust and future-proof for Replit dev and production deployment.
+- The project README is now a single source of truth for setup, workflow, and troubleshooting.
+- SQLite is the only supported DB for dev on Replit; PostgreSQL is only for production.
+- All major Flask extensions are compatible with SQLite for dev, including migrations.
+
+**Next Agent Instructions:**
+- Review the current stable state (SQLite enforced, all extensions enabled, README updated).
+- Wait for user direction on the next development focus (e.g., Agent swap process or new feature work).
+- Continue to follow the documented dev workflow and environment guidelines.
+
+---
+
+## Agent Session Summary (as of 2025-04-16)
+
+### 1. **Context & Goals**
+- The project is a Flask-based analytics dashboard for Psychic Source, using Supabase (PostgreSQL) as the backend, with a service-oriented architecture.
+- The dashboard fetches conversation and message analytics via a Supabase Postgres function: `get_message_activity_in_range`.
+- The main goal of this session was to fix the dashboard's data population, specifically the charts and KPIs, by ensuring the Supabase function returns the correct data structure and values.
+
+### 2. **What Has Been Fixed**
+- Identified and fixed several SQL errors in the Supabase function, especially around missing `FROM` clauses and table aliasing (e.g., `c`, `convs`).
+- Provided a corrected version of the function that properly aggregates daily volume and average duration, and returns all required JSON keys for the dashboard.
+- Ensured the function signature and return type match what the backend expects.
+- Confirmed that the backend is correctly calling the Supabase RPC and that the frontend is making the right API requests.
+
+### 3. **What Is Still Broken / Current Issue**
+- The dashboard is still returning a 500 error from the `/api/dashboard/stats` endpoint.
+- The error is: `missing FROM-clause entry for table "convs"` (Postgres error 42P01), which means a subquery in the function is referencing the alias `convs` without a proper `FROM` clause.
+- The problematic block is in the calculation of `daily_avg_duration`. The outer query must use `FROM ( ... ) convs` and reference `convs.day`, `convs.duration`, etc. All references to `convs` must be within a query that defines it in the `FROM` clause.
+- The function needs to be updated so that every alias is defined in the correct scope.
+
+### 4. **New Learnings & Naming Conventions**
+- The codebase uses clear, descriptive naming for tables (`conversations`, `messages`, `agents`) and columns (`created_at`, `timestamp`, `agent_id`).
+- The backend expects the Supabase function to return a JSON object with keys: `activity_by_day`, `activity_by_hour`, `daily_volume`, `daily_avg_duration`, `total_conversations_period`, `avg_duration_seconds`, `peak_time_hour`, and `distinct_conversation_ids`.
+- The frontend expects these keys to always be present, even if empty.
+- The project is using Flask for the backend, Chart.js for the frontend, and SQLAlchemy for local dev (with SQLite), but Supabase/Postgres in production.
+- The Supabase function is called via the `supabase_service.get_dashboard_stats` method in the backend.
+
+### 5. **Next Steps for the Next Agent**
+- Carefully review the `get_message_activity_in_range` function, especially the `daily_avg_duration` block, and ensure all table aliases are defined in the correct scope.
+- Test the function in the Supabase SQL editor with sample parameters to ensure it runs without errors.
+- Once the function is fixed, verify that the `/api/dashboard/stats` endpoint returns the expected JSON structure and that the dashboard populates correctly.
+- If further errors occur, check the backend logs for the exact SQL error and adjust the function accordingly.
+
+### 6. **Tech Stack & Architecture Notes**
+- Flask backend, Supabase/Postgres for production data, SQLite for dev.
+- Service-oriented code structure: API routes in `app/api/routes.py`, service logic in `app/services/supabase_conversation_service.py`.
+- Supabase RPC functions are used for custom analytics queries.
+- Frontend expects consistent JSON keys for all dashboard metrics.
+
+---
+
+**Here is the context from the prior Agent working session. Use it to orient around what's next. After reviewing, wait for my direction on the next steps.**
+
+---

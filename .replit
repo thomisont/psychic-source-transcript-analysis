@@ -1,4 +1,4 @@
-run = "bash simplified_start.sh"
+run = "python run.py"
 language = "python3"
 entrypoint = "run.py"
 modules = ["python-3.10:v18-20230807-322e88b"]
@@ -6,7 +6,7 @@ modules = ["python-3.10:v18-20230807-322e88b"]
 [env]
 VIRTUAL_ENV = "/home/runner/${REPL_SLUG}/venv"
 PATH = "${VIRTUAL_ENV}/bin"
-PYTHONPATH = "${VIRTUAL_ENV}/lib/python3.8/site-packages:/home/runner/workspace"
+PYTHONPATH = "${VIRTUAL_ENV}/lib/python3.10/site-packages:/home/runner/workspace"
 REPLIT_POETRY_PYPI_REPOSITORY = "https://package-proxy.replit.com/pypi/"
 MPLBACKEND = "TkAgg"
 FLASK_APP = "run.py"
@@ -65,7 +65,7 @@ type = "request"
 logging = {}
 
 [deployment]
-run = ["sh", "-c", "bash simplified_start.sh"]
+run = ["python", "run.py", "--port", "8080"]
 deploymentTarget = "cloudrun"
 
 [[ports]]

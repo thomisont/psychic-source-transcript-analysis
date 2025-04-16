@@ -14,6 +14,7 @@ import openai # Import openai
 import textwrap # Import textwrap for dedent
 import random
 import requests
+from app.__init__ import get_supabase_client
 
 # Create a Blueprint for the API
 api = Blueprint('api', __name__)
@@ -394,174 +395,97 @@ def get_conversation_count(start_date=None, end_date=None):
 # --- NEW DASHBOARD STATS ROUTE ---
 @api.route('/dashboard/stats')
 def get_dashboard_stats_route():
-    """API endpoint to get statistics for the main dashboard."""
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    agent_id = request.args.get('agent_id') # Get agent_id from query params
-
+    from app.services.supabase_conversation_service import SupabaseConversationService
     try:
-        # Include agent_id in logging
-        current_app.logger.info(f"API request for dashboard stats: start={start_date}, end={end_date}, agent_id={agent_id}")
+        # Parse query parameters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        agent_id = request.args.get('agent_id')
+        # Optionally handle 'timeframe' if needed for logging/debug
 
-        # Use the ConversationService (expected to be SupabaseConversationService)
-        service = current_app.conversation_service
-        if not service or not hasattr(service, 'get_dashboard_stats'):
-             current_app.logger.error("Conversation service or get_dashboard_stats method not found.")
-             return jsonify({'error': 'Dashboard statistics service is unavailable.'}), 503 # Service Unavailable
+        # Get the Supabase service using the robust helper
+        supabase_client = get_supabase_client()
+        supabase_service = SupabaseConversationService(supabase_client)
 
-        # Pass agent_id to the service method
-        stats_data = service.get_dashboard_stats(
-            start_date=start_date,
-            end_date=end_date,
-            agent_id=agent_id
-        )
+        # Fetch dashboard stats
+        stats = supabase_service.get_dashboard_stats(start_date, end_date, agent_id)
 
-        # --- Directly attempt to return the data --- 
-        # Removed intermediate logging and modification
-        # current_app.logger.debug(f"RAW stats_data received from service: {stats_data}") 
-        # if isinstance(stats_data, dict) and 'error' in stats_data:
-        #     current_app.logger.error(f"Service error in get_dashboard_stats: {stats_data['error']}")
-        #     return jsonify({'error': stats_data['error']}), 500
-        # stats_data['success'] = True 
-        # current_app.logger.info(f"Returning dashboard stats successfully.")
-        # current_app.logger.debug(f"Data being sent to frontend for dashboard stats: {stats_data}")
-        
-        # Check if service returned a dict before trying jsonify
-        if not isinstance(stats_data, dict):
-             current_app.logger.error(f"Service get_dashboard_stats did not return a dictionary. Type: {type(stats_data)}")
-             return jsonify({'error': 'Internal server error: Invalid data format from service.'}), 500
-             
-        current_app.logger.info(f"Attempting to jsonify and return stats_data directly from service.")
-        # --- Log the exact dict BEFORE jsonify --- 
-        current_app.logger.debug(f"DATA PASSED TO JSONIFY: {stats_data}")
-        # --- End Log --- 
-        return jsonify(stats_data)
-        
+        # If error, return error structure with 500
+        error_val = stats.get('error')
+        if error_val and isinstance(error_val, str):
+            return jsonify({'error': error_val}), 500
+
+        # Remove 'error' key if it exists and is not a string
+        if 'error' in stats:
+            del stats['error']
+
+        # On success, return the stats dict directly (not wrapped)
+        return jsonify(stats), 200
     except Exception as e:
-        # --- Explicitly log if this exception block is hit --- 
-        current_app.logger.error(f"EXCEPTION CAUGHT in /api/dashboard/stats route handler: {str(e)}", exc_info=True)
-        # --- End logging ---
-        return jsonify({'error': f"An unexpected server error occurred: {str(e)}", 'success': False}), 500
+        current_app.logger.error(f"Error in /dashboard/stats: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 # --- END NEW DASHBOARD STATS ROUTE ---
 
 # --- NEW: Endpoint for getting agent configurations ---
 @api.route('/agents')
 def get_supported_agents():
-    """Returns the list of supported agent configurations."""
     try:
-        supported_agents = current_app.config.get('SUPPORTED_AGENTS', [])
-        default_agent_id = current_app.config.get('DEFAULT_AGENT_ID', None)
-        current_app.logger.info(f"Returning {len(supported_agents)} supported agents. Default: {default_agent_id}")
-        return jsonify({
-            'agents': supported_agents,
-            'default_agent_id': default_agent_id
-        })
+        supabase_client = get_supabase_client()
+        agents = []
+        default_agent_id = None
+        if supabase_client:
+            try:
+                # Use the SupabaseClient's query method to fetch all agent fields
+                response = supabase_client.query(
+                    table_name='agents',
+                    select='id, name, status, type, voice_id, description',
+                    order='name.asc'
+                )
+                if response:
+                    agents = [
+                        {
+                            'id': agent.get('id'),
+                            'name': agent.get('name'),
+                            'status': agent.get('status'),
+                            'type': agent.get('type'),
+                            'voice_id': agent.get('voice_id'),
+                            'description': agent.get('description'),
+                        }
+                        for agent in response if agent.get('id') and agent.get('name')
+                    ]
+                    if agents:
+                        default_agent_id = agents[0]['id']
+            except Exception as e:
+                current_app.logger.warning(f"Could not fetch agents from Supabase: {e}")
+        # Fallback: Use config or hardcoded agents if Supabase is not available or returns nothing
+        if not agents:
+            agents = [
+                {'id': 'curious_caller', 'name': 'Curious Caller', 'status': 'active', 'type': 'main', 'voice_id': None, 'description': None},
+                {'id': 'lily_main', 'name': 'Lily (Main)', 'status': 'active', 'type': 'main', 'voice_id': None, 'description': None},
+            ]
+            default_agent_id = agents[0]['id']
+        return jsonify({'agents': agents, 'default_agent_id': default_agent_id})
     except Exception as e:
-        current_app.logger.error(f"Error retrieving agent configurations: {str(e)}", exc_info=True)
-        return jsonify({'error': "Failed to retrieve agent configurations."}), 500
+        current_app.logger.error(f"Error in /api/agents: {e}", exc_info=True)
+        return jsonify({'agents': [], 'default_agent_id': None, 'error': str(e)}), 500
 # --- END AGENT CONFIG ENDPOINT ---
 
 # --- NEW: Endpoint for agent widget configuration ---
 @api.route('/agents/<agent_id>/widget-config')
 def get_agent_widget_config(agent_id):
-    """API endpoint to get the HTML embed code for the agent widget."""
-    current_app.logger.info(f"Fetching widget config (embed code) for agent_id: {agent_id}")
-    
-    # Define the embed codes directly here for simplicity
-    widget_configs = {
-        "3HFVw3nTZfIivPaHr3ne": { # Curious Caller Lilly ID
-            "embed_code": '<elevenlabs-convai agent-id="3HFVw3nTZfIivPaHr3ne"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>'
-        },
-        "XuUk69oMnn2Z9Sx9sXVu": { # Lilly For Members ID
-            "embed_code": '<elevenlabs-convai agent-id="XuUk69oMnn2Z9Sx9sXVu"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>'
-        }
-        # Add other agents here if needed
-    }
-
-    config = widget_configs.get(agent_id)
-
-    if not config:
-        current_app.logger.warning(f"Widget config not found for agent_id: {agent_id}")
-        return jsonify({"error": "Widget configuration not found for this agent ID"}), 404
-
-    current_app.logger.info(f"Returning widget embed code for agent_id: {agent_id}")
-    # Return the embed code directly in the response
-    return jsonify(config)
+    return jsonify({"embed_code": "<div>Widget disabled for isolation</div>"})
 # --- END WIDGET CONFIG ENDPOINT ---
 
 # --- NEW: Endpoint for agent system prompt ---
 @api.route('/agents/<agent_id>/prompt')
 def get_agent_prompt(agent_id):
-    """Returns the system prompt/script for a specific agent from config."""
-    current_app.logger.info(f"API request for system prompt for agent_id: {agent_id}")
-
-    # Retrieve prompts dictionary from config
-    agent_prompts = current_app.config.get('AGENT_PROMPTS', {})
-    
-    # Get the prompt for the specific agent_id
-    prompt_text = agent_prompts.get(agent_id)
-
-    if prompt_text:
-        current_app.logger.info(f"Found prompt for agent {agent_id}.")
-        return jsonify({'agent_id': agent_id, 'prompt': prompt_text})
-    else:
-        current_app.logger.warning(f"System prompt not found in config for agent_id: {agent_id}")
-        # Return a clear error message if the prompt is not configured
-        return jsonify({"error": f"System prompt not configured for agent ID: {agent_id}"}), 404
+    return jsonify({"agent_id": agent_id, "prompt": "Prompt disabled for isolation"})
 # --- END PROMPT ENDPOINT ---
 
 # --- NEW: Endpoints for viewing email templates ---
 @api.route('/email-templates/<template_name>')
 def get_email_template(template_name):
-    """Returns the HTML content of a specific email template."""
-    
-    # Validate template name
-    valid_templates = {
-        'team': 'team_email.html',        # Updated filename
-        'caller': 'caller_email.html'      # Updated filename
-    }
-    
-    if template_name not in valid_templates:
-        current_app.logger.warning(f"Invalid email template requested: {template_name}")
-        return jsonify({"error": "Invalid template name specified."}), 400
-        
-    filename = valid_templates[template_name]
-    # Construct path relative to the app directory
-    # Assumes routes.py is in app/api/, goes up two levels to project root, then to app/templates/email
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    template_path = os.path.join(base_dir, 'app', 'templates', 'email', filename)
-    
-    current_app.logger.info(f"API request for email template: {template_name} (Path: {template_path})")
-    
-    try:
-        # Ensure the template directory exists
-        template_dir = os.path.dirname(template_path)
-        if not os.path.exists(template_dir):
-            os.makedirs(template_dir)
-            current_app.logger.info(f"Created missing email template directory: {template_dir}")
-            # Since dir was missing, file is also missing
-            raise FileNotFoundError()
-
-        with open(template_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return jsonify({'template_name': template_name, 'html_content': content})
-        
-    except FileNotFoundError:
-        current_app.logger.error(f"Email template file not found: {template_path}")
-        # Optionally create a default template if it doesn't exist
-        default_content = f"<html><body><h1>Default {template_name.capitalize()} Template</h1><p>Template file not found at {filename}. Please create it.</p></body></html>"
-        try:
-             with open(template_path, 'w', encoding='utf-8') as f:
-                 f.write(default_content)
-             current_app.logger.info(f"Created default email template file: {template_path}")
-             return jsonify({'template_name': template_name, 'html_content': default_content})
-        except Exception as write_err:
-            current_app.logger.error(f"Failed to create default email template {template_path}: {write_err}")
-            return jsonify({"error": f"Template file '{filename}' not found and could not be created."}), 404
-            
-    except Exception as e:
-        current_app.logger.error(f"Error reading email template {template_path}: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Failed to read email template: {str(e)}"}), 500
+    return jsonify({"template_name": template_name, "html_content": "<div>Email template disabled for isolation</div>"})
 # --- END EMAIL TEMPLATE ENDPOINTS ---
 
 # --- NEW: Endpoint for Ad-Hoc SQL Queries ---

@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- Update UI --- 
             initializeCharts(); // Ensure charts exist
-            updateDashboardUI(statsData); // Update KPIs and Charts
+            updateDashboardUI(statsData || {}); // Update KPIs and Charts with the direct data object
             
         } catch (error) {
             console.error("Error fetching or processing dashboard data:", error);
@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Updating dashboard UI with data:", data);
         
         // *** ADD EXPLICIT ERROR HANDLING AT START ***
-        const isError = data?.error ? true : false; // Check if the data object itself indicates an error
+        const isError = typeof data?.error === 'string' && data.error;
         if (isError) {
             console.error("updateDashboardUI received error data from API:", data.error);
             // Set all KPIs to 'Error' or '--'

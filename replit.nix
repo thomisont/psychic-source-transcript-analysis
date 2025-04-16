@@ -1,24 +1,19 @@
 { pkgs }: {
   deps = [
-    pkgs.rustc
-    pkgs.libiconv
-    pkgs.cargo
-    pkgs.psmisc
-    pkgs.tk
-    pkgs.tcl
-    pkgs.qhull
-    pkgs.pkg-config
-    pkgs.gtk3
-    pkgs.gobject-introspection
-    pkgs.ghostscript
-    pkgs.freetype
-    pkgs.ffmpeg-full
-    pkgs.cairo
-    pkgs.glibcLocales
-    pkgs.python312
-    pkgs.python312Packages.flask
-    pkgs.python312Packages.pip
-    pkgs.python312Packages.numpy
-    pkgs.python312Packages.pandas
+    pkgs.python311Packages.uvicorn
+    pkgs.python310
+    pkgs.gcc
+    pkgs.libstdcxx
+    pkgs.glibc
+    pkgs.python310Packages.pip
+    pkgs.python310Packages.setuptools
+    pkgs.python310Packages.wheel
+    pkgs.gunicorn
+    pkgs.psycopg2
+    pkgs.curl
+    pkgs.git
+    pkgs.openssl
+    pkgs.zlib
+    pkgs.stdenv
   ];
 } 

@@ -1,9 +1,10 @@
 import sys
 import os
-from flask import Flask, g
+from flask import Flask, g, current_app
 from flask_cors import CORS
 import logging
 from dotenv import load_dotenv
+import nltk
 # Import extensions from the new file
 from app.extensions import db, migrate
 # Move client and service imports inside create_app
@@ -13,6 +14,7 @@ from app.extensions import db, migrate
 # from app.services.analysis_service import AnalysisService
 # from app.services.export_service import ExportService
 from flask_caching import Cache
+from tools.supabase_client import SupabaseClient
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,10 +24,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # migrate = Migrate()
 
 # Import models here after db initialization
-from app.models import Conversation, Message  # noqa
+# from app.models import Conversation, Message  # noqa
 
 # Initialize services
-from app.services.conversation_service import ConversationService
 from app.services.analysis_service import AnalysisService
 from app.services.data_service import DataService
 
@@ -38,7 +39,32 @@ from app.services.data_service import DataService
 # --- Caching Setup ---
 cache = Cache() # Ensure cache is initialized before create_app uses it
 
+# --- Ensure NLTK Data ---
+def ensure_nltk_data():
+    required = [
+        ('tokenizers/punkt', 'punkt'),
+        ('corpora/stopwords', 'stopwords'),
+        ('corpora/wordnet', 'wordnet'),
+        ('sentiment/vader_lexicon', 'vader_lexicon'),
+    ]
+    for path, pkg in required:
+        try:
+            nltk.data.find(path)
+        except LookupError:
+            nltk.download(pkg)
+
+def get_supabase_client():
+    """Helper to get the Supabase client from flask.g or current_app."""
+    if hasattr(g, 'supabase_client'):
+        return g.supabase_client
+    elif hasattr(current_app, 'supabase_client'):
+        return current_app.supabase_client
+    else:
+        raise RuntimeError("Supabase client is not initialized")
+
 def create_app(test_config=None):
+    # Ensure NLTK data is present before any NLTK-dependent code runs
+    ensure_nltk_data()
     logging.info("Starting create_app...") # Log start
     # Load environment variables from .env file
     load_dotenv()
@@ -70,16 +96,6 @@ def create_app(test_config=None):
     app.config['CACHE_DIR'] = os.path.join(app.instance_path, 'cache') # Cache directory inside instance folder
     app.config['CACHE_DEFAULT_TIMEOUT'] = 300 # Default timeout 5 minutes
 
-    # Prevent connection pooling issues
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_recycle': 60,       # Recycle connections after 1 minute (was 180)
-        'pool_pre_ping': True,    # Check connection validity before using
-        'pool_size': 5,           # Smaller pool size (was 10)
-        'max_overflow': 10,       # More overflow connections (was 5)
-        'pool_timeout': 30,       # Timeout after 30 seconds (new)
-        'pool_reset_on_return': 'rollback'  # Always rollback on return (new)
-    }
-
     # Load remaining configuration from config.py or test_config
     if test_config is None:
         try:
@@ -109,16 +125,16 @@ def create_app(test_config=None):
     logging.info("Initializing extensions...")
     try:
         logging.info("Attempting db.init_app(app)...")
-        db.init_app(app) # Initialize db from extensions
+        db.init_app(app)
         logging.info("SQLAlchemy (db) initialized.")
         
         logging.info("Attempting migrate.init_app(app, db)...")
-        migrate.init_app(app, db) # Initialize migrate from extensions
+        migrate.init_app(app, db)
         logging.info("Migrate initialized.")
 
         # >>> INITIALIZE CACHE HERE <<<
         logging.info(f"Attempting cache.init_app(app) with type: {app.config.get('CACHE_TYPE')}, dir: {app.config.get('CACHE_DIR')}...")
-        cache.init_app(app) # Initialize cache from global object
+        cache.init_app(app)
         logging.info("Cache initialized.")
 
     except Exception as e:
@@ -135,7 +151,7 @@ def create_app(test_config=None):
     logging.info("Importing models...")
     try:
         with app.app_context(): # Ensure context for model definition
-            from app import models 
+            # from app import models 
             logging.info("Models imported successfully.")
     except Exception as e:
         logging.error(f"Error importing models: {e}", exc_info=True)
@@ -185,99 +201,82 @@ def create_app(test_config=None):
         return {'now': datetime.datetime.now()}
     
     # Create and attach ElevenLabs client
-    logging.info("Initializing ElevenLabs client...")
-    # Import client here
-    from app.api.elevenlabs_client import ElevenLabsClient
-    try:
-        app.elevenlabs_client = ElevenLabsClient(
-            api_key=os.getenv('ELEVENLABS_API_KEY', '')
-        )
-        logging.info("ElevenLabs client initialized and attached to app context.")
-    except Exception as e:
-        logging.error(f"Error initializing ElevenLabs client: {e}", exc_info=True)
-        app.elevenlabs_client = None # Ensure it's None on failure
+    # logging.info("Initializing ElevenLabs client...")
+    # from app.api.elevenlabs_client import ElevenLabsClient
+    # try:
+    #     app.elevenlabs_client = ElevenLabsClient(
+    #         api_key=os.getenv('ELEVENLABS_API_KEY', '')
+    #     )
+    #     logging.info("ElevenLabs client initialized and attached to app context.")
+    # except Exception as e:
+    #     logging.error(f"Error initializing ElevenLabs client: {e}", exc_info=True)
+    #     app.elevenlabs_client = None # Ensure it's None on failure
 
-    # --- Initialize Services (Revised Logic) ---
+    # --- Initialize Services (Supabase Only) ---
     logging.info("Initializing services...")
+    # supabase_url = os.getenv('SUPABASE_URL')
+    # supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
+    # supabase_client_instance = None
+    # conversation_service_instance = None
+    # service_mode = "Supabase"
 
-    # Import services here (inside function)
-    from app.services.conversation_service import ConversationService
-    # >>> ADD IMPORT FOR SUPABASE SERVICE <<<
-    from app.services.supabase_conversation_service import SupabaseConversationService
-    from app.services.analysis_service import AnalysisService
-    from app.services.export_service import ExportService
-    # >>> ADD IMPORT FOR SUPABASE CLIENT <<<
-    from tools.supabase_client import SupabaseClient
+    # if supabase_url and supabase_key:
+    #     logging.info("Supabase environment variables found. Attempting Supabase initialization...")
+    #     try:
+    #         logging.info(f"Initializing SupabaseClient with URL: {supabase_url[:20]}... KEY: {supabase_key[:5]}...")
+    #         supabase_client_instance = SupabaseClient(supabase_url, supabase_key)
+    #         if not supabase_client_instance or not supabase_client_instance.client:
+    #             raise Exception("SupabaseClient object or underlying client failed to initialize.")
+    #         logging.info("SupabaseClient initialized successfully.")
 
-    # Initialize services within app context
-    with app.app_context():
-        # >>> START NEW LOGIC <<<
-        supabase_url = os.getenv('SUPABASE_URL')
-        supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
-        supabase_client_instance = None
-        conversation_service_instance = None
-        service_mode = "Database" # Default
+    #         conversation_service_instance = SupabaseConversationService(supabase_client=supabase_client_instance)
+    #         logging.info("SupabaseConversationService initialized.")
 
-        if supabase_url and supabase_key:
-            logging.info("Supabase environment variables found. Attempting Supabase initialization...")
-            try:
-                logging.info(f"Initializing SupabaseClient with URL: {supabase_url[:20]}... KEY: {supabase_key[:5]}...")
-                supabase_client_instance = SupabaseClient(supabase_url, supabase_key)
-                if not supabase_client_instance or not supabase_client_instance.client:
-                    raise Exception("SupabaseClient object or underlying client failed to initialize.")
-                logging.info("SupabaseClient initialized successfully.")
+    #     except Exception as e:
+    #         logging.error(f"Supabase Initialization FAILED: {e}.", exc_info=True)
+    #         supabase_client_instance = None
+    #         conversation_service_instance = None
 
-                conversation_service_instance = SupabaseConversationService(supabase_client=supabase_client_instance)
-                service_mode = "Supabase"
-                logging.info("SupabaseConversationService initialized.")
+    # if conversation_service_instance is None:
+    #     logging.error("FATAL: Failed to initialize SupabaseConversationService. Application cannot continue.")
+    #     raise RuntimeError("SupabaseConversationService could not be initialized. Check Supabase configuration.")
 
-            except Exception as e:
-                logging.error(f"Supabase Initialization FAILED: {e}. Falling back to Database mode.", exc_info=True)
-                supabase_client_instance = None
-                conversation_service_instance = None
+    # app.conversation_service = conversation_service_instance
+    # app.supabase_client = supabase_client_instance
+    # logging.info(f"Conversation service initialized in {service_mode} mode.")
 
-        if conversation_service_instance is None:
-            logging.info("Initializing ConversationService (Database Mode)...")
-            try:
-                # Correct instantiation using the db object from extensions
-                conversation_service_instance = ConversationService(db=db)
-                logging.info("ConversationService (Database Mode) initialized.")
-            except Exception as e:
-                 logging.error(f"FATAL: Failed to initialize even the fallback ConversationService: {e}", exc_info=True)
-                 conversation_service_instance = None
+    # app.export_service = ExportService()
+    logging.info("Export service initialized.")
+    
+    # logging.info(f"Service Status - Conversation: {'OK (' + service_mode + ')' if app.conversation_service else 'Failed'}, Analysis: {'OK' if app.analysis_service else 'Failed'}, Export: {'OK' if app.export_service else 'Failed'}")
+    
+    if hasattr(app, 'elevenlabs_client') and app.elevenlabs_client and app.elevenlabs_client.api_key:
+        logging.info("Main ElevenLabsClient available on app context with API key.")
+    elif hasattr(app, 'elevenlabs_client') and app.elevenlabs_client:
+         logging.warning("Main ElevenLabsClient available on app context but MISSING API key.")
+    else:
+         logging.warning("Main ElevenLabsClient FAILED to initialize or is not attached to app context.")
 
-        app.conversation_service = conversation_service_instance
-        app.supabase_client = supabase_client_instance
-        logging.info(f"Conversation service initialized in {service_mode} mode.")
-        # >>> END NEW LOGIC <<<
+    # After loading config and before registering blueprints:
+    # --- Initialize Supabase Client and attach to app context ---
+    supabase_url = app.config.get('SUPABASE_URL')
+    supabase_key = app.config.get('SUPABASE_SERVICE_KEY')
+    if supabase_url and supabase_key:
+        try:
+            app.supabase_client = SupabaseClient(supabase_url, supabase_key)
+            logging.info("Supabase client initialized and attached to app context.")
+        except Exception as e:
+            app.supabase_client = None
+            logging.error(f"Failed to initialize Supabase client: {e}", exc_info=True)
+    else:
+        app.supabase_client = None
+        logging.warning("Supabase URL or key missing; Supabase client not initialized.")
 
-        if app.conversation_service:
-            try:
-                app.analysis_service = AnalysisService(conversation_service=app.conversation_service, lightweight_mode=False, cache=cache) 
-                logging.info(f"Analysis service initialized and attached (Full Mode, using {service_mode} backend).")
-            except Exception as e:
-                logging.error(f"Error initializing full AnalysisService: {e}", exc_info=True)
-                try:
-                    app.analysis_service = AnalysisService(conversation_service=app.conversation_service, lightweight_mode=True, cache=cache)
-                    logging.warning(f"Fallback lightweight analysis service initialized and attached (using {service_mode} backend).")
-                except Exception as e_light:
-                    logging.error(f"FATAL: Failed to initialize even lightweight AnalysisService: {e_light}", exc_info=True)
-                    app.analysis_service = None
-        else:
-            logging.error("Cannot initialize AnalysisService because ConversationService failed to initialize.")
-            app.analysis_service = None
-
-        app.export_service = ExportService()
-        logging.info("Export service initialized.")
-        
-        logging.info(f"Service Status - Conversation: {'OK (' + service_mode + ')' if app.conversation_service else 'Failed'}, Analysis: {'OK' if app.analysis_service else 'Failed'}, Export: {'OK' if app.export_service else 'Failed'}")
-        
-        if hasattr(app, 'elevenlabs_client') and app.elevenlabs_client and app.elevenlabs_client.api_key:
-            logging.info("Main ElevenLabsClient available on app context with API key.")
-        elif hasattr(app, 'elevenlabs_client') and app.elevenlabs_client:
-             logging.warning("Main ElevenLabsClient available on app context but MISSING API key.")
-        else:
-             logging.warning("Main ElevenLabsClient FAILED to initialize or is not attached to app context.")
+    # After Supabase client initialization
+    @app.before_request
+    def attach_supabase_to_g():
+        if hasattr(app, 'supabase_client') and app.supabase_client:
+            g.supabase_client = app.supabase_client
 
     # Register blueprints
     logging.info("Registering blueprints...")

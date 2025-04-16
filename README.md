@@ -280,4 +280,113 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - ElevenLabs for their Conversational Voice Agent API
 - Supabase for database infrastructure
 - The Flask and FastAPI teams for the web frameworks
-- Chart.js for data visualization capabilities 
+- Chart.js for data visualization capabilities
+
+# Psychic Source Flask App - Development & Deployment Guide
+
+## Overview
+This project is a Flask-based web application for Psychic Source, designed for robust analytics, agent management, and integration with Supabase and AI services. The codebase is optimized for development on Replit, with a clear separation between development and production environments.
+
+---
+
+## Development Environment (Replit)
+
+### Database Configuration
+- **Development (Replit):**
+  - Uses **SQLite** (`sqlite:///app.db`) for all development and testing.
+  - This is enforced in `config.py` regardless of the presence of a `DATABASE_URL` environment variable.
+  - Data is stored in the `app.db` file in your project directory and persists between runs.
+- **Production:**
+  - Uses **PostgreSQL** via the `DATABASE_URL` environment variable.
+  - Only enabled when `FLASK_ENV=production`.
+
+### Why SQLite for Dev?
+- Avoids binary incompatibility issues with `psycopg2` and Replit's environment.
+- No need for external database services or drivers.
+- Fast, lightweight, and easy to reset.
+
+### Switching Environments
+- **Development:**
+  - No action needed; SQLite is always used unless `FLASK_ENV=production`.
+- **Production:**
+  - Set `FLASK_ENV=production` and provide a valid `DATABASE_URL` for PostgreSQL.
+
+---
+
+## Environment Variables
+
+| Variable                | Purpose                                 | Example Value                                                      |
+|------------------------ |-----------------------------------------|--------------------------------------------------------------------|
+| `FLASK_ENV`             | Set to `production` for prod            | `production` or `development`                                      |
+| `DATABASE_URL`          | PostgreSQL URI (prod only)              | `postgresql://user:pass@host:port/dbname`                          |
+| `SECRET_KEY`            | Flask secret key                        | `supersecretkey`                                                   |
+| `ELEVENLABS_API_KEY`    | ElevenLabs API key                      | `sk-...`                                                           |
+| `SUPABASE_URL`          | Supabase project URL                    | `https://xyz.supabase.co`                                          |
+| `SUPABASE_SERVICE_KEY`  | Supabase service key                    | `eyJ...`                                                           |
+| `OPENAI_API_KEY`        | OpenAI API key                          | `sk-...`                                                           |
+
+- Add any additional environment variables as needed for your integrations.
+
+---
+
+## Dev Workflow Tips
+
+- **Start the server:**
+  ```sh
+  python run.py
+  ```
+- **Database migrations:**
+  - Migrations are supported with Flask-Migrate and SQLite.
+  - For schema changes:
+    ```sh
+    flask db migrate -m "Your message"
+    flask db upgrade
+    ```
+- **Testing:**
+  - Write tests for all major functionality.
+  - Use SQLite for all local/dev tests.
+- **Troubleshooting:**
+  - If you see segmentation faults or memory errors, ensure you are using SQLite (check logs for `sqlite:///app.db`).
+  - If you need to use PostgreSQL, do so only in production or in a local environment with compatible system libraries.
+- **Environment switching:**
+  - The app will always use SQLite unless `FLASK_ENV=production`.
+  - To force production mode, set `FLASK_ENV=production` and provide a valid `DATABASE_URL`.
+- **Data persistence:**
+  - The `app.db` file will persist between runs on Replit. To reset, simply delete the file.
+
+---
+
+## Production Deployment
+
+- Set `FLASK_ENV=production` and provide a valid `DATABASE_URL` for PostgreSQL.
+- Ensure all required environment variables are set.
+- Use a production-ready WSGI server (e.g., Gunicorn) for deployment.
+
+---
+
+## config.py Logic (Database Selection)
+
+```python
+# config.py (excerpt)
+if os.environ.get('FLASK_ENV') == 'production':
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+else:
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///app.db'
+```
+- This ensures SQLite is always used for dev, and PostgreSQL only in production.
+
+---
+
+## Additional Notes
+- For any issues with dependencies, always remove `.pythonlibs` and reinstall:
+  ```sh
+  rm -rf .pythonlibs
+  pip install -r requirements.txt
+  ```
+- If you need to reset the database, delete `app.db` and restart the server.
+- For further help, see the comments in `config.py` and the project's codebase.
+
+---
+
+## Contact
+For questions or support, contact the project maintainer or open an issue in the repository. 

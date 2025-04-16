@@ -14,7 +14,7 @@ logging.basicConfig(
 parser = argparse.ArgumentParser(description='Run the Psychic Source Analyzer application')
 parser.add_argument('-p', '--port', type=int, default=int(os.environ.get('FLASK_RUN_PORT', 8080)),
                    help='Port to run the application on')
-parser.add_argument('-d', '--debug', action='store_true', default=True,
+parser.add_argument('-d', '--debug', action='store_true', default=False,
                    help='Run in debug mode')
 args = parser.parse_args()
 
@@ -26,4 +26,4 @@ if __name__ == '__main__':
     logging.info(f"Starting server on port {args.port}...")
     
     # Run the app with the specified port
-    app.run(host='0.0.0.0', port=args.port, debug=args.debug, use_reloader=args.debug) 
+    app.run(host='0.0.0.0', port=args.port, debug=args.debug, use_reloader=False) 

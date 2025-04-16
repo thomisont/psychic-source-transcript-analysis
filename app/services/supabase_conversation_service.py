@@ -13,6 +13,7 @@ import time
 from collections import Counter
 import pytz  # Import pytz
 from flask import current_app # *** ADD IMPORT ***
+from postgrest.exceptions import APIError  # Add this import at the top
 
 # Add system path to include tools directory
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -437,6 +438,10 @@ class SupabaseConversationService:
             response = self.supabase.client.rpc('get_message_activity_in_range', params).execute()
             logging.debug(f"Raw response from get_message_activity_in_range: {response}")
 
+            # PATCH: If response.data is a dict, wrap it in a list to avoid pydantic validation errors
+            if response.data and isinstance(response.data, dict):
+                response.data = [response.data]
+
             # *** CORRECTED CHECK FOR VALID RESPONSE DATA ***
             # Check if response.data exists and is either a dict (single row) or a non-empty list
             valid_response = False
@@ -471,18 +476,24 @@ class SupabaseConversationService:
 
             logging.info(f"Successfully fetched stats from RPC: {list(stats_data.keys())}")
 
-
-            # --- Data Cleaning and Defaulting ---
-            # Ensure all expected top-level keys exist, providing empty defaults.
-            # The frontend JS expects these keys.
+            # --- Ensure all expected keys are present in the response ---
             defaults = {
-                'activity_by_hour': {}, 'activity_by_day': {}, 'daily_volume': {},
-                'daily_avg_duration': {}, 'total_conversations_period': 0,
-                'distinct_conversation_ids': [], 'avg_duration_seconds': 0,
-                'peak_time_hour': None
+                'activity_by_hour': {},
+                'activity_by_day': {},
+                'daily_volume': {},
+                'daily_avg_duration': {},
+                'total_conversations_period': 0,
+                'distinct_conversation_ids': [],
+                'avg_duration_seconds': 0,
+                'peak_time_hour': None,
+                'avg_cost_credits': 0.0,
+                'completion_rate': 0.0,
+                'month_to_date_cost': None,
+                'monthly_credit_budget': current_app.config.get('MONTHLY_CREDIT_BUDGET', 2000000)
             }
             for key, default_value in defaults.items():
                 stats_data.setdefault(key, default_value)
+            # --- End ensure all keys ---
 
             # Ensure numeric types are correct and handle None/null from JSON
             stats_data['total_conversations_period'] = int(stats_data.get('total_conversations_period') or 0)
@@ -605,9 +616,31 @@ class SupabaseConversationService:
             logging.debug(f"Processed stats data being returned (agent: {agent_id}): {stats_data}")
             return stats_data
 
+        except APIError as api_err:
+            err_data = getattr(api_err, 'args', [None])[0]
+            if isinstance(err_data, dict) and set([
+                'total_conversations_period', 'avg_duration_seconds', 'distinct_conversation_ids',
+                'activity_by_hour', 'activity_by_day', 'daily_volume', 'daily_avg_duration', 'peak_time_hour'
+            ]).issubset(err_data.keys()):
+                # Return a default/empty stats structure
+                return {
+                    'activity_by_hour': {},
+                    'activity_by_day': {},
+                    'daily_volume': {},
+                    'daily_avg_duration': {},
+                    'total_conversations_period': 0,
+                    'avg_duration_seconds': 0,
+                    'peak_time_hour': None,
+                    'distinct_conversation_ids': [],
+                    'avg_cost_credits': 0.0,
+                    'completion_rate': 0.0,
+                    'month_to_date_cost': None,
+                    'monthly_credit_budget': current_app.config.get('MONTHLY_CREDIT_BUDGET', 2000000)
+                }
+            # Otherwise, re-raise or handle as a real error
+            raise
         except Exception as e:
             logging.error(f"Supabase error calling RPC or processing stats (agent: {agent_id}): {e}", exc_info=True)
-            # Return dict with error key
             return {'error': f"Database function error: {str(e)}"}
 
     def _empty_stats(self, error_payload: Optional[Dict] = None) -> Dict[str, Any]:

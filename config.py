@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import textwrap  # Import textwrap
+import re
 
 load_dotenv()
 basedir = os.path.abspath(os.path.dirname(__file__)) # Add this line if missing
@@ -11,9 +12,23 @@ class Config:
     # Deprecate ELEVENLABS_AGENT_ID in favor of agent-specific IDs
     # ELEVENLABS_AGENT_ID = os.environ.get('ELEVENLABS_AGENT_ID') or '3HFVw3nTZfIivPaHr3ne'
     ELEVENLABS_API_URL = "https://api.elevenlabs.io"  # Removed /v1
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'app.db')
+    # Force SQLite for all development on Replit; only use DATABASE_URL if FLASK_ENV is 'production'
+    if os.environ.get('FLASK_ENV') == 'production':
+        SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    else:
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///app.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Only set engine options if not using SQLite
+    if not re.match(r'^sqlite://', SQLALCHEMY_DATABASE_URI or ''):
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'pool_recycle': 60,
+            'pool_pre_ping': True,
+            'pool_size': 5,
+            'max_overflow': 10,
+            'pool_timeout': 30,
+            'pool_reset_on_return': 'rollback'
+        }
 
     # Agent Configuration
     # Get IDs from environment variables, provide fallbacks
