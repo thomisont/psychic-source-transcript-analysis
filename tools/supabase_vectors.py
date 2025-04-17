@@ -42,8 +42,12 @@ class SupabaseVectorStore:
         # Load environment variables
         load_dotenv()
         
-        # Initialize Supabase client
-        self.supabase = SupabaseClient()
+        # Initialize Supabase client (requires URL & key)
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
+        if not supabase_url or not supabase_key:
+            raise ValueError("SUPABASE_URL or SUPABASE_SERVICE_KEY not set in environment; cannot build vector store.")
+        self.supabase = SupabaseClient(supabase_url, supabase_key)
         
         # Set up embedding model
         self.use_openai = use_openai
@@ -56,8 +60,8 @@ class SupabaseVectorStore:
             
             # Initialize OpenAI client
             self.openai_client = openai.OpenAI(api_key=self.openai_api_key)
-            self.embedding_model = "text-embedding-3-small"
-            self.embedding_dimensions = 1536  # Dimensions for text-embedding-3-small
+            self.embedding_model = "text-embedding-3-large"
+            self.embedding_dimensions = 3072  # Dimensions for text-embedding-3-large
         else:
             # Use a local model for embeddings (e.g., sentence-transformers)
             try:
@@ -98,21 +102,27 @@ class SupabaseVectorStore:
             self.enable_vector_extension()
             
             # Create the embeddings table
-            create_table_sql = f"""
-            CREATE TABLE IF NOT EXISTS {table_name} (
-                id SERIAL PRIMARY KEY,
-                conversation_id INTEGER NOT NULL,
-                external_id VARCHAR NOT NULL,
-                segment_text TEXT NOT NULL,
-                embedding vector({self.embedding_dimensions}) NOT NULL,
-                segment_index INTEGER NOT NULL,
-                speaker VARCHAR,
-                timestamp TIMESTAMP WITH TIME ZONE,
-                metadata JSONB,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            """
-            self.supabase.execute_sql(create_table_sql)
+            create_table_sql = (
+                f"CREATE TABLE IF NOT EXISTS {table_name} ("
+                " id SERIAL PRIMARY KEY,"
+                " conversation_id INTEGER NOT NULL,"
+                " external_id VARCHAR NOT NULL,"
+                " segment_text TEXT NOT NULL,"
+                f" embedding vector({self.embedding_dimensions}) NOT NULL,"
+                " segment_index INTEGER NOT NULL,"
+                " speaker VARCHAR,"
+                " timestamp TIMESTAMP WITH TIME ZONE,"
+                " metadata JSONB,"
+                " created_at TIMESTAMPTZ DEFAULT NOW()"
+                ");"
+            )
+            try:
+                self.supabase.execute_sql(create_table_sql)
+            except Exception as ddl_err:
+                if 'syntax error' in str(ddl_err) or 'permission' in str(ddl_err).lower():
+                    logging.warning("Table creation via RPC failed (likely DDL blocked). Assuming table already exists. Error: %s", ddl_err)
+                else:
+                    raise
             
             # Create indexes for better query performance
             index_conversation_sql = f"""
@@ -283,40 +293,31 @@ class SupabaseVectorStore:
                         'conversation_id': conv_id,
                         'external_id': external_id,
                         'segment_text': chunk,
-                        'embedding': embedding_vector.tolist(),
+                        'embedding': embedding_vector.tolist(),  # supabase-py will serialise list for pgvector
                         'segment_index': idx,
                         'speaker': closest_message['speaker'],
                         'timestamp': closest_message['timestamp'],
-                        'metadata': json.dumps({
+                        'metadata': {
                             'message_id': closest_message['id'],
                             'chunk_size': chunk_size,
                             'chunk_overlap': chunk_overlap
-                        })
+                        }
                     })
             
             # Insert batch embeddings
             if batch_embeddings:
                 try:
-                    # We need to insert embeddings one at a time because of the vector type
-                    for emb in batch_embeddings:
-                        # Convert embedding to pgvector format
-                        embedding_str = f"[{','.join(str(x) for x in emb['embedding'])}]"
-                        
-                        insert_sql = f"""
-                        INSERT INTO {table_name} 
-                        (conversation_id, external_id, segment_text, embedding, segment_index, speaker, timestamp, metadata)
-                        VALUES 
-                        ({emb['conversation_id']}, '{emb['external_id']}', '{emb['segment_text'].replace("'", "''")}', 
-                         '{embedding_str}', {emb['segment_index']}, '{emb['speaker']}', 
-                         '{emb['timestamp']}', '{emb['metadata']}')
-                        """
-                        
-                        self.supabase.execute_sql(insert_sql)
-                    
-                    total_embeddings += len(batch_embeddings)
-                    logging.info(f"Inserted {len(batch_embeddings)} embeddings from batch")
+                    # Use supabase-py bulk insert which handles escaping & pgvector serialisation
+                    insert_response = self.supabase.client.table(table_name).insert(batch_embeddings).execute()
+                    if hasattr(insert_response, 'data') and insert_response.data is not None:
+                        inserted_count = len(insert_response.data)
+                    else:
+                        # Fallback when PostgREST returns empty body (depends on db trigger settings)
+                        inserted_count = len(batch_embeddings)
+                    total_embeddings += inserted_count
+                    logging.info(f"Inserted {inserted_count} embeddings from batch")
                 except Exception as e:
-                    logging.error(f"Error inserting embeddings batch: {e}")
+                    logging.error(f"Error inserting embeddings batch via supabase client: {e}")
             
             # Small delay to avoid overwhelming the API
             time.sleep(1)

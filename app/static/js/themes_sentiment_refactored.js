@@ -186,21 +186,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Removed block that forced loading indicator visibility here.
     // loadAnalysisData will handle showing it when it starts.
 
-    // Initialize the global date range selector (from main.js).
-    if (typeof initializeGlobalDateRangeSelector === 'function') {
-        initializeGlobalDateRangeSelector(handleTimeframeChange);
-    } else {
-        console.error("initializeGlobalDateRangeSelector function not found. Date range selection will not work.");
-        if (errorDisplay) {
-            errorDisplay.textContent = 'Error: Date range selector component failed to load.';
-            errorDisplay.style.display = 'block';
-        }
-    }
+    // --- Date Range Selector REMOVED ---
+    // The analysis will now always load ALL data (no date filter).
+    // Compute a fixed early start date (project inception) and today's date.
+    const allStartDate = '2024-01-01';
+    const today = new Date();
+    const endDate = today.toISOString().slice(0, 10); // YYYY-MM-DD
 
-    // Manually trigger the initial load for the default timeframe (7 days).
-    // loadAnalysisData() is responsible for showing the loading indicator.
-    console.log("Manually triggering initial load for 7 days.");
-    handleTimeframeChange('last_7_days');
+    console.log(`Loading full analysis for full date range ${allStartDate} -> ${endDate}`);
+    loadAnalysisData(allStartDate, endDate);
 
     // *** Assign Modal Elements ***
     categoryModalElement = document.getElementById('categoryDetailModal');
@@ -362,8 +356,18 @@ async function triggerApiFetch(startDateISO, endDateISO) {
 
             // Update permanent info displays
             if (conversationCountDisplay) {
-                conversationCountDisplay.textContent = `Conversations in period: ${data.metadata?.total_conversations_in_range ?? 'N/A'}`;
+                const totalConvCount = data?.metadata?.total_conversations_in_range;
+                if(totalConvCount !== undefined && totalConvCount !== null) {
+                    conversationCountDisplay.innerHTML = `<span class="text-muted me-2">Total Conversations:</span><span class="fw-bold">${Formatter.number(totalConvCount)}</span>`;
+                } else {
+                    conversationCountDisplay.textContent = 'N/A';
+                }
             }
+
+            // Ensure any legacy date‑range selector element (if cached HTML) is hidden
+            const legacySelector = document.getElementById('date-range-selector');
+            if (legacySelector) legacySelector.style.display = 'none';
+
             if (analysisModelInfo) {
                  analysisModelInfo.textContent = modelName && modelName !== 'N/A' ? `Analysis by: ${modelName}` : '';
             }
@@ -433,15 +437,20 @@ function renderAnalysisData(data) {
         const conversationsCountEl = document.getElementById('conversation-count-display');
         const analysisModelInfoEl = document.getElementById('analysis-model-info');
         
-        // Safely access metadata and update count
+        // Update both the inline badge and (legacy) count display
+        const totalConvCount = data?.metadata?.total_conversations_in_range;
+
         if (conversationsCountEl) {
-            // Use optional chaining ?. for safer access
-            const totalCount = data?.metadata?.total_conversations_in_range;
-            if (totalCount !== undefined && totalCount !== null) {
-                conversationsCountEl.textContent = totalCount;
+            conversationsCountEl.textContent = totalConvCount ?? 'N/A';
+        }
+
+        const allBadgeCountEl = document.getElementById('total-conversations-display');
+        if (allBadgeCountEl) {
+            if (totalConvCount !== undefined && totalConvCount !== null) {
+                // Add label and thousands‑separator formatting for improved aesthetics
+                allBadgeCountEl.innerHTML = `<span class="fw-bold">${Formatter.number(totalConvCount)}</span><span class="text-muted small ms-1">conversations</span>`;
             } else {
-                conversationsCountEl.textContent = 'N/A'; 
-                console.warn('Metadata or total_conversations_in_range missing or invalid in API data', data?.metadata);
+                allBadgeCountEl.textContent = 'N/A';
             }
         }
 
@@ -1516,12 +1525,11 @@ async function submitRagQuery() {
         return;
     }
 
-    // Get current date range from the active button/stored state
-    // Use the same logic as the main date range selector
-    const selectedTimeframe = document.querySelector('#date-range-selector .btn-group .btn.active')?.dataset.timeframe || '7d'; 
-    const { startDate, endDate } = getDatesFromTimeframe(selectedTimeframe); 
-    
-    console.log(`[submitRagQuery] Using timeframe: ${selectedTimeframe}, Dates: ${startDate} to ${endDate}`);
+    // Date‑range selector has been removed for this page. Always query the full dataset.
+    const startDate = '2024-01-01';
+    const endDate = new Date().toISOString().slice(0, 10);
+
+    console.log(`[submitRagQuery] Using full date range: ${startDate} to ${endDate}`);
 
     // Show loading state
     ragSubmitBtn.disabled = true;

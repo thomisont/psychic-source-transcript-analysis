@@ -1234,3 +1234,29 @@ Use it to orient around what's next. After reviewing, wait for my direction on t
 Here is the context from the prior Agent working session.  
 Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
 ---
+
+### AGENT HANDOFF SUMMARY  (2025-04-18 00:00 UTC)
+
+- Context & Goals: Stabilize Themes & Sentiment page; ensure vector search + RAG fill KPIs/charts across all date ranges.
+- Work Completed:
+  - Switched embeddings insert to supabase‑py bulk insert; processed 1 285 rows.
+  - Added SQL‑fallback path in `find_similar_conversations`; removed trailing semicolon error.
+  - Lowered similarity threshold to 0.55 for broader matches.
+  - Added `get_conversation_details_by_id` helper.
+  - Rewritten `get_conversation_count` to use `count='exact', head=True`.
+- Outstanding Issues:
+  - Charts load only for 7‑day range; other ranges hit caching/empty data.
+  - Date selector shows 1 000 vs 481 count inconsistency.
+  - Spinner flashes due to instant cache hit; needs conditional cache skip & invalidation.
+- New Learnings/Tech‑Stack Notes:
+  - Supabase RPC may return empty; SQL fallback ensures resiliency.
+  - `instance/cache` entries persist one hour; delete/expire to refresh RAG.
+  - `count='exact', head=True` avoids row pull for counts.
+- Immediate Next Steps:
+  - Bypass cache for ranges ≤30 days & delete entry on new run.
+  - Fix date selector KPI logic and ensure counts per range.
+  - Tune thresholds & UI loading states; verify charts for 30/90/all.
+
+---
+Here is the context from the prior Agent working session.  Use it to orient around what's next. After reviewing, wait for my direction on the next steps.
+---

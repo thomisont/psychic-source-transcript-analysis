@@ -25,7 +25,7 @@ from app.services.supabase_conversation_service import SupabaseConversationServi
 
 # --- Helper function for OpenAI Embedding ---
 # Re-defined here, consider moving to a shared util later
-def _get_openai_embedding(text, client, model="text-embedding-3-small"):
+def _get_openai_embedding(text, client, model="text-embedding-3-large"):
     if not client or not text:
         logging.debug("AnalysisService: Skipping embedding generation - no client or text.")
         return None

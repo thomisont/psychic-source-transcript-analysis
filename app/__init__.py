@@ -207,12 +207,14 @@ def create_app(test_config=None):
     from app.api.elevenlabs_client import ElevenLabsClient
     try:
         api_key = os.getenv('ELEVENLABS_API_KEY', '')
-        agent_id = os.getenv('ELEVENLABS_AGENT_ID', '')
-        if api_key and agent_id:
+        # Allow fallback env var name and make agent_id optional
+        agent_id = os.getenv('ELEVENLABS_AGENT_ID') or os.getenv('ELEVENLABS_AGENT_ID_CURIOUS') or None
+
+        if api_key:
             app.elevenlabs_client = ElevenLabsClient(api_key=api_key, agent_id=agent_id)
-            logging.info("ElevenLabs client initialized and attached to app context.")
+            logging.info(f"ElevenLabs client initialized and attached to app context. Agent ID: {agent_id if agent_id else 'None'}")
         else:
-            logging.warning("ELEVENLABS_API_KEY or ELEVENLABS_AGENT_ID missing; ElevenLabs client not initialized.")
+            logging.warning("ELEVENLABS_API_KEY missing; ElevenLabs client not initialized.")
             app.elevenlabs_client = None
     except Exception as e:
         logging.error(f"Error initializing ElevenLabs client: {e}", exc_info=True)
@@ -293,12 +295,16 @@ def create_app(test_config=None):
 
     try:
         if app.conversation_service:
+            # Determine whether to run in lightweight mode based on presence of an OpenAI key.
+            lightweight_flag = False if os.getenv("OPENAI_API_KEY") else True
+
             app.analysis_service = AnalysisService(
                 conversation_service=app.conversation_service,
                 cache=cache,
-                lightweight_mode=False,
+                lightweight_mode=lightweight_flag,
             )
-            logging.info("AnalysisService initialized and attached to app context.")
+            mode_label = "Lightweight" if lightweight_flag else "Full‑LLM"
+            logging.info(f"AnalysisService initialized and attached to app context. Mode: {mode_label}")
         else:
             logging.warning("ConversationService not available; AnalysisService not initialized.")
             app.analysis_service = None

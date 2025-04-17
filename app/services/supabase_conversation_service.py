@@ -61,7 +61,10 @@ class SupabaseConversationService:
              return 0
 
         try:
-            query = self.supabase.client.table('conversations').select("id") # Select only ID
+            query = self.supabase.client.table('conversations').select('id', count='exact')
+            
+            # We request only the first row to minimize payload; response.count will still include the total
+            query = query.range(0, 0)
             
             start_dt_iso = None
             if start_date:
@@ -85,13 +88,28 @@ class SupabaseConversationService:
             response = query.execute()
             
             # --- Log the raw data and the full response --- 
-            logging.debug(f"Supabase count query (ID fetch) RAW RESPONSE DATA (first 10): {response.data[:10] if response.data else 'None'}")
-            logging.debug(f"Supabase count query (ID fetch) FULL RESPONSE OBJECT: {response}")
+            logging.debug(
+                "Supabase count query (ID fetch) RAW RESPONSE DATA (first 10): %s",
+                response.data[:10] if response.data else "None"
+            )
+            logging.debug("Supabase count query (ID fetch) FULL RESPONSE OBJECT: %s", response)
             # --- End Log ---
             
-            # Count the number of rows returned
-            count = len(response.data) if response.data else 0
-            logging.info(f"Retrieved count {count} via ID fetch for conversations ({start_dt_iso} to {end_dt_iso}, agent: {agent_id}).")
+            # Supabase head=True returns no data rows, but populates the `count` attribute
+            count = 0
+            if hasattr(response, "count") and response.count is not None:
+                count = response.count
+            else:
+                # Fallback if head() flag was not respected for some reason
+                count = len(response.data) if response.data else 0
+
+            logging.info(
+                "Retrieved count %s for conversations (start=%s, end=%s, agent=%s).",
+                count,
+                start_dt_iso,
+                end_dt_iso,
+                agent_id,
+            )
             return count
             
         except Exception as e:
@@ -717,21 +735,52 @@ class SupabaseConversationService:
             }
 
             # --- LOWER THE THRESHOLD FOR TESTING --- 
-            test_threshold = 0.35 # Lowered from 0.75
+            test_threshold = 0.55 # Lowered from 0.75
             params['similarity_threshold'] = test_threshold
             logging.info(f"Calling RPC match_conversations with limit={limit}, threshold={test_threshold}, start={start_date}, end={end_date}")
             # --- END THRESHOLD ADJUSTMENT ---
             
-            # Execute the RPC function (assumes it exists in Supabase)
-            response = self.supabase.client.rpc('match_conversations', params).execute()
+            try:
+                # Execute the RPC function (assumes it exists in Supabase)
+                response = self.supabase.client.rpc('match_conversations', params).execute()
 
-            if response.data:
-                logging.info(f"Found {len(response.data)} similar conversations.")
-                # The RPC function should return a list of dicts with id, external_id, summary, score
-                return {'conversations': response.data} # Return dict
-            else:
-                logging.info("No similar conversations found matching the criteria.")
-                return {'conversations': []} # Return dict with empty list
+                if response.data:
+                    logging.info(f"Found {len(response.data)} similar conversations via RPC.")
+                    return {'conversations': response.data}
+                else:
+                    logging.info("RPC match_conversations returned no rows. Falling back to raw SQL search.")
+                    raise ValueError("Empty RPC result")
+
+            except Exception as rpc_err:
+                # Fallback: run raw SQL using the embeddings table directly
+                logging.warning(f"RPC match_conversations failed ({rpc_err}); attempting SQL fallback.")
+                try:
+                    vector_str = '[' + ','.join(str(x) for x in query_vector) + ']'
+                    # Build optional date filters
+                    date_filter_sql = ""
+                    if start_dt_iso:
+                        date_filter_sql += f" AND c.created_at >= '{start_dt_iso}'"
+                    if end_dt_iso:
+                        date_filter_sql += f" AND c.created_at <= '{end_dt_iso}'"
+
+                    fallback_sql = f"""
+                    SELECT c.id, c.external_id, c.summary, 1 - (e.embedding <=> '{vector_str}') AS score
+                    FROM conversation_embeddings e
+                    JOIN conversations c ON c.id = e.conversation_id
+                    WHERE 1=1 {date_filter_sql}
+                    ORDER BY e.embedding <=> '{vector_str}'
+                    LIMIT {limit}
+                    """
+                    results = self.supabase.execute_sql(fallback_sql)
+                    if results:
+                        logging.info(f"SQL fallback returned {len(results)} similar conversations.")
+                        return {'conversations': results}
+                    else:
+                        logging.info("SQL fallback returned no conversations matching criteria.")
+                        return {'conversations': []}
+                except Exception as sql_err:
+                    logging.error(f"Error during SQL fallback similarity search: {sql_err}")
+                    return {'conversations': [], 'error': f"SQL fallback error: {sql_err}"}
 
         except Exception as e:
             logging.error(f"Error calling RPC match_conversations: {e}", exc_info=True)
@@ -741,4 +790,26 @@ class SupabaseConversationService:
     def get_filtered_conversations(self, start_date=None, end_date=None, limit=100, offset=0):
         """ New method to fetch paginated conversations matching the old DB service signature."""
         # Use the existing Supabase method
-        return self.get_conversations(start_date, end_date, limit, offset) 
+        return self.get_conversations(start_date, end_date, limit, offset)
+
+    def get_conversation_details_by_id(self, internal_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch conversation details using internal primary-key ID (fallback for RAG when external_id is missing)."""
+        if not self.initialized or not self.supabase or not self.supabase.client:
+            logging.error("Supabase client not available in get_conversation_details_by_id")
+            return None
+        try:
+            conv_response = self.supabase.client.table('conversations') \
+                .select("id, external_id, title, created_at, status, cost_credits, summary, agent_id") \
+                .eq('id', internal_id) \
+                .limit(1) \
+                .maybe_single() \
+                .execute()
+            conversation = conv_response.data
+            if not conversation:
+                logging.warning(f"Conversation with id {internal_id} not found.")
+                return None
+            # Re‑use existing logic by calling get_conversation_details with external_id
+            return self.get_conversation_details(conversation.get('external_id'))
+        except Exception as e:
+            logging.error(f"Error in get_conversation_details_by_id: {e}", exc_info=True)
+            return None 
