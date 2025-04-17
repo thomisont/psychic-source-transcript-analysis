@@ -25,6 +25,7 @@ import os
 from urllib.parse import quote
 from app.utils.cache import cache_api_response
 import traceback
+from dateutil import parser
 
 class ElevenLabsClient:
     def __init__(self, api_key, agent_id=None, api_url="https://api.elevenlabs.io"):
@@ -156,9 +157,11 @@ class ElevenLabsClient:
         
         logging.info(f"Will try these endpoints in order: {endpoints_to_try}")
         
-        # Storage for the best result found across all endpoints
-        best_result_conversations = []
-        best_result_count = 0
+        # Collect conversations from *all* endpoints then deduplicate by conversation_id / id
+        all_results_conversations = []
+        
+        # Choose a large per‑page limit to minimize page count (API may cap at 1000)
+        PER_PAGE_LIMIT = 1000
         
         # --- Loop through Endpoints --- 
         for endpoint in endpoints_to_try:
@@ -172,25 +175,25 @@ class ElevenLabsClient:
             parameter_formats_to_try = []
             # Format 1: Unix timestamps
             if use_timestamps:
-                params_ts = {'limit': 50} # Use fixed page size for reliability
+                params_ts = {'limit': PER_PAGE_LIMIT}
                 if from_time is not None: params_ts['from_time'] = from_time
                 if to_time is not None: params_ts['to_time'] = to_time
                 parameter_formats_to_try.append(params_ts)
             # Format 2: Derived timestamps
             elif formatted_start_from_date is not None or formatted_end_from_date is not None:
-                params_derived_ts = {'limit': 50}
+                params_derived_ts = {'limit': PER_PAGE_LIMIT}
                 if formatted_start_from_date is not None: params_derived_ts['from_time'] = formatted_start_from_date
                 if formatted_end_from_date is not None: params_derived_ts['to_time'] = formatted_end_from_date
                 parameter_formats_to_try.append(params_derived_ts)
             # Format 3: ISO dates
             if not use_timestamps and (start_date or end_date):
-                params_iso = {'limit': 50}
+                params_iso = {'limit': PER_PAGE_LIMIT}
                 if start_date: params_iso['start_date'] = start_date
                 if end_date: params_iso['end_date'] = end_date
                 if len(params_iso) > 1 and params_iso not in parameter_formats_to_try:
                     parameter_formats_to_try.append(params_iso)
             # Format 4: Limit only
-            params_limit_only = {'limit': 50}
+            params_limit_only = {'limit': PER_PAGE_LIMIT}
             if params_limit_only not in parameter_formats_to_try:
                  parameter_formats_to_try.append(params_limit_only)
             logging.debug(f"Endpoint {endpoint}: Parameter formats to try: {parameter_formats_to_try}")
@@ -230,7 +233,7 @@ class ElevenLabsClient:
                     next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
                     has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
                     current_page = 0
-                    max_pages = 30 # Increase max pages slightly just in case
+                    max_pages = 100  # Allow up to 100 pages (1000 * 100 = 100k rows)
 
                     # --- Pagination Loop (for this endpoint/param format) --- 
                     while next_cursor and current_page < max_pages:
@@ -285,24 +288,37 @@ class ElevenLabsClient:
             # --- After trying all parameter formats for the endpoint --- 
             if endpoint_succeeded_at_all:
                 logging.info(f"Endpoint {endpoint}: Succeeded. Total conversations fetched: {len(current_endpoint_conversations)}")
-                # Check if this endpoint gave us more results than previous ones
-                if len(current_endpoint_conversations) > best_result_count:
-                    logging.info(f"Endpoint {endpoint}: Found more conversations ({len(current_endpoint_conversations)}) than previous best ({best_result_count}). Updating best result.")
-                    best_result_conversations = current_endpoint_conversations
-                    best_result_count = len(current_endpoint_conversations)
+                # Always extend the aggregate list; we'll deduplicate later
+                all_results_conversations.extend(current_endpoint_conversations)
             else:
                  logging.warning(f"Endpoint {endpoint}: Failed to retrieve any data after trying all formats.")
             # --- Continue to the next endpoint --- 
 
-        # --- After trying all endpoints --- 
-        logging.info(f"Finished trying all endpoints. Best result count: {best_result_count}")
-        if best_result_count == 0:
+        # --- After trying all endpoints, deduplicate aggregated results ---
+        deduped = []
+        seen_ids = set()
+        for conv in all_results_conversations:
+            cid = conv.get('conversation_id') or conv.get('id')
+            if cid is None:
+                # Include conversations without an ID but log once
+                logging.debug("Conversation without ID encountered while deduplicating; including anyway.")
+                deduped.append(conv)
+                continue
+            if cid not in seen_ids:
+                deduped.append(conv)
+                seen_ids.add(cid)
+
+        total_found = len(deduped)
+        logging.info(f"Finished trying all endpoints. Total unique conversations gathered: {total_found}")
+
+        if total_found == 0:
             logging.error("CRITICAL: No endpoints were able to successfully retrieve any conversation data.")
 
-        # Return the best result found
+        # Return deduplicated result, optionally limited for caller convenience
+        limited_convs = deduped[:limit] if (limit and limit > 0) else deduped
         return {
-            'conversations': best_result_conversations[:limit] if limit > 0 else best_result_conversations,
-            'total_count': best_result_count
+            'conversations': limited_convs,
+            'total_count': total_found
         }
     
     def _apply_date_filtering(self, conversations, start_date=None, end_date=None):
@@ -704,6 +720,20 @@ class ElevenLabsClient:
                     start_time = datetime.fromtimestamp(metadata['start_time_unix_secs'], tz=timezone.utc)
                 except Exception as e:
                     logging.warning(f"Could not parse start_time_unix_secs: {metadata['start_time_unix_secs']} for conversation_id={conversation_id}: {e}")
+
+            # Fallback: parse metadata.created_at (ISO string) if start_time is still None
+            if start_time is None:
+                created_at_raw = metadata.get('created_at') or data.get('created_at')
+                if created_at_raw:
+                    try:
+                        parsed_dt = parser.parse(str(created_at_raw))
+                        if parsed_dt.tzinfo is None:
+                            parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                        start_time = parsed_dt
+                        logging.debug(f"_adapt_conversation_details: Parsed fallback created_at {created_at_raw} -> {start_time} for conv {conversation_id}")
+                    except Exception as created_at_err:
+                        logging.warning(f"Could not parse created_at '{created_at_raw}' for conversation_id={conversation_id}: {created_at_err}")
+
             # Use call_duration_secs if present, else fallback to duration_seconds
             if 'call_duration_secs' in metadata:
                 duration = metadata['call_duration_secs']
@@ -764,6 +794,16 @@ class ElevenLabsClient:
                 # Set to None to indicate failure downstream
                 calculated_timestamp = None 
             
+            # Determine base datetime for timestamp calculation
+            base_datetime = None
+            if start_time_unix_secs is not None:
+                try:
+                    base_datetime = datetime.fromtimestamp(float(start_time_unix_secs), tz=timezone.utc)
+                except Exception:
+                    base_datetime = None
+            elif isinstance(start_time, datetime):
+                base_datetime = start_time
+
             for message in transcript:
                 # Determine role and if agent
                 role = message.get('role', 'unknown') # Use 'role' key as per docs
@@ -782,22 +822,20 @@ class ElevenLabsClient:
                 
                 # +++ Calculate timestamp +++
                 calculated_timestamp = None # Default to None
-                if start_time_unix_secs is not None:
-                    time_in_call_secs = message.get('time_in_call_secs')
-                    if time_in_call_secs is not None:
-                        try:
-                            # Ensure both are numbers before adding
-                            if isinstance(start_time_unix_secs, (int, float)) and isinstance(time_in_call_secs, (int, float)):
-                                message_unix_ts = float(start_time_unix_secs) + float(time_in_call_secs)
-                                # Convert to timezone-aware UTC datetime object
-                                calculated_timestamp = datetime.fromtimestamp(message_unix_ts, tz=timezone.utc) 
-                            else:
-                                logging.warning(f"Non-numeric type for start_time ({type(start_time_unix_secs)}) or time_in_call ({type(time_in_call_secs)}) for msg in conv {conversation_id}")
-                        except (ValueError, TypeError, OverflowError) as ts_err:
-                            logging.warning(f"Error calculating timestamp for conv {conversation_id}: {ts_err}. Start: {start_time_unix_secs}, Offset: {time_in_call_secs}")
-                    else:
-                         logging.warning(f"Missing time_in_call_secs for message in conv {conversation_id}: {message}")
-                # else: start_time_unix_secs was None - error already logged
+                time_in_call_secs = message.get('time_in_call_secs')
+                if base_datetime is not None and time_in_call_secs is not None:
+                    try:
+                        if isinstance(time_in_call_secs, (int, float)):
+                            calculated_timestamp = base_datetime + timedelta(seconds=float(time_in_call_secs))
+                        else:
+                            logging.warning(f"Non-numeric time_in_call_secs type ({type(time_in_call_secs)}) for msg in conv {conversation_id}")
+                    except Exception as ts_err:
+                        logging.warning(f"Error calculating timestamp for conv {conversation_id}: {ts_err}. Base: {base_datetime}, Offset: {time_in_call_secs}")
+                else:
+                    if base_datetime is None:
+                        logging.error(f"Cannot calculate timestamp for message in conv {conversation_id}: base_datetime is None.")
+                    elif time_in_call_secs is None:
+                        logging.warning(f"Missing time_in_call_secs for message in conv {conversation_id}: {message}")
 
                 # Get timestamp if available (REMOVED - we calculate it now)
                 # timestamp = message.get('created_at', '')

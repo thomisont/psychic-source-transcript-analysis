@@ -511,6 +511,19 @@ class SupabaseConversationService:
 
             # --- Calculate Average Cost (Uses IDs already filtered by agent in RPC) ---
             distinct_ids_for_cost = stats_data.get('distinct_conversation_ids')
+            # Ensure we always have a list (Supabase RPC may return single int if only one row)
+            if distinct_ids_for_cost is None:
+                distinct_ids_for_cost = []
+            elif isinstance(distinct_ids_for_cost, (int, str)):
+                distinct_ids_for_cost = [distinct_ids_for_cost]
+            elif not isinstance(distinct_ids_for_cost, list):
+                # Attempt to cast/unwrap other iterable types
+                try:
+                    distinct_ids_for_cost = list(distinct_ids_for_cost)
+                except Exception:
+                    logging.warning(f"Unexpected type for distinct_conversation_ids ({type(distinct_ids_for_cost)}). Forcing to empty list.")
+                    distinct_ids_for_cost = []
+
             avg_cost_credits = 0.0
 
             if distinct_ids_for_cost:

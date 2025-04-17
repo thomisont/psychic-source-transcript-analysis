@@ -278,6 +278,34 @@ def create_app(test_config=None):
         app.supabase_client = None
         logging.warning("Supabase URL or key missing; Supabase client not initialized.")
 
+    # --- Initialize Conversation & Analysis Services ---
+    try:
+        from app.services.supabase_conversation_service import SupabaseConversationService
+        if app.supabase_client:
+            app.conversation_service = SupabaseConversationService(supabase_client=app.supabase_client)
+            logging.info("SupabaseConversationService initialized and attached to app context.")
+        else:
+            logging.error("Supabase client unavailable; cannot initialize ConversationService.")
+            app.conversation_service = None
+    except Exception as svc_err:
+        logging.error(f"Failed to initialize SupabaseConversationService: {svc_err}", exc_info=True)
+        app.conversation_service = None
+
+    try:
+        if app.conversation_service:
+            app.analysis_service = AnalysisService(
+                conversation_service=app.conversation_service,
+                cache=cache,
+                lightweight_mode=False,
+            )
+            logging.info("AnalysisService initialized and attached to app context.")
+        else:
+            logging.warning("ConversationService not available; AnalysisService not initialized.")
+            app.analysis_service = None
+    except Exception as as_err:
+        logging.error(f"Failed to initialize AnalysisService: {as_err}", exc_info=True)
+        app.analysis_service = None
+
     # After Supabase client initialization
     @app.before_request
     def attach_supabase_to_g():

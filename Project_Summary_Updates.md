@@ -1200,3 +1200,37 @@ Here is the context from the prior Agent working session.
 Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
 ---
 (Do not add anything outside the format above.)
+
+### AGENT HAND‑OFF SUMMARY  (2025‑04‑17 23:45 UTC)
+
+1. Context & Goals  
+• Ensure sync pulls full March–April data into Supabase & dashboard KPIs update.  
+• Stabilise multi‑agent fetch & date parsing logic.  
+
+2. Work Completed This Session  
+• Added merge‑all‑endpoints logic in `elevenlabs_client.py` (dedup unique conv IDs).  
+• Raised page limit to 1000 & pages → 100.  
+• Guarded `distinct_ids_for_cost` casting to list in convo service.  
+• Restart guidance & full‑sync initiated via dashboard.  
+
+3. Outstanding Issues (blocking)  
+• Sync still in progress; March data not yet confirmed in DB.  
+• Need to verify `created_at` min date after sync completes.  
+• Dashboard may still need RPC tweaks if March data appears but stats empty.  
+
+4. New Learnings / Tech‑Stack Notes  
+• ElevenLabs conv‑history split across endpoints; must aggregate.  
+• Supabase RPC returns can be int/list; cast defensively.  
+• Full‑sync triggers via `/api/sync-conversations?full_sync=true`.  
+• Server start/stop per `STARTUP.md`; use `python run.py`.  
+
+5. Immediate Next Steps (actionable)  
+• Wait for sync completion; run SQL `min/max` check for March records.  
+• If March present, rerun dashboard & KPI tests.  
+• Else inspect logs for endpoint gaps or date‑parsing failures.  
+• Respond after review with direction for further fixes.
+
+---
+Here is the context from the prior Agent working session.  
+Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
+---

@@ -236,9 +236,10 @@ def _sync_agent_conversations(app, client, agent_id, full_sync=False):
                         sync_start_timestamp_unix = int(sync_start_time.timestamp())
                         logging.info(f"Sync Task: Found latest message timestamp: {latest_message_timestamp}. Fetching API since {sync_start_time} (Unix: {sync_start_timestamp_unix}).")
                     else:
-                        sync_start_time = datetime.now(timezone.utc) - timedelta(days=7)
-                        sync_start_timestamp_unix = int(sync_start_time.timestamp())
-                        logging.warning(f"Sync Task: No existing messages found. Fetching API since {sync_start_time} (Unix: {sync_start_timestamp_unix}).")
+                        # No messages in DB => first-time sync. Fetch **all** conversations (no from_time).
+                        sync_start_time = None
+                        sync_start_timestamp_unix = None  # Passing None tells client to fetch full history
+                        logging.warning("Sync Task: No existing messages found. Performing full history fetch from API.")
                 except Exception as e:
                     logging.error(f"Sync Task: Error getting latest timestamp: {e}. Defaulting to fetching last 7 days.")
                     sync_start_time = datetime.now(timezone.utc) - timedelta(days=7)
@@ -248,7 +249,7 @@ def _sync_agent_conversations(app, client, agent_id, full_sync=False):
             conversations_list = []
             try:
                 logging.info(f"Sync Task: Calling client.get_conversations(from_time={sync_start_timestamp_unix})...")
-                api_response = client.get_conversations(from_time=sync_start_timestamp_unix, limit=2000) 
+                api_response = client.get_conversations(from_time=sync_start_timestamp_unix, limit=2000)  # None means full history
                 conversations_list = api_response.get('conversations', [])
                 conversations_checked_api_count = len(conversations_list)
                 logging.info(f"Sync Task: Received {conversations_checked_api_count} conversation summaries from API.")
