@@ -1170,3 +1170,33 @@ The Themes & Sentiment page now has fully functional scroll boxes, allowing user
 **Here is the context from the prior Agent working session. Use it to orient around what's next. After reviewing, wait for my direction on the next steps.**
 
 ---
+
+### AGENT HAND‑OFF SUMMARY  (2025-04-17 23:15 UTC)
+
+1. Context & Goals  
+   • Fix Supabase RPC errors so dashboard loads. Shift focus to hand‑off workflow best‑practice.  
+2. Work Completed This Session  
+   • Renamed RPC to `get_message_activity_in_range` to match backend.  
+   • Updated return types (`bigint` for counts, `numeric` for averages).  
+   • Fixed alias `count`→`cnt` to eliminate aggregate ambiguity.  
+   • Dashboard now makes successful request; some KPIs/charts still empty.  
+3. Outstanding Issues (blocking)  
+   • `daily_*` charts & KPIs still missing – verify JSON structure vs frontend expectations.  
+4. New Learnings / Tech‑Stack Notes  
+   • Postgres `COUNT(*)` → bigint; `AVG()` returns numeric unless cast.  
+   • Cursor auto‑links `file.py:line‑range` for quick navigation.  
+   • Use Git mini‑commit after each hand‑off (`agent‑handoff: <timestamp>`).  
+5. Immediate Next Steps (actionable)  
+   • Compare function JSON keys to `dashboard.js` mapping.  
+   • Add missing fields or adjust frontend parsing.  
+   • Run manual check: `supabase.rpc('get_message_activity_in_range', …)`.
+
+• Update /home/runner/workspace/Project_Summary_Updates.md by  
+  – Appending this summary under a new timestamped heading  
+  – Keeping bullet‑point style, ≤ 120 chars/line  
+• After writing, COPY the entire block (including the preamble below) to the clipboard **verbatim**:
+---
+Here is the context from the prior Agent working session.  
+Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
+---
+(Do not add anything outside the format above.)
