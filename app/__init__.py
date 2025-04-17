@@ -69,6 +69,9 @@ def create_app(test_config=None):
     # Load environment variables from .env file
     load_dotenv()
     logging.info(".env loaded.")
+    # Log the ElevenLabs env variables for debugging
+    logging.info(f"ELEVENLABS_API_KEY: {os.getenv('ELEVENLABS_API_KEY')}")
+    logging.info(f"ELEVENLABS_AGENT_ID: {os.getenv('ELEVENLABS_AGENT_ID')}")
     
     # Configure logging
     logging.basicConfig(
@@ -201,16 +204,19 @@ def create_app(test_config=None):
         return {'now': datetime.datetime.now()}
     
     # Create and attach ElevenLabs client
-    # logging.info("Initializing ElevenLabs client...")
-    # from app.api.elevenlabs_client import ElevenLabsClient
-    # try:
-    #     app.elevenlabs_client = ElevenLabsClient(
-    #         api_key=os.getenv('ELEVENLABS_API_KEY', '')
-    #     )
-    #     logging.info("ElevenLabs client initialized and attached to app context.")
-    # except Exception as e:
-    #     logging.error(f"Error initializing ElevenLabs client: {e}", exc_info=True)
-    #     app.elevenlabs_client = None # Ensure it's None on failure
+    from app.api.elevenlabs_client import ElevenLabsClient
+    try:
+        api_key = os.getenv('ELEVENLABS_API_KEY', '')
+        agent_id = os.getenv('ELEVENLABS_AGENT_ID', '')
+        if api_key and agent_id:
+            app.elevenlabs_client = ElevenLabsClient(api_key=api_key, agent_id=agent_id)
+            logging.info("ElevenLabs client initialized and attached to app context.")
+        else:
+            logging.warning("ELEVENLABS_API_KEY or ELEVENLABS_AGENT_ID missing; ElevenLabs client not initialized.")
+            app.elevenlabs_client = None
+    except Exception as e:
+        logging.error(f"Error initializing ElevenLabs client: {e}", exc_info=True)
+        app.elevenlabs_client = None # Ensure it's None on failure
 
     # --- Initialize Services (Supabase Only) ---
     logging.info("Initializing services...")

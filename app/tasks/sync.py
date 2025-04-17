@@ -25,6 +25,7 @@ import openai # Added
 import os # Added
 from typing import List, Dict
 import time
+import re
 
 # Import necessary components (use absolute imports)
 from app.extensions import db
@@ -82,16 +83,53 @@ def get_embedding(turns: List[Dict[str, str]], client):
 
 def sync_new_conversations(app, full_sync=False):
     """
-    Fetches new conversations from ElevenLabs API, processes them, and stores them 
-    in the Supabase database via the SupabaseConversationService.
-
+    Fetches new conversations from ElevenLabs API for all configured agents, processes them, and stores them in the Supabase database via the SupabaseConversationService.
     Handles incremental updates efficiently by:
     1. Fetching existing conversation IDs and summary status from Supabase.
     2. Calling the /details endpoint ONLY for NEW conversations or existing ones MISSING summaries.
     3. Skipping API calls for existing conversations that already have summaries (unless full_sync=True).
     """
     start_time = time.time()
-    logging.info(f"SYNC TASK: Starting conversation sync (Full Sync: {full_sync})...")
+    logging.info(f"SYNC TASK: Starting conversation sync for ALL agents (Full Sync: {full_sync})...")
+
+    # --- Discover all agent IDs from environment ---
+    agent_env_pattern = re.compile(r'^ELEVENLABS_AGENT_ID_([A-Z0-9_]+)$')
+    agent_vars = [(k, v) for k, v in os.environ.items() if agent_env_pattern.match(k)]
+    if not agent_vars:
+        logging.error("No ELEVENLABS_AGENT_ID_* variables found in environment. Aborting sync.")
+        return {"status": "error", "message": "No agent IDs found in environment."}, 500
+
+    # Optionally, support per-agent API keys in the future
+    api_key = os.getenv('ELEVENLABS_API_KEY', '')
+    if not api_key:
+        logging.error("ELEVENLABS_API_KEY not found in environment. Aborting sync.")
+        return {"status": "error", "message": "API key not found."}, 500
+
+    all_results = []
+    for env_var, agent_id in agent_vars:
+        logging.info(f"SYNC TASK: Syncing for agent {env_var} (ID: {agent_id})...")
+        # Initialize client for this agent
+        client = ElevenLabsClient(api_key=api_key, agent_id=agent_id)
+        # Attach to app context for this sync
+        app.elevenlabs_client = client
+        # Run the original sync logic for this agent
+        try:
+            result, status_code = _sync_agent_conversations(app, client, agent_id, full_sync)
+            all_results.append({"agent_env": env_var, "agent_id": agent_id, "result": result, "status_code": status_code})
+        except Exception as e:
+            logging.error(f"SYNC TASK: Exception syncing agent {agent_id}: {e}", exc_info=True)
+            all_results.append({"agent_env": env_var, "agent_id": agent_id, "result": str(e), "status_code": 500})
+
+    # Aggregate results
+    success_count = sum(1 for r in all_results if r["status_code"] == 200)
+    fail_count = len(all_results) - success_count
+    logging.info(f"SYNC TASK: Completed for all agents. Success: {success_count}, Failed: {fail_count}")
+    return {"status": "multi-agent-complete", "results": all_results}, 200 if fail_count == 0 else 500
+
+# --- Extracted original sync logic for a single agent ---
+def _sync_agent_conversations(app, client, agent_id, full_sync=False):
+    start_time = time.time()
+    logging.info(f"SYNC TASK: Starting conversation sync for agent {agent_id} (Full Sync: {full_sync})...")
 
     # --- TEMPORARY CACHE CLEAR --- 
     # Clear analysis cache at the start of sync to ensure fresh analysis after data update.
@@ -144,7 +182,6 @@ def sync_new_conversations(app, full_sync=False):
                     openai_client = None # Ensure it's None on failure
             # End OpenAI Client Initialization
 
-            client: ElevenLabsClient = app.elevenlabs_client
             if not client or not client.api_key or not client.agent_id:
                 logging.error("Sync Task: ElevenLabs client is not properly configured. Aborting.")
                 return {"status": "error", "message": "Client not configured"}, 500
@@ -254,7 +291,12 @@ def sync_new_conversations(app, full_sync=False):
                             conversations_failed_count += 1
                             continue
 
+                        # DEBUG LOG: Raw API response
+                        logging.debug(f"Sync Task: Raw conversation details for {external_id}: {str(conv_details_raw)[:1000]}")
+
                         adapted_data = client._adapt_conversation_details(conv_details_raw)
+                        # DEBUG LOG: Adapted data
+                        logging.debug(f"Sync Task: Adapted conversation details for {external_id}: {str(adapted_data)[:1000]}")
                         if not adapted_data:
                             logging.error(f"Sync Task: Failed to adapt conversation details for {external_id}. Raw: {str(conv_details_raw)[:200]}. Skipping.")
                             conversations_failed_count += 1
@@ -309,7 +351,8 @@ def sync_new_conversations(app, full_sync=False):
                                     'status': conv_status,
                                     'cost_credits': cost_value_int,
                                     'summary': conv_summary_str,
-                                    'embedding': embedding_vector
+                                    'embedding': embedding_vector,
+                                    'duration_seconds': adapted_data.get('duration')
                                 }
                                 # Log agent_id being inserted
                                 logging.info(f"Sync Task: Preparing INSERT for {external_id}. Agent ID from adapted_data: {adapted_data.get('agent_id')}")
@@ -380,7 +423,8 @@ def sync_new_conversations(app, full_sync=False):
                                      'status': conv_status,
                                      'summary': conv_summary_str,
                                      'embedding': embedding_vector,
-                                     'agent_id': adapted_data.get('agent_id')
+                                     'agent_id': adapted_data.get('agent_id'),
+                                     'duration_seconds': adapted_data.get('duration')
                                  }
                                  # Log agent_id being updated
                                  logging.info(f"Sync Task: Preparing UPDATE for {external_id}. Agent ID from adapted_data: {adapted_data.get('agent_id')}")
@@ -394,6 +438,63 @@ def sync_new_conversations(app, full_sync=False):
                                  logging.info(f"Supabase update executed for {external_id}.")
                                  # We only increment if an actual API call for details was made for the update
                                  conversations_updated_count += 1 
+                                 
+                                 # --- NEW: Back‑fill messages if none exist (or on full_sync) ---
+                                 try:
+                                     # Retrieve internal conversation ID
+                                     conv_id_resp = supabase.client.table('conversations') \
+                                                        .select('id') \
+                                                        .eq('external_id', external_id) \
+                                                        .limit(1) \
+                                                        .execute()
+                                     conv_internal_id = conv_id_resp.data[0]['id'] if conv_id_resp and conv_id_resp.data else None
+                                     if not conv_internal_id:
+                                         logging.warning(f"Sync Task: Could not find internal ID for {external_id} when attempting message back‑fill.")
+                                     else:
+                                         # How many messages currently exist?
+                                         msg_count_resp = supabase.client.table('messages') \
+                                                             .select('id', count='exact') \
+                                                             .eq('conversation_id', conv_internal_id) \
+                                                             .execute()
+                                         existing_msg_count = getattr(msg_count_resp, 'count', 0)
+                                         if existing_msg_count == 0 or full_sync:
+                                             logging.info(f"Sync Task: Back‑filling {len(adapted_data.get('turns', []))} messages for conv {external_id} (internal {conv_internal_id}).")
+                                             messages_added_local = 0
+                                             for turn in adapted_data.get('turns', []):
+                                                 msg_timestamp = turn.get('timestamp')
+                                                 timestamp_str = None
+                                                 if isinstance(msg_timestamp, datetime):
+                                                     if msg_timestamp.tzinfo is None:
+                                                         msg_timestamp = msg_timestamp.replace(tzinfo=timezone.utc)
+                                                     timestamp_str = msg_timestamp.isoformat()
+                                                 elif msg_timestamp:
+                                                     try:
+                                                         parsed_ts = parser.parse(str(msg_timestamp))
+                                                         if parsed_ts.tzinfo is None:
+                                                             parsed_ts = parsed_ts.replace(tzinfo=timezone.utc)
+                                                         timestamp_str = parsed_ts.isoformat()
+                                                     except Exception:
+                                                         timestamp_str = datetime.now(timezone.utc).isoformat()
+                                                 else:
+                                                     timestamp_str = datetime.now(timezone.utc).isoformat()
+
+                                                 msg_text = turn.get('text') or ''
+                                                 msg_data = {
+                                                     'conversation_id': conv_internal_id,
+                                                     'speaker': turn.get('speaker'),
+                                                     'text': msg_text,
+                                                     'timestamp': timestamp_str,
+                                                     'created_at': datetime.now(timezone.utc).isoformat(),
+                                                     'updated_at': datetime.now(timezone.utc).isoformat()
+                                                 }
+                                                 insert_resp = supabase.insert('messages', msg_data)
+                                                 if insert_resp:
+                                                     messages_added_local += 1
+                                             logging.info(f"Sync Task: Back‑fill inserted {messages_added_local} messages for conv {external_id}.")
+                                         else:
+                                             logging.debug(f"Sync Task: {existing_msg_count} messages already exist for conv {external_id}; skipping back‑fill.")
+                                 except Exception as backfill_err:
+                                     logging.error(f"Sync Task: Error during message back‑fill for {external_id}: {backfill_err}", exc_info=True)
                                  
                              # Catch ONLY Supabase errors related to this update block
                              except Exception as supabase_update_error:

@@ -692,9 +692,34 @@ class ElevenLabsClient:
             
             # Extract metadata
             metadata = data.get('metadata', {})
-            start_time = metadata.get('created_at', '')
-            end_time = metadata.get('last_updated_at', '')
-            duration = metadata.get('duration_seconds', 0)
+            # DEBUG: Log metadata['created_at'] value and type
+            created_at_val = metadata.get('created_at', None)
+            logging.debug(f"_adapt_conversation_details: metadata['created_at'] for conversation_id={conversation_id}: value={created_at_val}, type={type(created_at_val)}")
+            start_time = None
+            end_time = ''
+            duration = 0
+            # Use start_time_unix_secs if present
+            if 'start_time_unix_secs' in metadata:
+                try:
+                    start_time = datetime.fromtimestamp(metadata['start_time_unix_secs'], tz=timezone.utc)
+                except Exception as e:
+                    logging.warning(f"Could not parse start_time_unix_secs: {metadata['start_time_unix_secs']} for conversation_id={conversation_id}: {e}")
+            # Use call_duration_secs if present, else fallback to duration_seconds
+            if 'call_duration_secs' in metadata:
+                duration = metadata['call_duration_secs']
+            elif 'duration_seconds' in metadata:
+                duration = metadata['duration_seconds']
+            # Calculate end_time if possible
+            if start_time and duration:
+                try:
+                    end_time = start_time + timedelta(seconds=duration)
+                except Exception as e:
+                    logging.warning(f"Could not calculate end_time for conversation_id={conversation_id}: {e}")
+            # Debug print/log for calculated values
+            print(f"_adapt_conversation_details: Calculated start_time={start_time}, duration={duration}, end_time={end_time} for conversation_id={conversation_id}")
+
+            # +++ Extract agent_id robustly +++
+            agent_id = data.get('agent_id') or metadata.get('agent_id')
 
             # +++ Extract Summary (Revised - Check analysis block) +++
             summary = None
@@ -791,7 +816,7 @@ class ElevenLabsClient:
             # Create the result object
             result = {
                 'id': conversation_id,
-                'agent_id': data.get('agent_id') or metadata.get('agent_id'),
+                'agent_id': agent_id,
                 'start_time': start_time,
                 'end_time': end_time,
                 'duration': duration,
@@ -801,7 +826,25 @@ class ElevenLabsClient:
                 'summary': summary 
             }
             
-            return result
+            # Final adapted data
+            adapted = {
+                "conversation_id": conversation_id,
+                "agent_id": agent_id,
+                "status": status,
+                "start_time": start_time,
+                "end_time": end_time,
+                "duration": duration,
+                "summary": summary,
+                "cost": cost,
+                "turns": turns,
+                "metadata": metadata,
+            }
+
+            # DEBUG LOG: Log full adapted data
+            logging.debug(f"_adapt_conversation_details: FULL adapted data for conversation_id={conversation_id}: {adapted}")
+            print(f"_adapt_conversation_details: FULL adapted data for conversation_id={conversation_id}: {adapted}")
+
+            return adapted
         
         # Create a basic structure (fallback)
         result = {
