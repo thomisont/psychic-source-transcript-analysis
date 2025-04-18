@@ -15,14 +15,11 @@
         <h1 class="h3">Themes & Sentiment Analysis</h1>
         <div class="ms-auto d-flex align-items-center">
             <span class="badge bg-primary me-2">ALL</span>
-            <span id="total-conversations-display" class="h5 mb-0"></span>
+            <span id="total-conversations-display" class="h3 mb-0"></span>
         </div>
     </div>
-    <div class="mb-3 text-end" id="conversation-count-display" style="min-height: 20px;">
-        <!-- Conversation count will be loaded here -->
-    </div>
-    <!-- Displays the name of the AI model used for the analysis -->
-    <p id="analysis-model-info" class="text-muted small text-end mb-3" style="min-height: 18px;"></p>
+    <!-- Moved AI model info here, removed duplicate count -->
+    <p id="analysis-model-info" class="text-muted text-end mb-3"></p>
 
     <!-- Enhanced Loading Indicator (display controlled by JS) -->
     <div id="loading-indicator" class="text-center my-5" style="display: none;"> 

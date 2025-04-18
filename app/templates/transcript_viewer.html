@@ -364,7 +364,7 @@ function createTranscriptUI(data, container) {
     
     // Generate message bubbles for each turn in the transcript
     if (transcript.length === 0) {
-        html += `<div class="alert alert-warning">No messages in this transcript.</div>`;
+        // html += `<div class="alert alert-warning">No messages in this transcript.</div>`;
     } else {
         transcript.forEach((turn, index) => {
             // Determine if this is a user or agent message (checking all possible field names)
