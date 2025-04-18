@@ -302,35 +302,35 @@ async function loadAnalysisData(startDateISO, endDateISO) {
         return;
     }
 
-    // Reset UI state & SHOW loading indicator
-    // Use requestAnimationFrame to ensure UI updates before potentially blocking API call
-    requestAnimationFrame(() => {
-        if (loadingIndicator) {
-            loadingIndicator.style.display = 'block';
-            loadingIndicator.style.opacity = '1';
-            loadingIndicator.style.pointerEvents = 'auto';
-        }
-        if (loadingMessageMain) loadingMessageMain.textContent = "Sentiment Analysis Underway";
-        if (loadingMessageDetail) loadingMessageDetail.textContent = "This process takes time to complete.";
-        if (errorDisplay) errorDisplay.style.display = 'none';
-        if (analysisContent) {
-            analysisContent.style.display = 'none';
-            analysisContent.style.opacity = '0';
-        }
-        if (conversationCountDisplay) conversationCountDisplay.textContent = '';
-        if (analysisModelInfo) analysisModelInfo.textContent = '';
+    // --- Reset UI state & show loading indicator immediately ---
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+        loadingIndicator.style.opacity = '1';
+        loadingIndicator.style.pointerEvents = 'auto';
+    }
+    if (loadingMessageMain) loadingMessageMain.textContent = "Loading records – please wait";
+    if (loadingMessageDetail) loadingMessageDetail.textContent = "Fetching analysis data for all conversations.";
 
-        // Destroy previous charts
-        if (sentimentDistributionChart) sentimentDistributionChart.destroy();
-        if (topThemesChart) topThemesChart.destroy();
-        if (sentimentTrendsChart) sentimentTrendsChart.destroy();
-        sentimentDistributionChart = null;
-        topThemesChart = null;
-        sentimentTrendsChart = null;
+    if (errorDisplay) errorDisplay.style.display = 'none';
+    if (analysisContent) {
+        analysisContent.style.display = 'none';
+        analysisContent.style.opacity = '0';
+    }
+    if (conversationCountDisplay) conversationCountDisplay.textContent = '';
+    if (analysisModelInfo) analysisModelInfo.textContent = '';
 
-        // NOW trigger the API fetch *after* the UI update frame
+    // Destroy previous charts (if any)
+    if (sentimentDistributionChart) sentimentDistributionChart.destroy();
+    if (topThemesChart) topThemesChart.destroy();
+    if (sentimentTrendsChart) sentimentTrendsChart.destroy();
+    sentimentDistributionChart = null;
+    topThemesChart = null;
+    sentimentTrendsChart = null;
+
+    // Defer API call slightly to allow spinner to render
+    setTimeout(() => {
         triggerApiFetch(startDateISO, endDateISO);
-    });
+    }, 50); // 50ms delay ensures paint before heavy work
 }
 
 // Helper function to contain the async API call and subsequent rendering

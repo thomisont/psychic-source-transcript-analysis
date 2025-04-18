@@ -224,7 +224,14 @@ async function updateApiStatus() {
     // NEW: Function to update icon class based on status
     const setIconStatus = (iconId, isConnected) => {
         const iconElement = document.getElementById(iconId);
-        console.log(`[setIconStatus] Target: #${iconId}, Element found: ${!!iconElement}, isConnected: ${isConnected}`); // Log element find & status value
+        // Only log if the element is actually found
+        if (iconElement) {
+            console.log(`[setIconStatus] Target: #${iconId}, Element found: true, isConnected: ${isConnected}`);
+        } else {
+            // Silently return if the element doesn't exist on this page
+            return;
+        }
+        
         if (iconElement) {
             console.log(`[setIconStatus] Current classes for #${iconId} (before change): ${iconElement.className}`); // Log current classes BEFORE change
             // Ensure initial placeholder class is also removed

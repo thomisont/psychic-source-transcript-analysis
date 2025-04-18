@@ -561,133 +561,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ------------------------------------------
-    // Event Listener Setup (Restored)
-    // ------------------------------------------
-
-    // Initialize the DataTable
-    conversationsDataTable = initializeDataTable();
+    // --- Main Initialization within DOMContentLoaded ---
     
-    // Add event listeners for search type radio buttons
-    const searchTypeRadios = document.querySelectorAll('input[name="search-type"]');
-    searchTypeRadios.forEach(radio => {
-        radio.addEventListener('change', toggleFilterSections); 
-    });
+    // Wrap initialization in jQuery's ready function to ensure DataTables plugin is loaded
+    $(document).ready(function() {
+        console.log("jQuery document ready fired. Initializing DataTable and loading data...");
+        initializeDataTable(); // Initialize the table
+        
+        // Attach listeners AFTER table is potentially initialized
+        const searchButton = document.getElementById('search-button');
+        const conversationIdSearchButton = document.getElementById('search-id-button'); // Ensure this ID is correct in HTML
+        const radioButtons = document.querySelectorAll('input[name="search-type"], input[name="timeframe"]');
+        const tableBody = document.querySelector('#conversations-table tbody');
+        const exportJsonLink = document.getElementById('export-json');
+        const exportCsvLink = document.getElementById('export-csv');
+        const exportMarkdownLink = document.getElementById('export-markdown');
 
-    // Add event listeners for timeframe radio buttons (to toggle custom date visibility)
-    const timeframeRadios = document.querySelectorAll('input[name="timeframe"]');
-    timeframeRadios.forEach(radio => {
-        radio.addEventListener('change', toggleFilterSections);
-    });
+        if (searchButton) {
+            searchButton.addEventListener('click', handleDateSearch);
+            console.log("Listener attached to Date Search button.");
+        }
+        
+        if (conversationIdSearchButton) {
+            conversationIdSearchButton.addEventListener('click', handleDateSearch); // handleDateSearch now handles both types
+            console.log("Listener attached to ID Search button.");
+        }
 
-    // Add event listeners for timeframe *labels* (since radios are hidden)
-    const timeframeLabels = document.querySelectorAll('.btn-group[aria-label="Timeframe selection"] label.btn');
-    timeframeLabels.forEach(label => {
-        label.addEventListener('click', (event) => {
-            // Find the corresponding radio input to check its value
-            const correspondingRadio = document.getElementById(label.getAttribute('for'));
-            const timeframeValue = correspondingRadio ? correspondingRadio.value : null;
-
-            console.log(`Timeframe label clicked for: ${timeframeValue}`);
-
-            // Trigger search immediately ONLY if it's NOT the custom range button
-            if (timeframeValue && timeframeValue !== 'custom') {
-                console.log("Fixed timeframe selected, triggering search...");
-                // Small delay to allow radio state to update before reading it in handleDateSearch
-                setTimeout(handleDateSearch, 50); 
-            } else {
-                console.log("Custom timeframe selected or radio not found, only toggling filters...");
-                 // For custom or unknown, just ensure filters visibility updates
-                setTimeout(toggleFilterSections, 50); // Use small delay here too for consistency
-            }
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', toggleFilterSections);
         });
-    });
+        console.log("Listeners attached to radio buttons.");
 
-    // Add event listener for the main search button (for Date/Custom range)
-    const mainSearchBtn = document.getElementById('search-button'); 
-    if (mainSearchBtn) {
-        mainSearchBtn.addEventListener('click', () => {
-            // Ensure the search type is 'date'
-            const dateRadio = document.getElementById('search-by-date');
-            if (dateRadio) dateRadio.checked = true;
-            // Call the main search handler
-            handleDateSearch(); 
-        });
-    } else {
-        console.warn("Main date search button #search-button not found.");
-    }
-
-    // Add event listener for the conversation ID search button 
-    const convIdSearchInput = document.getElementById('conversation-id');
-    const convIdSearchBtn = document.getElementById('id-search-button'); // The button WITHIN the input group
-    if (convIdSearchBtn && convIdSearchInput) {
-        const searchByIdAction = () => {
-            const id = convIdSearchInput.value.trim();
-            if (id) {
-                // Switch radio button visually AND trigger filter update
-                const radioById = document.getElementById('search-by-id');
-                if (radioById) radioById.checked = true;
-                toggleFilterSections(); // Update visible sections
-                // Trigger the search logic (handleDateSearch checks the ID input)
-                handleDateSearch(); 
-            } else {
-                if (window.UI) UI.showToast("Please enter a Conversation ID.", "warning");
-            }
-        };
-        convIdSearchBtn.addEventListener('click', searchByIdAction);
-        // Optional: Allow Enter key press in ID input field
-        convIdSearchInput.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault(); // Prevent form submission
-                searchByIdAction();
-            }
-        });
-    } else {
-        console.warn("Conversation ID search elements (#id-search-button or #conversation-id) not found.");
-    }
-
-    // Add event listener for view buttons (using event delegation on the table body)
-    const tableBody = document.querySelector('#conversations-table tbody');
-    if (tableBody) {
-        tableBody.addEventListener('click', function(event) {
-            if (event.target.classList.contains('view-btn')) {
-                const conversationId = event.target.getAttribute('data-id');
-                if (conversationId) {
+        if (tableBody) {
+            tableBody.addEventListener('click', function(event) {
+                if (event.target.classList.contains('view-btn')) {
+                    const conversationId = event.target.getAttribute('data-id');
+                    console.log(`View button clicked for ID: ${conversationId}`);
                     viewConversation(conversationId);
                 }
-            }
-        });
-    } else {
-        console.warn("Table body #conversations-table tbody not found for delegation.");
-    }
+            });
+            console.log("Listener attached to table body for view buttons.");
+        } else {
+            console.warn("Table body #conversations-table tbody not found for event listener.");
+        }
 
-    // Initial data load (fetch for default timeframe)
-    // ---- Direct call for initial load --- 
-    console.log("Directly calling handleDateSearch for initial load...");
-    // Ensure default radio (e.g., 30d) is checked visually if needed
-    const defaultRadio = document.getElementById('timeframe-30d');
-    if(defaultRadio) defaultRadio.checked = true;
-    handleDateSearch();
-    // ---- End Direct call ---- 
+        if (exportJsonLink) exportJsonLink.addEventListener('click', handleExportClick);
+        if (exportCsvLink) exportCsvLink.addEventListener('click', handleExportClick);
+        if (exportMarkdownLink) exportMarkdownLink.addEventListener('click', handleExportClick);
+        console.log("Listeners attached to export links.");
+        
+        // Initial setup calls
+        toggleFilterSections(); // Set initial visibility of filters
+        handleDateSearch(); // Perform initial data load for the table based on default filters
+        console.log("Initial filter visibility set and initial data search triggered.");
 
-    // Initial call to set correct filter visibility on page load
-    toggleFilterSections(); 
-
-    // Add event listener for export buttons using event delegation
-    const exportMenu = document.getElementById('export-options-menu');
-    if (exportMenu) {
-        exportMenu.addEventListener('click', (event) => {
-            // Check if the clicked element is one of the export links
-            if (event.target && event.target.matches('#export-json, #export-csv, #export-markdown')) {
-                // Call the original handler, passing the event object
-                handleExportClick(event); 
-            }
-        });
-        console.log("Attached delegated click listener to #export-options-menu");
-    } else {
-        console.warn("#export-options-menu not found for delegation.");
-    }
+    }); // End of jQuery document ready
 
     console.log("Transcript Viewer page scripts initialization complete.");
 
-}); // End DOMContentLoaded listener
+}); // End DOMContentLoaded
