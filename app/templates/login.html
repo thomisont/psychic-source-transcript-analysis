@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Login – How's Lily Doing{% endblock %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 70vh;">
+  <div class="card shadow-sm p-4" style="max-width: 420px; width: 100%;">
+    <div class="text-center mb-4">
+      <img src="{{ url_for('static', filename='favicon.png') }}" alt="Lily icon" width="48" class="mb-2">
+      <h3 class="mb-0">How's Lily Doing</h3>
+      <small class="text-muted">Internal Analytics Dashboard</small>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="POST" action="{{ url_for('auth.login') }}">
+      <div class="mb-3">
+        <label for="email" class="form-label">Work Email</label>
+        <input type="email" class="form-control" id="email" name="email" placeholder="name@psychicsource.com" required>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Log In</button>
+    </form>
+    <div class="text-center mt-3">
+      <small class="text-muted">Powered by <a href="https://powershiftintelligence.org" target="_blank">Power Shift Intelligence</a></small>
+    </div>
+  </div>
+</div>
+{% endblock %} 

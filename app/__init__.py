@@ -1,6 +1,6 @@
 import sys
 import os
-from flask import Flask, g, current_app
+from flask import Flask, g, current_app, redirect, url_for, request
 from flask_cors import CORS
 import logging
 from dotenv import load_dotenv
@@ -323,12 +323,16 @@ def create_app(test_config=None):
     # Import blueprints here
     from app.routes import main_bp
     from app.api.routes import api as api_bp # Use alias to avoid name clash
+    from app.auth import auth_bp
     try:
         app.register_blueprint(main_bp)
         logging.info("Registered main_bp.")
 
         app.register_blueprint(api_bp, url_prefix='/api')
         logging.info("Registered api blueprint.")
+
+        app.register_blueprint(auth_bp)
+        logging.info("Registered auth blueprint.")
     except Exception as e:
         logging.error(f"Error registering blueprints: {e}", exc_info=True)
         raise # Reraise blueprint registration errors as they are critical
@@ -348,6 +352,18 @@ def create_app(test_config=None):
             # response.headers['Permissions-Policy'] = 'microphone=(), geolocation=()'
             return response
         logging.info("Security headers configured for production.")
+
+    # Enforce authentication for protected routes
+    @app.before_request
+    def enforce_login():
+        if request.path.startswith('/api/'):
+            return  # Allow API endpoints to handle their own auth or be public
+        open_paths = ['/login', '/static', '/favicon', '/logout']
+        if any(request.path.startswith(p) for p in open_paths):
+            return  # Allow unauthenticated access
+        # Skip if blueprint is api and we may allow public (adjust later)
+        if getattr(g, 'user', None) is None:
+            return redirect(url_for('auth.login', next=request.path))
 
     logging.info("create_app finished successfully.")
 

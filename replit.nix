@@ -1,5 +1,6 @@
 { pkgs }: {
   deps = [
+    pkgs.python311Packages.pytest
     pkgs.python311Packages.uvicorn
     pkgs.python310
     pkgs.gcc

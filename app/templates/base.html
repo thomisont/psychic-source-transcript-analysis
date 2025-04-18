@@ -78,12 +78,15 @@
                         </a>
                     </li>
                 </ul>
+                {% if g.user %}
                 <span class="navbar-text me-3">
-                    <i class="fas fa-user me-1"></i>Logged in as: <strong id="user-role">User</strong>
+                    <i class="fas fa-user me-1"></i>{{ g.user['email'] if g.user }}
                 </span>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm me-2">Logout</a>
                 <button type="button" class="btn btn-primary btn-sm me-2" id="sync-button" title="Fetch new conversations from ElevenLabs">
                     <i class="fas fa-sync-alt me-1"></i> Sync New
                 </button>
+                {% endif %}
                 <span id="sync-status" class="navbar-text small text-warning me-3"></span>
             </div>
         </div>

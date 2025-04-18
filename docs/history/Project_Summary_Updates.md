@@ -1307,3 +1307,27 @@ Here is the context from the prior Agent working session.  Use it to orient arou
    • Integrate `bump_release.py` into CI; auto push tags & deploy.  
    • Add mobile CSS media query for widget container.  
    • Start logging upcoming fixes under **[Unreleased]** in release notes.
+---
+Here is the context from the prior Agent working session.  Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
+---
+
+### AGENT HAND‑OFF SUMMARY  (2025-04-19 13:00 UTC)
+
+1. Context & Goals  
+   • Prepared v1.0.4 release notes entries reflecting UI improvements on Themes & Sentiment page.  
+2. Work Completed This Session  
+   • Added a v1.0.4 section to RELEASE_NOTES.md with Added/Changed/Fixed/Removed details.  
+   • Unified header font size and repositioned AI model info in the HTML template.  
+   • Removed duplicate count display and cleaned up obsolete DOM elements.  
+3. Outstanding Issues (blocking)  
+   • No blocking issues; Unreleased section now clean for the next iteration.  
+4. New Learnings / Tech‑Stack Notes  
+   • Keep‑a‑Changelog pattern makes version tracking straightforward.  
+   • `scripts/bump_release.py` automates moving Unreleased to tagged version.  
+5. Immediate Next Steps (actionable)  
+   • Reset the `[Unreleased]` section with the next batch of changes.  
+   • Continue adding bullet points to Unreleased and bump again for v1.0.5.  
+
+---
+Here is the context from the prior Agent working session.  Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
+---

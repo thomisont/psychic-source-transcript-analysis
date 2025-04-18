@@ -238,7 +238,7 @@ The dashboard includes an outbound calling demo, allowing you to:
 
 ## API Documentation
 
-See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for detailed information on the application's REST API.
+See [API documentation](docs/api/API_DOCUMENTATION.md) for detailed information on the application's REST API.
 
 ## Deployment
 
