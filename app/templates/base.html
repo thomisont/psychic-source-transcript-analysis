@@ -30,6 +30,11 @@
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/loading.css') }}" rel="stylesheet">
+    {# Allow page-specific head content (scripts) #}
+    {% block head %}{% endblock %}
+    
+    {# Allow page-specific styles #}
+    {% block styles %}{% endblock %}
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
@@ -87,16 +92,6 @@
     <!-- Toast Container for notifications -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
     
-    <!-- Flash Messages -->
-    <div class="container mt-3">
-        {% for category, message in get_flashed_messages(with_categories=true) %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    </div>
-    
     <!-- Main Content -->
     <main class="container-fluid mt-4" id="content">
         {% block content %}{% endblock %}
@@ -116,7 +111,7 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     
     <!-- DataTables JS -->
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dataTables.net/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
     
     <!-- Chart.js -->

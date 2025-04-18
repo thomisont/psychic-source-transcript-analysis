@@ -2,20 +2,14 @@
 
 {% block title %}Dashboard - Psychic Source Analyzer{% endblock %}
 
-{% block head %}
-{{ super() }}
+{% block head_extra %}
 <!-- Emergency error checking script - run immediately -->
 <script>
     console.log('🔍 Loading dashboard page - immediate check');
     window.dashboardErrors = [];
     window.addEventListener('error', function(e) {
         console.error('Dashboard error:', e.error);
-        window.dashboardErrors.push({
-            message: e.error?.message || 'Unknown error',
-            time: new Date().toISOString()
-        });
-        
-        // Create a minimal error display for catastrophic errors
+        window.dashboardErrors.push({ message: e.error?.message || 'Unknown error', time: new Date().toISOString() });
         setTimeout(function() {
             if (document.body && document.body.innerHTML === '') {
                 document.body.innerHTML = `
@@ -23,9 +17,9 @@
                         <h1>Dashboard Error</h1>
                         <p>The application encountered an error while loading. Please try the following:</p>
                         <ul>
-                            <li>Refresh the page (Ctrl+F5 or Cmd+Shift+R for hard refresh)</li>
-                            <li>Try accessing the <a href="/themes-sentiment">Themes page</a> directly</li>
-                            <li>Check the <a href="/debug-info">debug information</a></li>
+                            <li>Refresh the page (Ctrl+F5 or Cmd+Shift+R)</li>
+                            <li>Visit the <a href="/themes-sentiment">Themes page</a></li>
+                            <li>Check the <a href="/debug-info">debug info</a></li>
                         </ul>
                         <div style="margin-top: 20px; padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">
                             <strong>Error details:</strong>
@@ -34,7 +28,7 @@
                     </div>
                 `;
             }
-        }, 1000);  // Small delay to ensure this only runs if page is catastrophically broken
+        }, 1000);
     });
 </script>
 {% endblock %}
@@ -42,69 +36,64 @@
 {% block styles %}
 <style>
     /* Button pulse effect for feedback */
-    .btn-pulse {
-        animation: btn-pulse 0.3s ease-in-out;
+    .btn-pulse { animation: btn-pulse 0.3s ease-in-out; }
+    @keyframes btn-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .card-body { transition: opacity 0.2s ease-in-out; }
+    .btn-warning.active { font-weight: bold; box-shadow: 0 0 0 0.2rem rgba(255,193,7,0.5); }
+    /* Constrain chart container height */
+    .chart-container { position: relative; height: 280px; max-height: 300px; }
+    /* Light gradient for KPI Card Headers */
+    .stat-card-header { background: linear-gradient(135deg, var(--primary-light-shade), var(--secondary-light-shade)); color: var(--dark-gray) !important; }
+    /* Gradient for Chart Containers */
+    .chart-container { background: linear-gradient(180deg, var(--secondary-light-shade) 0%, var(--light-gray) 100%); border: none; box-shadow: none; }
+    /* Underline title */
+    #dashboard-main-container h1 { position: relative; padding-bottom: 0.5rem; }
+    #dashboard-main-container h1::after { content: ''; width: 80px; height: 4px; background: linear-gradient(90deg, var(--secondary-color), var(--primary-color)); position: absolute; bottom: 0; left: 0; }
+    /* Accordion gradients */
+    .accordion-button { background: linear-gradient(135deg, var(--secondary-color), var(--primary-color)); color: #fff; }
+    .accordion-button.collapsed { background: linear-gradient(135deg, var(--secondary-color), var(--primary-color)); color: #fff !important; }
+    .accordion-body { background: #fff; }
+
+    /* Refined Header Styling */
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e9ecef;
     }
-    @keyframes btn-pulse {
-        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.3); }
-        50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 193, 7, 0.3); }
-        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.3); }
+    .dashboard-title-area h1 {
+        margin-bottom: 0.25rem;
     }
-    
-    /* Transitions for smoother updates */
-    .card-body {
-        transition: opacity 0.2s ease-in-out;
+    .dashboard-controls-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
     }
-    
-    /* Make active buttons more prominent */
-    .btn-warning.active {
-        font-weight: bold;
-        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.5);
-    }
-    
-    /* Count indicators styling */
-    .count-indicators .stats-icon {
-        width: 64px;
-        height: 64px;
+    .dashboard-controls {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
     }
-    
-    .count-indicators .card {
-        transition: transform 0.2s ease-in-out;
+    .agent-control {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
-    
-    .count-indicators .card:hover {
-        transform: translateY(-5px);
+    .api-status-list-refined {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.0rem;
+        font-size: 0.8rem;
     }
-    
-    /* Fix for btn-outline-light contrast on primary background */
-    .btn-outline-light {
-        border-color: #fff;
-        color: #fff;
-    }
-    
-    .btn-outline-light:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-        color: #fff;
-    }
-    
-    /* Most active time styling */
-    #most-active-time {
-        font-size: 1.8rem;
-    }
-    
-    /* Constrain chart container height */
-    .chart-container {
-        position: relative; /* Required by Chart.js for responsive */
-        height: 280px; /* Adjust as needed */
-        max-height: 300px;
-    }
-    
-    /* Custom style for Lily's report card */
-    .bg-purple {
-        background-color: #6a2b8a !important;
+    .api-status-list-refined .api-status-item {
+        color: #6c757d;
     }
 </style>
 {% endblock %}
@@ -112,45 +101,41 @@
 {% block content %}
 {# Add the ID here for dashboard.js to find #}
 <div class="container-fluid py-4" id="dashboard-main-container">
-    <div class="row mb-3">
-        <div class="col-md-8">
+
+    <!-- Refined Dashboard Header V2 -->
+    <div class="dashboard-header">
+        <div class="dashboard-title-area">
             <h1>Dashboard</h1>
-            <p class="text-muted">Overview of conversation analytics</p>
+            <p class="text-muted mb-0">Overview of conversation analytics</p>
         </div>
-        <div class="col-md-4 text-end">
-            <div id="date-range-selector" class="btn-group date-filter mb-2" role="group" aria-label="Date range options">
-                <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="last_7_days">7 Days</button>
-                <button type="button" class="btn btn-outline-primary date-range-btn active" data-timeframe="last_30_days">30 Days</button>
-                <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="last_90_days">90 Days</button>
-                <button type="button" class="btn btn-outline-primary date-range-btn" data-timeframe="all_time">All</button>
-            </div>
-            {# Agent Selector Dropdown #}
-            <div class="d-flex justify-content-end align-items-center">
-                 <label for="agent-selector" class="form-label me-2 mb-0">Agent:</label>
-                 <select class="form-select form-select-sm w-auto" id="agent-selector">
-                     <option selected>Loading Agents...</option>
-                     {# Options will be populated by JavaScript #}
-                 </select>
-            </div>
-        </div>
-    </div>
-    
-    {# New Framed API Status - Under Date Selector #}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="api-status-frame">
-                <h6 class="api-status-title">Key Systems Status</h6>
-                <ul class="api-status-list">
-                    <li class="api-status-item">Database:<i id="databaseStatusIcon" class="bi bi-question-circle"></i></li>
-                    <li class="api-status-item">ElevenLabs:<i id="elevenlabsStatusIcon" class="bi bi-question-circle"></i></li>
-                    <li class="api-status-item">Analysis:<i id="analysisStatusIcon" class="bi bi-question-circle"></i></li>
-                    <li class="api-status-item">Supabase:<i id="supabaseStatusIcon" class="bi bi-question-circle"></i></li>
-                    <li class="api-status-item">OpenAI:<i id="openaiStatusIcon" class="bi bi-question-circle"></i></li> {# Added OpenAI #}
-                </ul>
-            </div>
+        <div class="dashboard-controls-right">
+            <ul class="api-status-list-refined">
+                <li class="api-status-item">Database:<i id="databaseStatusIcon" class="bi bi-question-circle ms-1"></i></li>
+                <li class="api-status-item">ElevenLabs:<i id="elevenlabsStatusIcon" class="bi bi-question-circle ms-1"></i></li>
+                <li class="api-status-item">Analysis:<i id="analysisStatusIcon" class="bi bi-question-circle ms-1"></i></li>
+                <li class="api-status-item">Supabase:<i id="supabaseStatusIcon" class="bi bi-question-circle ms-1"></i></li>
+                <li class="api-status-item">OpenAI:<i id="openaiStatusIcon" class="bi bi-question-circle ms-1"></i></li>
+            </ul>
         </div>
     </div>
 
+    <!-- Controls Row (Below Header) -->
+    <div class="dashboard-controls">
+        <div id="date-range-selector" class="btn-group date-filter" role="group" aria-label="Date range options">
+            <button type="button" class="btn btn-sm btn-outline-primary date-range-btn" data-timeframe="last_7_days">7 Days</button>
+            <button type="button" class="btn btn-sm btn-outline-primary date-range-btn active" data-timeframe="last_30_days">30 Days</button>
+            <button type="button" class="btn btn-sm btn-outline-primary date-range-btn" data-timeframe="last_90_days">90 Days</button>
+            <button type="button" class="btn btn-sm btn-outline-primary date-range-btn" data-timeframe="all_time">All</button>
+        </div>
+        <div class="agent-control">
+             <label for="agent-selector" class="form-label mb-0 small">Agent:</label>
+             <select class="form-select form-select-sm w-auto" id="agent-selector" style="max-width: 200px;">
+                 <option selected>Loading...</option>
+                 {# Options populated by JavaScript #}
+             </select>
+        </div>
+    </div>
+    
     {# Row for Key Performance Indicators (KPIs) - Split into 3 and 2 #}
     <div class="row stats-container g-4">
         <!-- First Row: Conversations, Avg Duration, Avg Cost -->
@@ -298,48 +283,64 @@
         </div>
     </div> {# End of second KPI row #}
     
-    {# Charts Row #}
-    <div class="row">
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body chart-container" id="volume-chart-container">
-                    <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Tracks the number of distinct conversations per day handled by the selected agent that had message activity during the chosen timeframe. Example: Shows how many conversations were active each day last week."></i></h5>
-                    <canvas id="callVolumeChart"></canvas>
-                    <div class="empty-chart-message" style="display: none;">No volume data for this period.</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body chart-container" id="duration-chart-container">
-                    <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Shows the average conversation duration per day for conversations handled by the selected agent that were active during the chosen timeframe. Example: Displays if conversations were longer on average on Monday vs. Tuesday."></i></h5>
-                    <canvas id="callDurationChart"></canvas>
-                    <div class="empty-chart-message" style="display: none;">No duration data for this period.</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {# Add margin-bottom to this row #}
+    <!-- Charts & Graphs Accordion -->
     <div class="row mb-4">
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body chart-container" id="hourly-chart-container">
-                    <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages (both caller and agent) exchanged per hour of the day for the selected agent during the chosen timeframe. Example: Helps identify the busiest hours for messaging."></i></h5>
-                    <canvas id="hourlyActivityChart"></canvas>
-                    <div class="empty-chart-message" style="display: none;">No hourly activity data.</div>
+      <div class="col-12">
+        <div class="accordion" id="chartsAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="headingCharts">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCharts" aria-expanded="false" aria-controls="collapseCharts">
+                Charts & Graphs <i class="bi bi-bar-chart ms-2"></i>
+              </button>
+            </h2>
+            <div id="collapseCharts" class="accordion-collapse collapse" aria-labelledby="headingCharts" data-bs-parent="#chartsAccordion">
+              <div class="accordion-body">
+                {# Charts Row #}
+                <div class="row">
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="volume-chart-container">
+                        <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Tracks the number of distinct conversations per day..."></i></h5>
+                        <canvas id="callVolumeChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No volume data for this period.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="duration-chart-container">
+                        <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Shows the average conversation duration per day..."></i></h5>
+                        <canvas id="callDurationChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No duration data for this period.</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-                <div class="card-body chart-container" id="weekday-chart-container">
-                    <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages exchanged per day of the week for the selected agent during the chosen timeframe. Example: Shows if Mondays or Fridays have more message traffic."></i></h5>
-                    <canvas id="weekdayActivityChart"></canvas>
-                    <div class="empty-chart-message" style="display: none;">No weekday activity data.</div>
+                <div class="row mb-4">
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="hourly-chart-container">
+                        <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages per hour..."></i></h5>
+                        <canvas id="hourlyActivityChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No hourly activity data.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="weekday-chart-container">
+                        <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages per weekday..."></i></h5>
+                        <canvas id="weekdayActivityChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No weekday activity data.</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
     </div>
 
     {# === NEW: Agent Administration Section === #}
@@ -484,8 +485,8 @@
                                         </select>
                                     </div>
                                     
-                                    <button id="make-hospitality-call-btn" class="btn btn-primary mb-3">
-                                        <i class="bi bi-telephone-outbound me-2"></i>Make Hospitality Call
+                                    <button id="make-hospitality-call-btn" class="btn btn-secondary mb-3" disabled>
+                                        <i class="bi bi-telephone-outbound me-2"></i>Coming Soon...
                                     </button>
                                     
                                     <div id="hospitality-call-loading" class="d-none">

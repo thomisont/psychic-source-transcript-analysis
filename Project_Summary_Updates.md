@@ -1284,3 +1284,26 @@ Here is the context from the prior Agent working session.  Use it to orient arou
 ---
 Here is the context from the prior Agent working session.  Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
 ---
+
+### 2025-04-18 16:30 UTC – Agent Session Summary
+
+#### AGENT HAND‑OFF SUMMARY  (2025‑04‑18 16:30 UTC)
+
+1. Context & Goals  
+   • Introduce release‑notes workflow and automate version bumps.  
+   • Clean up Dashboard widget layout.
+2. Work Completed This Session  
+   • Added `scripts/bump_release.py` for changelog bump + git tag.  
+   • Created `RELEASE_NOTES.md` with v1.0 highlights & Unreleased section.  
+   • CSS tweak: reduced widget container height; forced `position:static` to keep widget inside card.
+3. Outstanding Issues (blocking)  
+   • Need cross‑device test of widget container; may still overflow on small screens.  
+   • CI pipeline not yet auto‑deploying on version tags.
+4. New Learnings / Tech‑Stack Notes  
+   • Keep‑a‑Changelog format + SemVer tags integrate cleanly with Replit's git UI.  
+   • ElevenLabs `<elevenlabs-convai>` script sets `position:fixed`; override with CSS.  
+   • Regex caution: use look‑ahead to capture Unreleased section safely.
+5. Immediate Next Steps (actionable)  
+   • Integrate `bump_release.py` into CI; auto push tags & deploy.  
+   • Add mobile CSS media query for widget container.  
+   • Start logging upcoming fixes under **[Unreleased]** in release notes.

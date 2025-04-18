@@ -9,7 +9,7 @@ This document tracks the progress of implementing the UI/UX improvements suggest
 - [ ] **3. Layout & Information Hierarchy:** Principles defined, to be applied during component HTML updates.
 - [ ] **4. Components & Controls:** CSS styles defined for all planned components. HTML applied for KPI Cards and Sync Button.
     - [X] CSS Defined: Modals (4a)
-    - [ ] CSS Defined: Graphs & Charts (4b - Placeholder)
+    - [X] CSS Defined: Graphs & Charts (4b - Implemented via JS styling)
     - [X] CSS Defined: Tables (4c)
     - [X] CSS Defined & HTML Applied: Buttons & Controls (4d - Sync Button)
     - [X] CSS Defined: Date Range Selector (4e)
@@ -38,7 +38,7 @@ This document tracks the progress of implementing the UI/UX improvements suggest
     - Increase whitespace (margins/padding) consistently.
     - Standardize page structure (headers, etc.) where feasible.
     - Enhance visual hierarchy using typography, color, and spacing.
-- **Status:** Principles defined.
+- **Status:** Principles defined and applied across card layouts and component spacing on dashboard, transcript viewer, and sentiment pages.
 
 ### 4. Components & Controls
 - **a) Modals (e.g., Sync Status):**
@@ -55,7 +55,7 @@ This document tracks the progress of implementing the UI/UX improvements suggest
     - **Legends:** Consistent positioning, `Lato` font.
     - **Empty States:** Clear "No data available" message.
     - **Chart Styles:** Apply filled lines with tension, consistent bar styles.
-    - **Status:** CSS placeholder added. Styling primarily via JS options.
+    - **Status:** Chart styling fully implemented via JS options in dashboard.js and sentiment pages.
 - **c) Tables (Transcript Viewer List):**
     - **Padding:** Increase cell padding (`py-2 px-3`).
     - **Zebra Striping:** Subtle alternating row colors (customize `table-striped`).

@@ -1097,26 +1097,22 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Ensure embedded widget stays in container */
 #agent-widget-embed-area {
-    display: flex; /* RE-ENABLE flexbox */
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
-    min-height: 300px; /* Ensure container has height */
-    padding-top: 2rem; /* Reduce Padding Top slightly */
-    padding-bottom: 1rem; 
+    display: flex !important;          /* Flex layout */
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0.5rem !important;        /* Much tighter padding */
+    background-color: var(--light-gray);
+    border: 1px solid var(--border-gray);
+    border-radius: 0.25rem;
+    min-height: 220px;                 /* Shorter container */
 }
 
 #agent-widget-embed-area > elevenlabs-convai {
-    /* Override potential fixed/absolute */
-    position: relative !important; 
-    display: block !important; 
-    /* Keep max-width and margin auto for centering */
-    max-width: 400px; /* Adjust this width as needed for the widget */
-    width: 90%; /* Allow some flexibility */
-    margin-left: auto !important;
-    margin-right: auto !important;
-    /* Keep height: 100% removed */
-    min-height: 300px; /* Keep a min-height */
-    max-height: 90%; /* Prevent widget from overflowing container */
+    display: block !important;
+    position: static !important;      /* Prevent widget script from using fixed bottom-right */
+    max-width: 360px;                  /* Slightly smaller */
+    width: 100%;
+    margin: 0 auto;
 }
 
 /* Container for email templates */
@@ -1321,7 +1317,7 @@ h1, h2, h3, h4, h5, h6 {
     border: 1px solid #dee2e6; /* Keep the border */
     padding: 1rem; /* Keep padding */
     border-radius: 0.25rem; /* Keep border radius */
-    background-color: #fff; /* Ensure background is white */
+    background: linear-gradient(180deg, rgba(181,164,255,0.4) 0%, rgba(255,255,255,1) 100%); /* Light purple gradient to white */
     font-family: Arial, sans-serif; /* Override site font if needed, match email font */
     line-height: 1.6; /* Override site line-height */
     font-size: 0.9rem; /* Adjust font size if needed */
@@ -1334,21 +1330,32 @@ h1, h2, h3, h4, h5, h6 {
    /* Add other resets if necessary */
 }
 
-/* --- OVERRIDE (final) center ElevenLabs widget --- */
+/* === OVERRIDE (final) center ElevenLabs widget --- */
 #agent-widget-embed-area {
-    display: flex !important;          /* Ensure flex layout */
-    justify-content: center !important;/* Center horizontally */
-    align-items: center !important;    /* Center vertically */
-    padding: 1.5rem !important;        /* Uniform padding */
+    display: flex !important;          /* Flex layout */
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0.5rem !important;        /* Much tighter padding */
     background-color: var(--light-gray);
     border: 1px solid var(--border-gray);
     border-radius: 0.25rem;
-    min-height: 320px;                 /* Give enough space to render */
+    min-height: 220px;                 /* Shorter container */
 }
 
 #agent-widget-embed-area > elevenlabs-convai {
-    display: block !important;         /* Force block rendering */
-    max-width: 420px;                  /* Reasonable max width */
-    width: 100%;                       /* Let it scale within container */
-    margin: 0 auto;                    /* Auto margins for fallback centering */
+    display: block !important;
+    position: static !important;      /* Prevent widget script from using fixed bottom-right */
+    max-width: 360px;                  /* Slightly smaller */
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Tone down the purple headers in Email Template viewers inside Agent Admin */
+#agentAdminAccordion .card-body h5.card-title {
+    color: var(--dark-gray) !important;
+    font-weight: 500 !important;
+}
+#agentAdminAccordion .accordion-body h6 {
+    color: var(--dark-gray) !important;
+    font-weight: 400 !important;
 }

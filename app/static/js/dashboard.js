@@ -54,6 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Ensure the page starts at the top when the dashboard loads
+    window.scrollTo(0, 0);
+    console.log("Page scrolled to top on initial load.");
+
     console.log("Initializing dashboard scripts...");
 
     // --- State Variables ---
@@ -377,11 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!currentAgentId) {
             console.warn("No agent selected, cannot load dashboard data.");
-            // UI.showToast('Please select an agent.', 'warning'); // Suppress toast on initial load issue
-            if (loadingIndicator) loadingIndicator.style.display = 'none';
-            // Scroll to top even if we return early due to no agent
-            window.scrollTo(0, 0); 
-            console.log("Forcing scroll to top after dashboard data load attempt (no agent).");
+            console.log("Skipping scroll on no-agent return to prevent jarring.");
             return; // Exit early if no agent is selected
         }
 
@@ -412,9 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } finally {
             if (loadingIndicator) loadingIndicator.style.display = 'none';
-            // Move scroll to top here, ensuring it runs after async ops attempt completion
-            window.scrollTo(0, 0);
-            console.log("Forcing scroll to top after dashboard data load attempt.");
+            console.log("Skipping scroll after data load to preserve position.");
         }
     }
 
@@ -1206,9 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }).catch(err => {
          console.error("Failed to initialize agent selector, dashboard might not load correctly.", err);
-         // Scroll to top even if agent selector fails
-         window.scrollTo(0, 0);
-         console.log("Forcing scroll to top after agent selector failure.");
+         console.log("Skipping scroll after agent selector failure.");
     });
 
     // Removed redundant/old initialization calls that were here
