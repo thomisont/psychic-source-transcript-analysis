@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Psychic Source Transcript Analysis Tool for analyzing call transcripts">
+    <!-- Added Open Graph meta tags (required by ElevenLabs widget & social previews) -->
+    <meta property="og:title" content="Psychic Source Agent: How's Lily Doing" />
+    <meta property="og:description" content="Conversation analytics dashboard for Lily – Psychic Source's virtual agent." />
+    <meta property="og:url" content="https://howislilydoing.org/" />
+    <meta property="og:type" content="website" />
     <meta name="theme-color" content="#6c5ce7">
     <title>{% block title %}Psychic Source Agent: How's Lily Doing{% endblock %}</title>
     
@@ -25,6 +30,9 @@
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/loading.css') }}" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     
     {% block head_extra %}{% endblock %}
 </head>

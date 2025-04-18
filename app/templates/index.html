@@ -162,7 +162,7 @@
                         <i class="bi bi-info-circle ms-1" 
                            data-bs-toggle="tooltip" 
                            data-bs-placement="top" 
-                           title="Counts conversations for the selected agent that had message activity within the selected date range.">
+                           title="Shows the number of conversations handled by the selected agent where at least one message was exchanged during the chosen timeframe. Example: If a conversation started yesterday but had messages today, it counts for today's 7-day view.">
                         </i>
                     </div>
                     <div class="stat-icon-container bg-viz-1">
@@ -180,7 +180,13 @@
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="stat-card h-100">
                 <div class="stat-card-header">
-                    <div class="stat-metric-name">Avg Duration</div>
+                    <div class="stat-metric-name">Avg Duration
+                        <i class="bi bi-info-circle ms-1" 
+                           data-bs-toggle="tooltip" 
+                           data-bs-placement="top" 
+                           title="Calculates the average length of conversations (from first to last message) handled by the selected agent that were active during the chosen timeframe. Example: If 3 conversations active in the period lasted 5m, 10m, and 15m, the average is 10m.">
+                        </i>
+                    </div>
                     <div class="stat-icon-container bg-viz-2">
                         <i class="bi bi-clock-history stat-icon"></i>
                     </div>
@@ -196,7 +202,13 @@
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="stat-card h-100">
                 <div class="stat-card-header">
-                    <div class="stat-metric-name">Avg Cost</div>
+                    <div class="stat-metric-name">Avg Cost
+                        <i class="bi bi-info-circle ms-1" 
+                           data-bs-toggle="tooltip" 
+                           data-bs-placement="top" 
+                           title="Shows the average cost in ElevenLabs credits for conversations handled by the selected agent that were active during the chosen timeframe. Example: If 3 conversations cost 50, 100, and 150 credits, the average is 100 credits.">
+                        </i>
+                    </div>
                     <div class="stat-icon-container bg-viz-3">
                         <i class="bi bi-coin stat-icon"></i>
                     </div>
@@ -215,7 +227,13 @@
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="stat-card h-100">
                 <div class="stat-card-header">
-                    <div class="stat-metric-name">Completion Rate</div>
+                    <div class="stat-metric-name">Completion Rate
+                        <i class="bi bi-info-circle ms-1" 
+                           data-bs-toggle="tooltip" 
+                           data-bs-placement="top" 
+                           title="Percentage of conversations handled by the selected agent during the chosen timeframe that reached a 'completed' status. Example: If 8 out of 10 conversations were completed, the rate is 80%.">
+                        </i>
+                    </div>
                     <div class="stat-icon-container bg-viz-4">
                         <i class="bi bi-check-circle-fill stat-icon"></i>
                     </div>
@@ -231,7 +249,13 @@
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="stat-card h-100">
                 <div class="stat-card-header">
-                    <div class="stat-metric-name">Peak Time</div>
+                    <div class="stat-metric-name">Peak Time
+                        <i class="bi bi-info-circle ms-1" 
+                           data-bs-toggle="tooltip" 
+                           data-bs-placement="top" 
+                           title="Identifies the hour of the day (local time) with the highest number of messages exchanged for the selected agent during the chosen timeframe. Example: If most messages occurred between 2 PM and 3 PM, the peak time is 2 PM.">
+                        </i>
+                    </div>
                     <div class="stat-icon-container bg-viz-accent">
                         <i class="bi bi-hourglass-split stat-icon"></i>
                     </div>
@@ -247,7 +271,13 @@
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="stat-card h-100">
                 <div class="stat-card-header">
-                    <div class="stat-metric-name">Month-to-Date Cost</div>
+                    <div class="stat-metric-name">Month-to-Date Cost
+                        <i class="bi bi-info-circle ms-1" 
+                           data-bs-toggle="tooltip" 
+                           data-bs-placement="top" 
+                           title="Total ElevenLabs credits used this calendar month (from the 1st to today) by the selected agent, compared to the monthly budget. Example: Shows credits used so far in April.">
+                        </i>
+                    </div>
                     <div class="stat-icon-container bg-info"> <!-- Different color? -->
                         <i class="bi bi-calendar-month stat-icon"></i>
                     </div>
@@ -273,7 +303,7 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="volume-chart-container">
-                    <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts distinct conversations with message activity within the selected period/agent, based on message timestamps."></i></h5>
+                    <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Tracks the number of distinct conversations per day handled by the selected agent that had message activity during the chosen timeframe. Example: Shows how many conversations were active each day last week."></i></h5>
                     <canvas id="callVolumeChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No volume data for this period.</div>
                 </div>
@@ -282,7 +312,7 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="duration-chart-container">
-                    <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Calculates average conversation duration (based on message timestamps) for conversations active within the selected period/agent."></i></h5>
+                    <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Shows the average conversation duration per day for conversations handled by the selected agent that were active during the chosen timeframe. Example: Displays if conversations were longer on average on Monday vs. Tuesday."></i></h5>
                     <canvas id="callDurationChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No duration data for this period.</div>
                 </div>
@@ -295,7 +325,7 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="hourly-chart-container">
-                    <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts total messages sent/received per hour of the day across the selected period/agent, based on message timestamps."></i></h5>
+                    <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages (both caller and agent) exchanged per hour of the day for the selected agent during the chosen timeframe. Example: Helps identify the busiest hours for messaging."></i></h5>
                     <canvas id="hourlyActivityChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No hourly activity data.</div>
                 </div>
@@ -304,7 +334,7 @@
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body chart-container" id="weekday-chart-container">
-                    <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts total messages sent/received per day of the week across the selected period/agent, based on message timestamps."></i></h5>
+                    <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages exchanged per day of the week for the selected agent during the chosen timeframe. Example: Shows if Mondays or Fridays have more message traffic."></i></h5>
                     <canvas id="weekdayActivityChart"></canvas>
                     <div class="empty-chart-message" style="display: none;">No weekday activity data.</div>
                 </div>
@@ -319,7 +349,7 @@
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingAdmin">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdmin" aria-expanded="false" aria-controls="collapseAdmin">
-                            Agent Administration (<span id="admin-selected-agent-name">Loading...</span>)
+                            Agent Administration
                         </button>
                     </h2>
                     <div id="collapseAdmin" class="accordion-collapse collapse" aria-labelledby="headingAdmin" data-bs-parent="#agentAdminAccordion">

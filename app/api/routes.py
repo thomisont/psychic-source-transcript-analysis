@@ -442,17 +442,21 @@ def get_supported_agents():
                     order='name.asc'
                 )
                 if response:
-                    agents = [
-                        {
-                            'id': agent.get('id'),
-                            'name': agent.get('name'),
+                    # Normalize any "Lilly" → "Lily" in agent names for consistent UI spelling
+                    normalized_agents = []
+                    for agent in response:
+                        if not agent.get('id') or not agent.get('name'):
+                            continue  # Skip invalid rows
+                        name_corrected = agent['name'].replace('Lilly', 'Lily')
+                        normalized_agents.append({
+                            'id': agent['id'],
+                            'name': name_corrected,
                             'status': agent.get('status'),
                             'type': agent.get('type'),
                             'voice_id': agent.get('voice_id'),
                             'description': agent.get('description'),
-                        }
-                        for agent in response if agent.get('id') and agent.get('name')
-                    ]
+                        })
+                    agents = normalized_agents
                     if agents:
                         default_agent_id = agents[0]['id']
             except Exception as e:
@@ -473,19 +477,69 @@ def get_supported_agents():
 # --- NEW: Endpoint for agent widget configuration ---
 @api.route('/agents/<agent_id>/widget-config')
 def get_agent_widget_config(agent_id):
-    return jsonify({"embed_code": "<div>Widget disabled for isolation</div>"})
+    try:
+        # Use the provided widget tag structure
+        embed_code = f'<elevenlabs-convai agent-id="{agent_id}" variant="expanded"></elevenlabs-convai>'
+        
+        # Ensure API key is present (still needed by the widget loaded via base.html)
+        if not current_app.config.get('ELEVENLABS_API_KEY'):
+            current_app.logger.error("ElevenLabs API key is missing in config for widget.")
+            return jsonify({"error": "Widget configuration incomplete (missing API key)."}), 500
+
+        return jsonify({"embed_code": embed_code})
+    except Exception as e:
+        current_app.logger.error(f"Error getting widget config for agent {agent_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to generate widget configuration."}), 500
 # --- END WIDGET CONFIG ENDPOINT ---
 
 # --- NEW: Endpoint for agent system prompt ---
 @api.route('/agents/<agent_id>/prompt')
 def get_agent_prompt(agent_id):
-    return jsonify({"agent_id": agent_id, "prompt": "Prompt disabled for isolation"})
+    try:
+        prompts = current_app.config.get('AGENT_PROMPTS', {})
+        prompt_text = prompts.get(agent_id, "No system prompt configured for this agent.")
+        
+        # Sanitize for HTML display (basic newline to <br>)
+        prompt_html = prompt_text.replace('\n', '<br>')
+        
+        return jsonify({"agent_id": agent_id, "prompt": prompt_html})
+    except Exception as e:
+        current_app.logger.error(f"Error getting prompt for agent {agent_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to retrieve agent prompt."}), 500
 # --- END PROMPT ENDPOINT ---
 
 # --- NEW: Endpoints for viewing email templates ---
 @api.route('/email-templates/<template_name>')
 def get_email_template(template_name):
-    return jsonify({"template_name": template_name, "html_content": "<div>Email template disabled for isolation</div>"})
+    # Validate template name to prevent directory traversal
+    if not re.match(r'^[a-zA-Z0-9_-]+$', template_name):
+        return jsonify({"error": "Invalid template name"}), 400
+
+    try:
+        template_dir = os.path.join(current_app.root_path, 'templates', 'email')
+        filepath = os.path.join(template_dir, f"{template_name}.html")
+
+        # Ensure directory exists
+        os.makedirs(template_dir, exist_ok=True)
+
+        # Create a placeholder if the file doesn't exist
+        if not os.path.exists(filepath):
+            placeholder_content = f"<html><body><h1>Placeholder for {template_name}.html</h1><p>This template needs to be created.</p></body></html>"
+            with open(filepath, 'w') as f:
+                f.write(placeholder_content)
+            current_app.logger.info(f"Created placeholder email template: {filepath}")
+
+        # Read the file content
+        with open(filepath, 'r') as f:
+            html_content = f.read()
+            
+        return jsonify({"template_name": template_name, "html_content": html_content})
+    except FileNotFoundError:
+         current_app.logger.error(f"Email template file not found: {filepath}")
+         return jsonify({"error": "Email template not found."}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error reading email template {template_name}: {e}", exc_info=True)
+        return jsonify({"error": f"Failed to read email template: {str(e)}"}), 500
 # --- END EMAIL TEMPLATE ENDPOINTS ---
 
 # --- NEW: Endpoint for Ad-Hoc SQL Queries ---

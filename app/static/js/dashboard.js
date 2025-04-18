@@ -666,14 +666,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (widgetConfigData?.embed_code) {
                 const embedCode = widgetConfigData.embed_code;
                 console.log(`Setting widgetEmbedArea.innerHTML to: ${embedCode.substring(0, 100)}...`);
-                const convaiTagMatch = embedCode.match(/<elevenlabs-convai.*?><\/elevenlabs-convai>/);
-                if (convaiTagMatch && convaiTagMatch[0]) {
-                    widgetEmbedArea.innerHTML = convaiTagMatch[0];
-                    console.log("Injected <elevenlabs-convai> tag into embed area.");
-                } else {
-                    console.error('Could not extract <elevenlabs-convai> tag from embed code:', embedCode);
-                    widgetEmbedArea.innerHTML = '<p class="text-danger">Error: Invalid widget embed code format.</p>';
-                }
+                // Directly set the innerHTML, assuming the API sends the correct tag
+                widgetEmbedArea.innerHTML = embedCode;
+                console.log("Injected embed code into widget area.");
             } else {
                 widgetEmbedArea.innerHTML = '<p class="text-warning">Widget not available for this agent.</p>';
                 console.warn("Embed code not found in widget config data:", widgetConfigData);

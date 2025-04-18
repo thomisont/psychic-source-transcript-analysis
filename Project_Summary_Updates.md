@@ -1260,3 +1260,27 @@ Use it to orient around what's next. After reviewing, wait for my direction on t
 ---
 Here is the context from the prior Agent working session.  Use it to orient around what's next. After reviewing, wait for my direction on the next steps.
 ---
+
+### AGENT HAND‑OFF SUMMARY  (2025‑04‑18 10:00  UTC)
+
+1. Context & Goals  
+   • Finalize dev cycle; confirm live production at howislilydoing.org after Replit deploy.  
+2. Work Completed This Session  
+   • Fixed ElevenLabs status indicator by relaxing need for agent_id.  
+   • Added conversation‑count label formatting on Themes page.  
+   • Verified all Replit secrets mapped; ran successful single‑shot deployment.  
+   • Confirmed `/api/status` now shows green across services.  
+3. Outstanding Issues (blocking)  
+   • None blocking; monitor prod logs & performance.  
+4. New Learnings / Tech‑Stack Notes  
+   • `create_app` now accepts `ELEVENLABS_AGENT_ID_CURIOUS` fallback; agent_id optional for API ping.  
+   • Replit deploy relies on `post_install.sh`+`python run.py --port 8080`.  
+   • Health‑check endpoint remains `/` and `/api/status` for manual checks.  
+5. Immediate Next Steps (actionable)  
+   • Monitor prod for errors; schedule first data sync in prod.  
+   • Set up basic uptime alerting & log retention.  
+   • Begin roadmap for v1.1 (performance & feature polish).
+
+---
+Here is the context from the prior Agent working session.  Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
+---

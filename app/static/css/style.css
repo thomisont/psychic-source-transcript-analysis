@@ -1099,7 +1099,7 @@ h1, h2, h3, h4, h5, h6 {
 #agent-widget-embed-area {
     display: flex; /* RE-ENABLE flexbox */
     justify-content: center; /* Center horizontally */
-    /* align-items: center; */ /* Keep vertical centering disabled */
+    align-items: center; /* Center vertically */
     min-height: 300px; /* Ensure container has height */
     padding-top: 2rem; /* Reduce Padding Top slightly */
     padding-bottom: 1rem; 
@@ -1116,6 +1116,7 @@ h1, h2, h3, h4, h5, h6 {
     margin-right: auto !important;
     /* Keep height: 100% removed */
     min-height: 300px; /* Keep a min-height */
+    max-height: 90%; /* Prevent widget from overflowing container */
 }
 
 /* Container for email templates */
@@ -1134,7 +1135,7 @@ h1, h2, h3, h4, h5, h6 {
 #agent-widget-embed-area {
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* Align to top */
+    align-items: center; /* Center vertically */
     padding-top: 1rem; /* Add some padding above */
     border: 1px solid var(--border-gray);
     border-radius: 0.25rem;
@@ -1147,6 +1148,8 @@ h1, h2, h3, h4, h5, h6 {
 #agent-widget-embed-area > elevenlabs-convai {
     /* Add specific styles for the widget component if necessary */
     /* e.g., width: 100%; max-width: 500px; */
+    max-width: 90%; /* Adjust if needed */
+    max-height: 90%; /* Prevent widget from overflowing container */
 }
 
 /* Style for the prompt viewer */
@@ -1308,4 +1311,44 @@ h1, h2, h3, h4, h5, h6 {
     position: absolute;
     top: 1rem;
     right: 1rem;
+}
+
+/* Styling for Agent Admin Panel Email Viewers */
+#team-email-viewer,
+#caller-email-viewer {
+    max-height: 300px; /* Adjust height as needed */
+    overflow-y: auto;  /* Enable vertical scrolling */
+    border: 1px solid #dee2e6; /* Keep the border */
+    padding: 1rem; /* Keep padding */
+    border-radius: 0.25rem; /* Keep border radius */
+    background-color: #fff; /* Ensure background is white */
+    font-family: Arial, sans-serif; /* Override site font if needed, match email font */
+    line-height: 1.6; /* Override site line-height */
+    font-size: 0.9rem; /* Adjust font size if needed */
+}
+
+/* Ensure content inside viewers doesn't inherit unwanted site styles */
+#team-email-viewer *,
+#caller-email-viewer * {
+   font-family: inherit; /* Inherit from the viewer div */
+   /* Add other resets if necessary */
+}
+
+/* --- OVERRIDE (final) center ElevenLabs widget --- */
+#agent-widget-embed-area {
+    display: flex !important;          /* Ensure flex layout */
+    justify-content: center !important;/* Center horizontally */
+    align-items: center !important;    /* Center vertically */
+    padding: 1.5rem !important;        /* Uniform padding */
+    background-color: var(--light-gray);
+    border: 1px solid var(--border-gray);
+    border-radius: 0.25rem;
+    min-height: 320px;                 /* Give enough space to render */
+}
+
+#agent-widget-embed-area > elevenlabs-convai {
+    display: block !important;         /* Force block rendering */
+    max-width: 420px;                  /* Reasonable max width */
+    width: 100%;                       /* Let it scale within container */
+    margin: 0 auto;                    /* Auto margins for fallback centering */
 }

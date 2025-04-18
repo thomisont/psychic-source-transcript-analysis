@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Lead from Lily Assistant</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; }
+        .header { background-color: #4CAF50; color: white; padding: 10px 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .content { padding: 20px; }
+        .label { font-weight: bold; color: #555; }
+        .value { margin-left: 10px; }
+        .section { margin-bottom: 15px; padding: 10px; background-color: #fff; border: 1px solid #eee; border-radius: 4px; }
+        .footer { font-size: 0.8em; text-align: center; color: #777; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>New Lead via Lily Virtual Assistant</h2>
+        </div>
+        <div class="content">
+            <p>A new potential customer interacted with the Lily virtual assistant. Here are the details captured:</p>
+            
+            <div class="section">
+                <p><span class="label">Timestamp:</span><span class="value">{{ timestamp | default('Not available') }}</span></p>
+            </div>
+
+            <div class="section">
+                <p><span class="label">Caller Name:</span><span class="value">{{ userName | default('Not provided') }}</span></p>
+                <p><span class="label">Caller Email:</span><span class="value">{{ userEmail | default('Not provided') }}</span></p>
+            </div>
+
+            <div class="section">
+                <p><span class="label">Conversation Summary & Profile:</span></p>
+                <div class="value" style="white-space: pre-wrap;">{{ userProfile | default('No specific profile details captured.') }}</div>
+            </div>
+
+            {% if selectedPsychic %}
+            <div class="section">
+                <p><span class="label">Expressed Interest In:</span><span class="value">{{ selectedPsychic | default('N/A') }}</span></p>
+            </div>
+            {% endif %}
+
+            <p><strong>Next Steps:</strong> Please review the details and follow up with the lead as appropriate according to standard procedures.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated notification from the Psychic Source Lily Assistant system.</p>
+        </div>
+    </div>
+</body>
+</html>

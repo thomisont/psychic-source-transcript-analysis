@@ -39,11 +39,11 @@ class Config:
     AGENT_ID_MEMBERS = os.environ.get('ELEVENLABS_AGENT_ID_MEMBERS', 'XuUk69oMnn2Z9Sx9sXVu')
 
     SUPPORTED_AGENTS = [
-        {'id': AGENT_ID_CURIOUS, 'name': 'Curious Caller Lilly'},
-        {'id': AGENT_ID_MEMBERS, 'name': 'For Members Lilly'},
-        {'id': AGENT_ID_HOSPITALITY, 'name': 'Hospitality Lilly'},
-        {'id': AGENT_ID_APPOINTMENT, 'name': 'Appointment Setter Lilly'},
-        {'id': AGENT_ID_PAYMENT, 'name': 'Payment Processor Lilly'},
+        {'id': AGENT_ID_CURIOUS, 'name': 'Curious Caller Lily'},
+        {'id': AGENT_ID_MEMBERS, 'name': 'For Members Lily'},
+        {'id': AGENT_ID_HOSPITALITY, 'name': 'Hospitality Lily'},
+        {'id': AGENT_ID_APPOINTMENT, 'name': 'Appointment Setter Lily'},
+        {'id': AGENT_ID_PAYMENT, 'name': 'Payment Processor Lily'},
     ]
 
     DEFAULT_AGENT_ID = AGENT_ID_CURIOUS
