@@ -1,10 +1,29 @@
 # Release Notes – How Is Lily Doing
 
 ## [Unreleased]
+
+## [v1.1.0] – 2025-04-18
 ### Added
 ### Changed
 ### Fixed
 ### Removed
+
+---
+
+## 
+## [v1.0.4] – 2025-04-19
+### Added
+- Unified total conversation count font size to h3 on the Themes & Sentiment Analysis page.
+
+### Changed
+- Moved AI model info directly beneath the main header on the Themes & Sentiment Analysis page.
+
+### Fixed
+- Removed duplicate conversation count display.
+- Corrected misalignment of the total count badge in the header area.
+
+### Removed
+- Deleted the obsolete `#conversation-count-display` `<div>` from the Themes & Sentiment template.
 
 ---
 
