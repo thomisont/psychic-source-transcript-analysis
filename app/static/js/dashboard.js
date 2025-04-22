@@ -1209,4 +1209,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Removed redundant/old initialization calls that were here
 
+    // === Competitive Intelligence Section Logic ===
+    (function(){
+        document.addEventListener('DOMContentLoaded', function(){
+            const banner = document.getElementById('intel-urgency-banner');
+            if(banner){
+                const dismissKey = 'psi_intel_banner_ack';
+                const closeBtn = banner.querySelector('.btn-close');
+                const dismiss = () => {
+                    banner.classList.add('d-none');
+                    localStorage.setItem(dismissKey, 'true');
+                };
+                if(localStorage.getItem(dismissKey) === 'true'){
+                    banner.classList.add('d-none');
+                } else {
+                    // Auto dismiss after 10s
+                    setTimeout(dismiss, 10000);
+                }
+                if(closeBtn){
+                    closeBtn.addEventListener('click', dismiss);
+                }
+            }
+
+            // Reveal infographic when loaded (already present)
+            const infographic = document.getElementById('intel-infographic');
+            if(infographic){
+                infographic.addEventListener('error', () => {
+                    infographic.classList.add('d-none');
+                });
+            }
+        });
+    })();
+
 });

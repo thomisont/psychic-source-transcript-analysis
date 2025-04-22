@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Intelligence",
+    "filler": "HI",
+    "purpose": "Intelligence is seamlessly integrated between AI and HI as it fills organisational roles.",
+    "accountabilities": [
+      "Designing experiments to evolve AI role‑filling capacity",
+      "Running those experiments and capturing learnings",
+      "Reporting daily results and monthly objectives",
+      "Tracking competitor AI deployments",
+      "Integrating AI partners into roles alongside humans"
+    ],
+    "metrics": [
+      "Trend of AI FTEs deployed",
+      "Impact on customer retention & spend",
+      "Impact on visitor‑to‑payer conversion"
+    ]
+  },
+  {
+    "name": "Lily‑Concierge",
+    "filler": "AI",
+    "purpose": "Every visitor feels instantly welcomed and smoothly converted, while each conversation drives smarter service next time.",
+    "accountabilities": [
+      "Greeting inbound calls / chats within SLA",
+      "Triaging intent and routing to next best step",
+      "Guiding prospects through signup, top‑up, psychic choice",
+      "Recording transcripts & metadata to analytics in <1 min",
+      "Escalating red‑flags to humans promptly",
+      "Experimenting with conversation variants and sharing results",
+      "Tagging novel utterances for model retraining",
+      "Upholding brand voice & privacy standards"
+    ],
+    "metrics": [
+      "First‑contact conversion %",
+      "Containment %",
+      "CSAT score"
+    ]
+  },
+  {
+    "name": "Conversion-Pilot",
+    "filler": "HI",
+    "purpose": "Turn every Curiosity-Call payload into a first paid session, then nurture that client toward repeat bookings.",
+    "accountabilities": [
+      "Building and maintaining n8n workflows that fire when Lily captures a new lead.",
+      "Sending personalised follow-up emails / voice calls / SMS within agreed time windows.",
+      "Scheduling readings or callbacks when a prospect signals readiness.",
+      "Triggering payment flows and confirming successful charges.",
+      "Tracking lead-to-sale metrics and reporting weekly conversion health to Intelligence.",
+      "Iterating copy, cadence, and channel mix to raise conversion and retention rates.",
+      "Logging all client-touch data back into the dashboard for analytics.",
+      "Ensuring consent, unsubscribe, and privacy compliance on every outreach."
+    ],
+    "metrics": [
+      "Lead-to-first-payment conversion %",
+      "Avg. hours from Lily call → paid reading",
+      "Follow-up engagement rate (opens / clicks / call pickups)",
+      "Repeat-booking rate within 30 days"
+    ]
+  },
+  {
+    "name": "Lily‑Whisperer",
+    "filler": "HI",
+    "purpose": "Turn every Lily conversation into practical insight that boosts conversion, delights customers, and trains smarter AI.",
+    "accountabilities": [
+      "Reviewing each Lily transcript within 24 h",
+      "Tagging intents, emotions & missed‑opportunities",
+      "Flagging compliance or distress cases",
+      "Compiling weekly Voice‑of‑Customer digest",
+      "Proposing prompt & process tweaks to Intelligence",
+      "Curating RLHF datasets for model fine‑tuning",
+      "Tracking impact of deployed tweaks",
+      "Maintaining the tagging guideline"
+    ],
+    "metrics": [
+      "Digest published weekly",
+      "Number of fine‑tune data rows curated",
+      "Conversion lift from deployed tweaks"
+    ]
+  }
+] 

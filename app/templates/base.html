@@ -77,6 +77,11 @@
                             <i class="fas fa-smile me-1"></i>Themes & Sentiment
                         </a>
                     </li>
+                    <li class="nav-item">
+                      <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#roleDirectory">
+                        <i class="bi bi-people me-1"></i>Roles (Holacracy)
+                      </a>
+                    </li>
                 </ul>
                 {% if g.user %}
                 <span class="navbar-text me-3">
@@ -227,5 +232,73 @@
       </div>
     </div>
     <!-- End Sync Status Modal -->
+
+    <!-- Holacracy Role Directory Modal -->
+    <div class="modal fade" id="roleDirectory" tabindex="-1" aria-labelledby="roleDirectoryLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="roleDirectoryLabel">What is the Work &amp; Where does it Live?</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3" id="roleCards">
+              <p>Loading roles...</p> {# Placeholder #}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JS to Load Roles into Modal -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const roleModal = document.getElementById('roleDirectory');
+      if (roleModal) {
+        roleModal.addEventListener('show.bs.modal', function () {
+          const wrap = document.getElementById('roleCards');
+          // Prevent multiple loads if modal is opened again
+          if (wrap.getAttribute('data-loaded') === 'true') return;
+
+          fetch("{{ url_for('static', filename='json/role_catalog.json') }}")
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(data => {
+              const colours = { AI: 'psi-teal', HI: 'psi-deep-purple' };
+              wrap.innerHTML = ''; // Clear loading text
+              data.forEach(role => {
+                const metricsHtml = role.metrics ? `<strong>Metrics</strong><ul>${role.metrics.map(m => `<li>${m}</li>`).join('')}</ul>` : '';
+                wrap.insertAdjacentHTML('beforeend', `
+                  <div class="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
+                    <div class="card h-100 shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                      <div class="card-header text-white" style="background:var(--${colours[role.filler]});">
+                        <strong class="text-uppercase">${role.name}</strong>
+                        <span class="badge bg-light text-dark ms-2 float-end">${role.filler}-filled</span>
+                      </div>
+                      <div class="card-body small d-flex flex-column" style="background: var(--psi-surface);">
+                        <p><em>${role.purpose}</em></p>
+                        <hr>
+                        <strong>Accountabilities</strong>
+                        <ul>${role.accountabilities.map(a => `<li>${a}</li>`).join('')}</ul>
+                        ${metricsHtml}
+                      </div>
+                    </div>
+                  </div>
+                `);
+              });
+              wrap.setAttribute('data-loaded', 'true'); // Mark as loaded
+            })
+            .catch(error => {
+              console.error('Error fetching or parsing role catalog:', error);
+              wrap.innerHTML = '<p class="text-danger">Error loading roles. Please check console.</p>';
+            });
+        });
+      }
+    });
+    </script>
 </body>
 </html> 

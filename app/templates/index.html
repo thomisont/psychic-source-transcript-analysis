@@ -289,11 +289,11 @@
         <div class="accordion" id="chartsAccordion">
           <div class="accordion-item">
             <h2 class="accordion-header" id="headingCharts">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCharts" aria-expanded="false" aria-controls="collapseCharts">
+              <button id="futureFeaturesButton" class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCharts" aria-expanded="true" aria-controls="collapseCharts">
                 Charts & Graphs <i class="bi bi-bar-chart ms-2"></i>
               </button>
             </h2>
-            <div id="collapseCharts" class="accordion-collapse collapse" aria-labelledby="headingCharts" data-bs-parent="#chartsAccordion">
+            <div id="collapseCharts" class="accordion-collapse collapse show" aria-labelledby="headingCharts" data-bs-parent="#chartsAccordion">
               <div class="accordion-body">
                 {# Charts Row #}
                 <div class="row">
@@ -350,7 +350,7 @@
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingAdmin">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdmin" aria-expanded="false" aria-controls="collapseAdmin">
-                            Agent Administration
+                            Agent Administration <i class="bi bi-person-gear ms-2"></i>
                         </button>
                     </h2>
                     <div id="collapseAdmin" class="accordion-collapse collapse" aria-labelledby="headingAdmin" data-bs-parent="#agentAdminAccordion">
@@ -398,7 +398,7 @@
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingSql">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSql" aria-expanded="false" aria-controls="collapseSql">
-                            Ask Lilly SQL <i class="bi bi-database ms-2"></i>
+                            Ask Lilly (SQL Query) <i class="bi bi-database ms-2"></i>
                         </button>
                     </h2>
                     <div id="collapseSql" class="accordion-collapse collapse" aria-labelledby="headingSql" data-bs-parent="#askLillySqlAccordion">
@@ -597,6 +597,120 @@
         </div>
     </div>
     {# === END: Future Features & Fun Section === #}
+
+    {# === NEW: Competitive Intelligence Section (Moved Up) === #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="accordion" id="competitiveIntelAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingIntel">
+                        <button id="competitiveIntelButton" class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseIntel" aria-expanded="false" aria-controls="collapseIntel">
+                            Competitive Intelligence &amp; Urgent Actions <i class="bi bi-exclamation-triangle ms-2"></i>
+                        </button>
+                    </h2>
+                    <div id="collapseIntel" class="accordion-collapse collapse" aria-labelledby="headingIntel" data-bs-parent="#competitiveIntelAccordion">
+                        <div class="accordion-body">
+                            <!-- Executive Snapshot -->
+                            <div class="card mb-4 border-0" style="background: var(--psi-surface);">
+                                <div class="card-header text-white" style="background: var(--psi-deep-purple);">
+                                    <h5 class="mb-0">Our Lead Is At Risk – Window Is Closing</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Lead at risk, window is closing.</strong><br>
+                                    Psychic Source holds the only production‑grade conversational‑AI ("Lily") in our market, but Ingenio's Keen/Kasamba stack can plausibly reach parity <strong>within 6–12 months</strong>; other challengers (Purple Garden, Oranum, California Psychics) could follow inside <strong>18 months</strong>. Our moat is our <strong>30‑year proprietary dataset</strong> and <strong>Holacratic agility</strong>. We must scale Lily, weaponize data, and harden brand trust <em>immediately</em>.</p>
+                                </div>
+                            </div>
+
+                            <!-- Critical Path Intro -->
+                            <h5 class="mt-4 mb-3 fw-bold">Critical Path Actions:</h5>
+
+                            <!-- Critical Path Actions Accordion -->
+                            <div class="accordion accordion-flush mb-4" id="criticalActionsAccordion">
+                                {% for action in intel_actions %}
+                                <div class="accordion-item border {{ 'border-danger' if action.priority=='critical' else 'border-warning' if action.priority=='high' else 'border-info' if action.priority=='medium-high' else 'border-secondary' }}">
+                                    <h2 class="accordion-header" id="headingAction{{ action.id }}">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAction{{ action.id }}" aria-expanded="false" aria-controls="collapseAction{{ action.id }}">
+                                           Item #{{ action.id }}: {{ action.title }}
+                                        </button>
+                                    </h2>
+                                    <div id="collapseAction{{ action.id }}" class="accordion-collapse collapse" aria-labelledby="headingAction{{ action.id }}" data-bs-parent="#criticalActionsAccordion">
+                                        <div class="accordion-body">
+                                            <ul>
+                                            {% for item in action.actions %}
+                                                <li>{{ item }}</li>
+                                            {% endfor %}
+                                            </ul>
+                                            <p class="small text-muted mb-0"><em>{{ action.rationale }}</em></p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Urgency Banner (moved) -->
+                            <div id="intel-urgency-banner" class="alert alert-danger d-flex align-items-center" role="alert" style="background: var(--psi-urgent-red);">
+                                <i class="bi bi-person-running me-2 urgent-blink"></i>
+                                <div>🏃 Competitive runway ≈ 9–18 months – act now!</div>
+                                <button type="button" class="btn-close ms-auto" aria-label="Close"></button>
+                            </div>
+
+                            <!-- Full Report Library Tabs -->
+                            <ul class="nav nav-tabs" id="intelReportTabs" role="tablist">
+                                {% for rpt in intel_reports %}
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ loop.index }}" data-bs-toggle="tab" data-bs-target="#report-{{ loop.index }}" type="button" role="tab" aria-controls="report-{{ loop.index }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
+                                        {{ rpt[0] }}
+                                        <span class="ms-1 text-warning small">
+                                            {% for i in range(5) %}
+                                                {% if i < rpt[2] %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}
+                                            {% endfor %}
+                                        </span>
+                                    </button>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <div class="tab-content border border-top-0 p-3" id="intelReportTabsContent">
+                                {% for rpt in intel_reports %}
+                                <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="report-{{ loop.index }}" role="tabpanel" aria-labelledby="tab-{{ loop.index }}">
+                                    <div style="max-height: 450px; overflow: hidden;"> {# Removed ratio, added max-height #}
+                                        <iframe src="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" title="{{ rpt[0] }}" allowfullscreen style="width: 100%; height: 100%; border: none;"></iframe>
+                                    </div>
+                                    <p class="d-block d-lg-none"><a href="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" target="_blank">Open {{ rpt[0] }} report</a></p>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Images side-by-side -->
+                            <div class="d-flex flex-wrap justify-content-center gap-3 my-4">
+                                <img id="intel-infographic"
+                                     src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
+                                     alt="Competitive Runway"
+                                     class="img-fluid rounded expandable-image"
+                                     style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
+                                     data-bs-toggle="modal"
+                                     data-bs-target="#imageModal"
+                                     data-img-src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
+                                     data-img-title="Competitive Runway">
+
+                                <img id="intel-meme"
+                                     src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
+                                     alt="Move, Lily, Move Meme"
+                                     class="img-fluid rounded expandable-image"
+                                     style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
+                                     data-bs-toggle="modal"
+                                     data-bs-target="#imageModal"
+                                     data-img-src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
+                                     data-img-title="Move, Lily, Move Meme">
+
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {# === END: Competitive Intelligence Section === #}
 
 </div>
 

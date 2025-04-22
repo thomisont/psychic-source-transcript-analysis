@@ -1,0 +1,63 @@
+[
+  {
+    "id": 1,
+    "priority": "critical",
+    "title": "Accelerate AI Deployment & Differentiation",
+    "actions": [
+      "Move Lily from pilot to full‑scale deployment; add personalised guidance and ethical sample‑insights.",
+      "Exploit the 30‑year data trove for Lily, backend personalisation & new AI features."
+    ],
+    "rationale": "Locks in first‑mover advantage before Keen/Ingenio parity (6‑18 mos); creates data‑driven moat."
+  },
+  {
+    "id": 2,
+    "priority": "high",
+    "title": "Leverage Human‑AI Synergy & Enhance UX",
+    "actions": [
+      "Keep AI firmly positioned as advisor companion, not replacement.",
+      "Ship community features (e.g., peer 'Journeys') & richer UI across web/app."
+    ],
+    "rationale": "Deepens loyalty and counters Purple Garden‑style engagement plays."
+  },
+  {
+    "id": 3,
+    "priority": "high",
+    "title": "Monitor & Pre‑empt Competitor Moves",
+    "actions": [
+      "Stand‑up continuous CI scraper (sites, job‑posts, press) with alerting.",
+      "Spin‑up rapid‑response pilots to neutralise new competitor features within weeks."
+    ],
+    "rationale": "Holacracy agility is useless without real‑time intel."
+  },
+  {
+    "id": 4,
+    "priority": "medium-high",
+    "title": "Emphasise Culture, Trust & Agility in Marketing",
+    "actions": [
+      "Blend 30‑year heritage with responsible‑AI narrative in all comms.",
+      "Showcase Holacracy as customer‑centric innovation engine.",
+      "Highlight advisor screening, satisfaction guarantee & data‑ethics."
+    ],
+    "rationale": "Protects brand equity as rivals push shiny‑tech messaging."
+  },
+  {
+    "id": 5,
+    "priority": "medium",
+    "title": "Explore Strategic Partnerships & Data Opportunities",
+    "actions": [
+      "Scout AI labs/universities & niche vendors (voice, emotion AI).",
+      "Assess licensing a 'Powered by Psychic Source AI' widget."
+    ],
+    "rationale": "Extends reach, pre‑empts Ingenio exclusivity deals."
+  },
+  {
+    "id": 6,
+    "priority": "medium",
+    "title": "Continue Multi‑Platform Expansion & Adjacent Offers",
+    "actions": [
+      "Ensure flawless omnichannel (web, iOS, Android, voice assistants).",
+      "Pilot AI‑supported life‑coaching & spiritual‑wellness add‑ons."
+    ],
+    "rationale": "Broadens revenue and hedges against mobile‑first insurgents."
+  }
+] 

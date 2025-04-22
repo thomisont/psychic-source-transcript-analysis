@@ -48,6 +48,12 @@
     --caller-color: #f9a825;
     --lily-gradient: linear-gradient(135deg, #8a65df 0%, #6a5acd 100%);
     --caller-gradient: linear-gradient(135deg, #ffb74d 0%, #f9a825 100%);
+
+    /* === Competitive Intelligence Section Styles === */
+    --psi-urgent-red:#ff5252;
+    --psi-deep-purple:#311b92;
+    --psi-teal:#00bfa5;
+    --psi-surface:#f7f9fc;
 }
 
 body {
@@ -1358,4 +1364,82 @@ h1, h2, h3, h4, h5, h6 {
 #agentAdminAccordion .accordion-body h6 {
     color: var(--dark-gray) !important;
     font-weight: 400 !important;
+}
+
+@keyframes urgent-blink{0%,100%{opacity:1}50%{opacity:.2}}
+.urgent-blink{animation:urgent-blink 1s infinite}
+
+/* Accordion gradients */
+ .accordion-button {
+     background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+}
+
+/* Specific Accordion Button Styles */
+#competitiveIntelButton,
+#competitiveIntelButton:not(.collapsed) {
+    background: linear-gradient(135deg, var(--psi-urgent-red), #b30000);
+    color: white !important;
+}
+
+#competitiveIntelButton.collapsed {
+    background: linear-gradient(135deg, var(--psi-urgent-red), #b30000);
+    color: white !important;
+}
+
+#futureFeaturesButton,
+#futureFeaturesButton:not(.collapsed) {
+    background: linear-gradient(135deg, var(--psi-teal), #008f7a);
+    color: white !important;
+}
+
+#futureFeaturesButton.collapsed {
+    background: linear-gradient(135deg, var(--psi-teal), #008f7a);
+    color: white !important;
+}
+
+/* === Holacracy Roles Modal Styles === */
+.card-header { /* Existing rule, add font-size/padding here */
+    font-size: 1rem;
+    padding: .5rem .75rem;
+}
+
+/* Style for the dynamically generated role cards */
+#roleCards .card {
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06);
+}
+
+#roleCards .card-header strong {
+    text-transform: uppercase; 
+}
+
+#roleCards .card-body ul {
+    margin-bottom: .5rem;
+    padding-left: 1.2rem; /* Indent lists slightly */
+}
+
+#roleCards .card-body strong {
+    display: block; /* Ensure strong tags take full width */
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+    color: var(--primary-color);
+}
+
+#roleCards .card-body em { /* Italic for purpose */
+    display: block; 
+    margin-bottom: 0.5rem;
+}
+
+#roleCards .card-body strong:first-of-type { /* No top margin for first strong tag (Purpose) */
+   margin-top: 0;
+}
+
+/* Improve contrast on Competitive Intel Snapshot Header */
+#collapseIntel .card-header.text-white h5 {
+    color: var(--secondary-light-shade) !important; /* Light teal for contrast */
+}
+
+/* Increase font size for Competitive Intel Snapshot Body */
+#collapseIntel .card-body p {
+    font-size: 1.05rem; /* Slightly larger font */
 }

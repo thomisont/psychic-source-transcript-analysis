@@ -137,7 +137,28 @@ def index():
         
         # Add debug logging to help identify rendering issues
         logging.info("Rendering index.html template with hardcoded README content")
-        return render_template('index.html', readme_content=readme_content)
+
+        # Load Competitive Intelligence actions JSON
+        try:
+            with open(os.path.join(current_app.root_path, 'static', 'json', 'psi_critical_actions.json')) as f:
+                intel_actions = json.load(f)
+        except Exception as json_err:
+            logging.error(f"Failed loading psi_critical_actions.json: {json_err}")
+            intel_actions = []
+
+        # Define reports list (title, filename)
+        intel_reports = [
+            ("OpenAI o3", "Pyschic Source Competitive Analysis - o3 DeepResarch 2025.pdf", 5),
+            ("Gemini 2.5 Pro", "Pyschic Source Competitive Analysis - Gemini 2.5 Pro 2025.pdf", 4),
+            ("Perplexity", "Pyschic Source Competitive Analysis - Perplexity 2025.pdf", 3),
+            ("Grok", "Pyschic Source Competitive Analysis - Grok DeeperResarch 2025.pdf", 2),
+            ("Synthesis", "Synthesized findings and recommendations from the four competitive analyses (Gemini, Grok, Perplexity, OpenAI o3) for Psychic Source-1.pdf", 5)
+        ]
+
+        return render_template('index.html',
+                               readme_content=readme_content,
+                               intel_actions=intel_actions,
+                               intel_reports=intel_reports)
     except Exception as e:
         # Log the error but still try to render something
         logging.error(f"Error rendering index page: {e}", exc_info=True)
