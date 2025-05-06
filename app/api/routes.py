@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, current_app, request
+from flask import Blueprint, jsonify, current_app, request, abort
 # Removed unused import: from app.api.data_processor import DataProcessor
 from app.tasks.sync import sync_new_conversations # Keep this import
 import functools
@@ -796,3 +796,106 @@ def generate_lily_daily_report():
         current_app.logger.error(f"Error generating Lily's daily report: {str(e)}", exc_info=True)
         return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
 # --- END LILY'S DAILY REPORT ENDPOINT ---
+
+@api.route('/glassfrog/roles/<int:role_id>')
+def get_glassfrog_role(role_id):
+    """Fetch role details from GlassFrog via service (cached)."""
+    refresh = request.args.get('refresh', '0') == '1'
+    try:
+        service = current_app.glassfrog_service
+        if not service:
+            return jsonify({'error': 'GlassFrog service not configured'}), 500
+        data = service.get_role(role_id, force_refresh=refresh)
+        return jsonify({'status': 'ok', 'data': data})
+    except Exception as e:
+        current_app.logger.error(f"GlassFrog API error: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+# === Voice SDK integration ===
+@api.route('/voice-sdk/token')
+def get_voice_sdk_token():
+    """Return ElevenLabs API key (or a short-lived token) for frontend SDK use."""
+    api_key = os.getenv('ELEVENLABS_API_KEY') or os.getenv('ELEVENLABS_API_KEY_PUBLIC')
+    if not api_key:
+        return jsonify({'error': 'ElevenLabs API key not configured'}), 500
+    # In production we would mint a short-lived token; for now return the key directly
+    return jsonify({'token': api_key})
+
+
+@api.route('/voice-sdk/chat/<agent_id>', methods=['POST'])
+def voice_sdk_chat(agent_id):
+    """Proxy user text to the existing agent chat endpoint or fall back to echo."""
+    data = request.get_json(silent=True) or {}
+    user_text = data.get('text', '').strip()
+    if not user_text:
+        return jsonify({'error': 'Text is required'}), 400
+
+    # Try to forward to existing route if present
+    forward_path = f'/api/agents/{agent_id}/chat'
+    # We call internally via Flask test_client to avoid extra HTTP roundtrip
+    try:
+        with current_app.test_client() as client:
+            resp = client.post(forward_path, json={'text': user_text})
+            if resp.status_code == 200:
+                payload = resp.get_json()
+                if 'reply' in payload:
+                    return jsonify({'reply': payload['reply']})
+    except Exception as e:
+        current_app.logger.warning(f"Voice SDK proxy failed: {e}")
+
+    # Fallback – simple echo
+    return jsonify({'reply': f"You said: {user_text}"})
+
+# === ElevenLabs TTS for Voice SDK ===
+@api.route('/voice-sdk/tts', methods=['POST'])
+def voice_sdk_tts():
+    """Convert text to speech via ElevenLabs API and return a temporary audio URL.
+
+    Expected JSON payload: { "text": "Hello world", "voice_id": "<optional>" }
+    Returns: { "audio_url": "/static/audio/<file>.mp3" }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        text = (data.get('text') or '').strip()
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+
+        voice_id = data.get('voice_id') or current_app.config.get('ELEVENLABS_VOICE_ID') or os.getenv('ELEVENLABS_VOICE_ID') or 'EXAVITQu4vr4xnSDxMaL'
+        api_key = os.getenv('ELEVENLABS_API_KEY') or current_app.config.get('ELEVENLABS_API_KEY')
+        if not api_key:
+            return jsonify({'error': 'ElevenLabs API key not configured'}), 500
+
+        # Call ElevenLabs TTS endpoint (non-streaming for simplicity)
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        payload = {
+            "text": text,
+            "model_id": "eleven_turbo_v2",
+            "voice_settings": {
+                "stability": 0.35,
+                "similarity_boost": 0.85
+            }
+        }
+        headers = {
+            "xi-api-key": api_key,
+            "Content-Type": "application/json"
+        }
+        resp = requests.post(url, json=payload, headers=headers)
+        if resp.status_code != 200:
+            current_app.logger.error(f"ElevenLabs TTS error {resp.status_code}: {resp.text}")
+            return jsonify({'error': f'TTS failed: {resp.text}'}), 500
+
+        # Save audio file
+        from datetime import datetime
+        import uuid, os as _os
+        static_audio_dir = _os.path.join(current_app.root_path, 'static', 'audio')
+        _os.makedirs(static_audio_dir, exist_ok=True)
+        filename = f"voice_sdk_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}.mp3"
+        filepath = _os.path.join(static_audio_dir, filename)
+        with open(filepath, 'wb') as f:
+            f.write(resp.content)
+
+        audio_url = f"/static/audio/{filename}"
+        return jsonify({'audio_url': audio_url})
+    except Exception as e:
+        current_app.logger.error(f"Voice SDK TTS error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500

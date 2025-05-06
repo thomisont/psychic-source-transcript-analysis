@@ -1241,4 +1241,208 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     })();
 
+    /**
+     * GlassFrog Role Insights loader
+     */
+    (function () {
+        const accordion = document.getElementById('collapseGlassFrog');
+        if (!accordion) return;
+
+        accordion.addEventListener('shown.bs.collapse', async () => {
+            // Only load once
+            if (accordion.dataset.loaded === '1') return;
+            try {
+                const resp = await API.fetch(`/api/glassfrog/roles/14014990`);
+                if (resp.status !== 'ok') throw new Error(resp.error || 'Unknown error');
+                renderGlassFrog(resp.data);
+                accordion.dataset.loaded = '1';
+            } catch (err) {
+                console.error('Failed to load GlassFrog role:', err);
+                UI.showToast(`GlassFrog error: ${err.message}`, 'danger');
+                document.getElementById('gf-loading').innerHTML = `<div class="alert alert-danger">Failed to load role data</div>`;
+            }
+        });
+
+        function renderGlassFrog(data) {
+            // Hide spinner
+            const spinner = document.getElementById('gf-loading');
+            if (spinner) spinner.classList.add('d-none');
+
+            // KPI cards
+            const kpiRow = document.getElementById('gf-kpi-row');
+            if (kpiRow && Array.isArray(data.metrics)) {
+                data.metrics.forEach(m => {
+                    const col = document.createElement('div');
+                    col.className = 'col-6 col-md-3';
+                    col.innerHTML = `
+                        <div class="card text-center shadow-sm h-100 border-teal" style="border-top:4px solid var(--psi-teal)">
+                            <div class="card-body py-3">
+                                <h6 class="card-title mb-1">${m.name}</h6>
+                                <p class="display-6 fw-bold mb-0">${Formatter.number(m.value)}</p>
+                                ${m.unit ? `<small class="text-muted">${m.unit}</small>` : ''}
+                            </div>
+                        </div>`;
+                    kpiRow.appendChild(col);
+                });
+            }
+
+            // Purpose/domains
+            if (data.purpose) document.getElementById('gf-purpose').textContent = data.purpose;
+
+            // Projects
+            const projUl = document.getElementById('gf-projects');
+            if (projUl && Array.isArray(data.projects)) {
+                data.projects.forEach(p => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `${p.name} ${p.status ? `<span class="badge bg-light text-dark">${p.status}</span>` : ''}`;
+                    projUl.appendChild(li);
+                });
+            }
+
+            // Accountabilities
+            const accUl = document.getElementById('gf-accountabilities');
+            if (accUl && Array.isArray(data.accountabilities)) {
+                data.accountabilities.forEach(a => {
+                    const li = document.createElement('li');
+                    li.textContent = a;
+                    accUl.appendChild(li);
+                });
+            }
+        }
+    })();
+
+    // --- Success Metrics section ---
+    const SUCCESS_METRICS_SPECS = [
+        {
+            id: 'ai-fte',
+            title: 'AI FTE-Equivalent Count',
+            unit: 'FTE-eq',
+            baseline: 0,
+            targets: [
+                { day: 30, value: 3 },
+                { day: 90, value: 6 }
+            ],
+            tooltip: 'Shows the role actually deploys production-grade agents, not pilots only.'
+        },
+        {
+            id: 'retention',
+            title: '30-day Customer Retention',
+            unit: '%',
+            baseline: 22,
+            targets: [ { day: 0, value: 27 } ], // +5pp sustained; simplified
+            tooltip: 'A 5-point bump is material in subscription/usage businesses and within 90-day reach.'
+        },
+        {
+            id: 'arpu',
+            title: 'Average Monthly Spend per Customer (ARPU)',
+            unit: '$',
+            baseline: 45,
+            targets: [ { day: 90, value: 49.5 }, { day: 180, value: 54 } ],
+            tooltip: 'Tracks monetization quality of AI-augmented journeys.'
+        },
+        {
+            id: 'visitor-register',
+            title: 'Visitor → Register Rate',
+            unit: '%',
+            baseline: 10,
+            targets: [ { day: 60, value: 13 } ],
+            tooltip: "Early-funnel metric most sensitive to Lily's top-of-funnel work."
+        },
+        {
+            id: 'register-paid',
+            title: 'Register → Paid Conversion Rate',
+            unit: '%',
+            baseline: 25,
+            targets: [ { day: 90, value: 27 }, { day: 180, value: 30 } ],
+            tooltip: 'Maps directly to Payment-Assist & follow-up projects.'
+        },
+        {
+            id: 'role-integration',
+            title: 'HI + AI Role-Integration Count',
+            unit: 'roles',
+            baseline: 0,
+            targets: [ { day: 90, value: 3 }, { day: 180, value: 6 } ],
+            tooltip: 'Confirms \u201Cseamless integration between AI & HI\u201D beyond the call center.'
+        }
+    ];
+
+    function renderSuccessMetrics() {
+        const container = document.getElementById('success-metrics-container');
+        if (!container) return;
+
+        SUCCESS_METRICS_SPECS.forEach(spec => {
+            const storedVal = localStorage.getItem(`metric-${spec.id}`);
+            const currentVal = storedVal !== null ? parseFloat(storedVal) : null;
+
+            // Determine the first unmet target and calculate progress
+            const today = 0; // Placeholder (days since baseline) – could derive from start date later
+            const targetObj = spec.targets.find(t => today <= t.day) || spec.targets[spec.targets.length - 1];
+            const targetVal = targetObj.value;
+            const baseline = spec.baseline;
+
+            let progressPct = 0;
+            if (currentVal !== null) {
+                progressPct = ((currentVal - baseline) / (targetVal - baseline)) * 100;
+                progressPct = Math.max(0, Math.min(100, progressPct));
+            }
+
+            const col = document.createElement('div');
+            col.className = 'col-md-6';
+            col.innerHTML = `
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">${spec.title}
+                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="${spec.tooltip}"></i>
+                        </h5>
+                        <div class="mb-2 small text-muted">Baseline: ${baseline} ${spec.unit} &nbsp; | &nbsp; Target: ${targetVal} ${spec.unit}</div>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar" role="progressbar" style="width: ${progressPct}%;" aria-valuenow="${progressPct}" aria-valuemin="0" aria-valuemax="100">${currentVal ?? 'N/A'} ${spec.unit}</div>
+                        </div>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Current</span>
+                            <input type="number" step="any" class="form-control" id="input-${spec.id}" placeholder="Enter value" value="${currentVal ?? ''}">
+                            <button class="btn btn-outline-secondary" type="button" id="save-${spec.id}">Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(col);
+
+            // Attach save handler
+            const saveBtn = col.querySelector(`#save-${spec.id}`);
+            const inputEl = col.querySelector(`#input-${spec.id}`);
+            if (saveBtn && inputEl) {
+                saveBtn.addEventListener('click', () => {
+                    const val = parseFloat(inputEl.value);
+                    if (isNaN(val)) {
+                        UI.showToast('Please enter a valid number', 'warning');
+                        return;
+                    }
+                    localStorage.setItem(`metric-${spec.id}`, val);
+                    UI.showToast(`${spec.title} saved`, 'success');
+                    container.innerHTML = '';
+                    renderSuccessMetrics(); // re-render to update progress
+                    const tooltipTriggerList = [].slice.call(container.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                    tooltipTriggerList.map(t => new bootstrap.Tooltip(t));
+                });
+            }
+        });
+
+        // Initialize tooltips within the newly added elements
+        const tooltipTriggerList = [].slice.call(container.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(t => new bootstrap.Tooltip(t));
+    }
+
+    // Bootstrap collapse event: load metrics once accordion is opened
+    (function() {
+        const acc = document.getElementById('collapseSuccess');
+        if (!acc) return;
+        acc.addEventListener('shown.bs.collapse', () => {
+            if (!acc.dataset.loaded) {
+                renderSuccessMetrics();
+                acc.dataset.loaded = '1';
+            }
+        });
+    })();
+
 });

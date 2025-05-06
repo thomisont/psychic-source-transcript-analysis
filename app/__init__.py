@@ -389,6 +389,19 @@ def create_app(test_config=None):
             sys.exit(1) # Exit with error code
         logging.info("CLI: Sync command finished.")
 
+    # --- Attach GlassFrog client & service ---
+    try:
+        from tools.glassfrog_client import GlassFrogClient
+        from app.services.glassfrog_service import GlassFrogService
+        gf_client = GlassFrogClient()
+        app.glassfrog_client = gf_client
+        app.glassfrog_service = GlassFrogService(client=gf_client, cache=cache)
+        logging.info("GlassFrog client & service initialised.")
+    except Exception as e:
+        logging.error(f"Failed to initialise GlassFrog integration: {e}", exc_info=True)
+        app.glassfrog_client = None
+        app.glassfrog_service = None
+
     return app
 
 # --- Global error handlers ---

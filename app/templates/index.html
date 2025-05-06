@@ -343,6 +343,30 @@
       </div>
     </div>
 
+    {# === NEW: Success Metrics Section === #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="accordion" id="successMetricsAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingSuccess">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSuccess" aria-expanded="false" aria-controls="collapseSuccess">
+                            Success Metrics <i class="bi bi-bar-chart-line ms-2"></i>
+                        </button>
+                    </h2>
+                    <div id="collapseSuccess" class="accordion-collapse collapse" aria-labelledby="headingSuccess" data-bs-parent="#successMetricsAccordion">
+                        <div class="accordion-body">
+                            <div class="alert alert-info small" role="alert">
+                                Enter current values to track progress from baseline toward target. Values are stored locally (browser-only) until programmatic sources are wired-in.
+                            </div>
+                            <div id="success-metrics-container" class="row gy-4"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {# === END: Success Metrics Section === #}
+
     {# === NEW: Agent Administration Section === #}
     <div class="row mb-4">
         <div class="col-12">
@@ -379,6 +403,16 @@
                                             <div id="team-email-viewer" class="border p-2 rounded mb-3">Loading template...</div>
                                             <h6>Caller Follow-up Email:</h6>
                                             <div id="caller-email-viewer" class="border p-2 rounded">Loading template...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {# Column 3: Curious Callers Google Sheet #}
+                                <div class="col-12 mb-3">
+                                    <div class="card h-100 shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Curious Caller Contacts</h5>
+                                            <iframe src="https://docs.google.com/spreadsheets/d/1R4jEajsMiY4kqv8fhX_3K2CK6r2-H23nfR7mICQlITs/htmlview?widget=true&amp;headers=false" style="width:100%; min-height:600px; border:0;" loading="lazy" title="Curious Caller Contact Sheet"></iframe>
+                                            <p class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Data is read‑only. Use Google Sheets to update contact attempts.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -617,7 +651,7 @@
                                 </div>
                                 <div class="card-body">
                                     <p><strong>Lead at risk, window is closing.</strong><br>
-                                    Psychic Source holds the only production‑grade conversational‑AI ("Lily") in our market, but Ingenio's Keen/Kasamba stack can plausibly reach parity <strong>within 6–12 months</strong>; other challengers (Purple Garden, Oranum, California Psychics) could follow inside <strong>18 months</strong>. Our moat is our <strong>30‑year proprietary dataset</strong> and <strong>Holacratic agility</strong>. We must scale Lily, weaponize data, and harden brand trust <em>immediately</em>.</p>
+                                    Psychic Source holds the only production‑grade conversational‑AI ("Lily") in our market, but Ingenio's Keen/Kasamba stack can plausibly reach parity <strong>within 6–12 months</strong>; other challengers (Purple Garden, Oranum, California Psychics) could follow inside <strong>18 months</strong>. Our moat is our <strong>30‑year proprietary dataset</strong> and <strong>Holacratic agility</strong>. We must scale Lily, leverage data, and harden brand trust <em>immediately</em>.</p>
                                 </div>
                             </div>
 
@@ -672,7 +706,7 @@
                             <div class="tab-content border border-top-0 p-3" id="intelReportTabsContent">
                                 {% for rpt in intel_reports %}
                                 <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="report-{{ loop.index }}" role="tabpanel" aria-labelledby="tab-{{ loop.index }}">
-                                    <div style="max-height: 450px; overflow: hidden;"> {# Removed ratio, added max-height #}
+                                    <div class="ratio ratio-16x9 d-none d-lg-block">
                                         <iframe src="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" title="{{ rpt[0] }}" allowfullscreen style="width: 100%; height: 100%; border: none;"></iframe>
                                     </div>
                                     <p class="d-block d-lg-none"><a href="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" target="_blank">Open {{ rpt[0] }} report</a></p>
@@ -681,27 +715,31 @@
                             </div>
 
                             <!-- Images side-by-side -->
-                            <div class="d-flex flex-wrap justify-content-center gap-3 my-4">
-                                <img id="intel-infographic"
-                                     src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
-                                     alt="Competitive Runway"
-                                     class="img-fluid rounded expandable-image"
-                                     style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
-                                     data-bs-toggle="modal"
-                                     data-bs-target="#imageModal"
-                                     data-img-src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
-                                     data-img-title="Competitive Runway">
+                            <div class="card mb-4">
+                                <div class="card-body">
+                                    <div class="d-flex flex-wrap justify-content-center gap-3">
+                                        <img id="intel-infographic"
+                                             src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
+                                             alt="Competitive Runway"
+                                             class="img-fluid rounded expandable-image"
+                                             style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
+                                             data-bs-toggle="modal"
+                                             data-bs-target="#imageModal"
+                                             data-img-src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
+                                             data-img-title="Competitive Runway">
 
-                                <img id="intel-meme"
-                                     src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
-                                     alt="Move, Lily, Move Meme"
-                                     class="img-fluid rounded expandable-image"
-                                     style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
-                                     data-bs-toggle="modal"
-                                     data-bs-target="#imageModal"
-                                     data-img-src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
-                                     data-img-title="Move, Lily, Move Meme">
+                                        <img id="intel-meme"
+                                             src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
+                                             alt="Move, Lily, Move Meme"
+                                             class="img-fluid rounded expandable-image"
+                                             style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
+                                             data-bs-toggle="modal"
+                                             data-bs-target="#imageModal"
+                                             data-img-src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
+                                             data-img-title="Move, Lily, Move Meme">
 
+                                    </div>
+                                </div>
                             </div>
 
                         </div>
@@ -711,6 +749,115 @@
         </div>
     </div>
     {# === END: Competitive Intelligence Section === #}
+
+    <!-- === GlassFrog Role Insights Section === -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="accordion" id="glassFrogAccordion">
+          <div class="accordion-item">
+              <h2 class="accordion-header" id="headingGlassFrog">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGlassFrog" aria-expanded="false" aria-controls="collapseGlassFrog">
+                      <i class="bi bi-diagram-3 me-2"></i> GlassFrog Role Insights
+                  </button>
+              </h2>
+              <div id="collapseGlassFrog" class="accordion-collapse collapse" aria-labelledby="headingGlassFrog" data-bs-parent="#glassFrogAccordion">
+                  <div class="accordion-body">
+                    <!-- Loading Spinner -->
+                    <div id="gf-loading" class="text-center my-3">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <!-- KPI Cards will render here -->
+                    <div id="gf-kpi-row" class="row g-3"></div>
+                    <!-- Purpose & Projects -->
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Purpose / Domains</h6>
+                            <p id="gf-purpose"></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Projects</h6>
+                            <ul id="gf-projects" class="mb-0"></ul>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h6>Accountabilities</h6>
+                        <ul id="gf-accountabilities"></ul>
+                    </div>
+                  </div>
+              </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- === END GlassFrog Section === -->
+
+    {# === NEW: Voice SDK Tests Section === #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="accordion" id="voiceSdkAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingVoiceSdk">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVoiceSdk" aria-expanded="false" aria-controls="collapseVoiceSdk">
+                            Voice SDK Tests <i class="bi bi-mic ms-2"></i>
+                        </button>
+                    </h2>
+                    <div id="collapseVoiceSdk" class="accordion-collapse collapse" aria-labelledby="headingVoiceSdk" data-bs-parent="#voiceSdkAccordion">
+                        <div class="accordion-body">
+                            <p class="text-muted">Prototype for the custom ElevenLabs socket-based voice interface.</p>
+                            <div class="d-flex justify-content-center">
+                                <div class="voice-card shadow-lg" data-agent-id="3HFVw3nTZfIivPaHr3ne">
+                                    <div class="text-center mb-3">
+                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Avatar" class="rounded-circle voice-avatar">
+                                    </div>
+                                    <h5 class="fw-bold mb-1">Ask Lily</h5>
+                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                        <i class="bi bi-mic-fill fs-2"></i>
+                                    </div>
+                                    <p class="mb-3">Tap to connect</p>
+                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                        <li>• What's the vibe around my career path?</li>
+                                        <li>• Which advisor suits my needs today?</li>
+                                        <li>• How do I raise my spiritual energy?</li>
+                                    </ul>
+                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {# === END: Voice SDK Tests Section === #}
+
+    {# === Voice SDK Modal === #}
+    <div class="modal fade" id="voiceSdkModal" tabindex="-1" aria-labelledby="voiceSdkModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 bg-transparent">
+                <div class="modal-body p-0">
+                    <div class="voice-card shadow-lg">
+                        <div class="text-center mb-3">
+                            <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Avatar" class="rounded-circle voice-avatar">
+                        </div>
+                        <h5 class="fw-bold mb-1">Ask Lily</h5>
+                        <div class="voice-mic-btn my-3 mx-auto" role="button">
+                            <i class="bi bi-mic-fill fs-2"></i>
+                        </div>
+                        <p class="mb-3">Tap to connect</p>
+                        <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                            <li>• What's the vibe around my career path?</li>
+                            <li>• Which advisor suits my needs today?</li>
+                            <li>• How do I raise my spiritual energy?</li>
+                        </ul>
+                        <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {# === End Voice SDK Modal === #}
 
 </div>
 
@@ -828,4 +975,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {{ super() }}
 <!-- Load dashboard-specific JavaScript -->
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<!-- ElevenLabs Conversational AI SDK (UMD build) must load before our voiceSdk.js -->
+<script src="https://cdn.jsdelivr.net/npm/@11labs/client@0.1.4/dist/index.umd.min.js" integrity="sha256-gk4fTs98Fu1oV7e+J/mxfuaF88SWuwourwT0aXYgxSY=" crossorigin="anonymous"></script>
+<script src="{{ url_for('static', filename='js/voiceSdk.js') }}"></script>
 {% endblock %} 

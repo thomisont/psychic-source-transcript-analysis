@@ -477,8 +477,8 @@ function renderAnalysisData(data) {
         renderThemeCorrelation(data.theme_sentiment_correlation);
         
         // *** NEW: Call renderCategoryLists ***
-        renderCategoryLists(categorizedData?.common_questions, 'common-questions');
-        renderCategoryLists(categorizedData?.concerns_skepticism, 'concerns-skepticism');
+        renderCollapsibleCategories(categorizedData?.common_questions, 'common-questions');
+        renderCollapsibleCategories(categorizedData?.concerns_skepticism, 'concerns-skepticism');
         
         renderPositiveInteractions(categorizedData?.positive_interactions);
         // --- End Render Components ---
@@ -992,7 +992,7 @@ function getSentimentClassFromLabel(label) {
  * @param {Array<object>} categories - Array of category objects, each with `category_name`, `count`, and `quotes`.
  * @param {string} type - Identifier string ('common-questions' or 'concerns-skepticism').
  */
-function renderCategoryLists(categories, type) {
+function renderCollapsibleCategories(categories, type) {
     const listContainerId = `${type}-list`; // e.g., common-questions-list
     const listContainer = document.getElementById(listContainerId);
 

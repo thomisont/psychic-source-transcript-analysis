@@ -1443,3 +1443,37 @@ h1, h2, h3, h4, h5, h6 {
 #collapseIntel .card-body p {
     font-size: 1.05rem; /* Slightly larger font */
 }
+
+.border-teal {
+    border-color: var(--psi-teal) !important;
+}
+
+/* Voice SDK modal styles */
+.voice-card {
+    background: linear-gradient(180deg, #C12C4F 0%, #F8B36C 100%);
+    border-radius: 20px;
+    padding: 2rem 1.5rem;
+    color: #fff;
+    text-align: center;
+    position: relative;
+}
+.voice-avatar {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border: 4px solid #fff;
+}
+.voice-mic-btn {
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    transition: transform 0.2s ease-in-out;
+}
+.voice-mic-btn:hover { transform: scale(1.05); cursor: pointer; }
+.voice-prompts { max-width: 260px; color: #5A0F23; background: rgba(255,255,255,0.8); border-radius: 10px; padding: 1rem; }
+.voice-powered-by { color: #f8f9fa; opacity: 0.8; }
