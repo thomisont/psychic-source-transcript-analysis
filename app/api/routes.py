@@ -479,7 +479,7 @@ def get_supported_agents():
 def get_agent_widget_config(agent_id):
     try:
         # Use the provided widget tag structure
-        embed_code = f'<elevenlabs-convai agent-id="{agent_id}" variant="expanded"></elevenlabs-convai>'
+        embed_code = f'<elevenlabs-convai agent-id="{agent_id}" variant="expandable"></elevenlabs-convai>'
         
         # Ensure API key is present (still needed by the widget loaded via base.html)
         if not current_app.config.get('ELEVENLABS_API_KEY'):
@@ -899,3 +899,27 @@ def voice_sdk_tts():
     except Exception as e:
         current_app.logger.error(f"Voice SDK TTS error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+@api.route('/voice-sdk/signed-url/<agent_id>')
+def voice_sdk_signed_url(agent_id):
+    """Generate a short-lived signedUrl for private ElevenLabs agents."""
+    api_key = os.getenv('ELEVENLABS_API_KEY') or current_app.config.get('ELEVENLABS_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ElevenLabs API key not configured'}), 500
+
+    try:
+        url = f"https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id={agent_id}"
+        headers = { 'xi-api-key': api_key }
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            current_app.logger.error(f"Signed URL fetch failed {resp.status_code}: {resp.text}")
+            return jsonify({'error': 'Failed to get signed URL'}), 500
+        data = resp.json()
+        signed_url = data.get('signed_url') or data.get('signedUrl') or data.get('url')
+        if not signed_url:
+            return jsonify({'error': 'signed_url missing'}), 500
+        return jsonify({'signed_url': signed_url})
+    except Exception as e:
+        current_app.logger.error(f"Signed URL error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+# --- END voice-sdk signed url ---

@@ -95,6 +95,98 @@
     .api-status-list-refined .api-status-item {
         color: #6c757d;
     }
+    .agent-status-card { /* Style for the new agent cards (now primarily voice-card) */
+        /* margin-bottom: 0.5rem; /* Now handled by col wrapper mb-3 or row g-3 */
+    }
+    /* Styling for all voice agent cards to be compact and vertical */
+    .voice-card {
+        max-width: 250px; /* Significantly narrower card width */
+        margin-left: auto; 
+        margin-right: auto; 
+        padding: 1rem; 
+        border: 1px solid #e0e0e0; 
+        border-radius: 0.75rem; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        text-align: center; 
+        height: 100%; /* Make card fill height of its .col wrapper for alignment if needed */
+    }
+    .voice-card h5 {
+        font-size: 1.05rem; 
+        margin-bottom: 0.5rem !important; 
+    }
+    .voice-card .voice-avatar {
+        width: 50px; 
+        height: 50px;
+        margin-bottom: 0.5rem !important; 
+    }
+    .voice-card .voice-mic-btn {
+        width: 45px; 
+        height: 45px;
+        font-size: 1.3rem; 
+        margin-top: 0.5rem !important; 
+        margin-bottom: 0.5rem !important;
+    }
+    .voice-card .voice-mic-btn i {
+        line-height: 45px; 
+    }
+    .voice-card .voice-prompts {
+        font-size: 0.8rem; 
+        padding-left: 0; 
+        margin-bottom: 0.5rem !important; 
+        text-align: left; 
+        width: 100%; 
+    }
+    .voice-card .voice-prompts li {
+        margin-bottom: 0.25rem; 
+    }
+    .voice-card .voice-powered-by {
+        font-size: 0.7rem; 
+        margin-top: auto; /* Push powered-by to bottom if card is flex container */
+    }
+    .voice-card > p.mb-3 { 
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* New Bento Box Styling */
+    .platform-bento-box {
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+        height: 100%; /* Ensures bento boxes in the same row are equal height */
+        margin-bottom: 1.5rem; /* Space below bento boxes if they stack on small screens */
+    }
+
+    .psychic-cloud-bento {
+        background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); /* Light cyan/blue gradient */
+        border: 1px solid #80deea;
+    }
+
+    .psychic-source-bento {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); /* Light orange/peach gradient */
+        border: 1px solid #ffcc80;
+    }
+
+    .bento-box-title {
+        font-size: 1.3rem; /* Adjusted size */
+        margin-bottom: 0.75rem;
+        color: #2c3e50; /* Darker, more saturated color for titles */
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(0,0,0,0.05);
+    }
+
+    .bento-section-title {
+        font-size: 1rem; /* Adjusted size */
+        color: #34495e;
+        margin-top: 1rem; /* Space above section title */
+        margin-bottom: 0.75rem;
+    }
+    .agent-card-row {
+        /* Using Bootstrap .row with g-2 or g-3 for gutters */
+    }
+
 </style>
 {% endblock %}
 
@@ -374,11 +466,12 @@
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingAdmin">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdmin" aria-expanded="false" aria-controls="collapseAdmin">
-                            Agent Administration <i class="bi bi-person-gear ms-2"></i>
+                            Agent Administration & Voice Agents <i class="bi bi-person-gear ms-2"></i>
                         </button>
                     </h2>
                     <div id="collapseAdmin" class="accordion-collapse collapse" aria-labelledby="headingAdmin" data-bs-parent="#agentAdminAccordion">
                         <div class="accordion-body">
+                            <!-- Existing Admin Controls for selected agent -->
                             <div class="row">
                                 {# Column 1: Widget & Prompt #}
                                 <div class="col-md-6 mb-3">
@@ -417,6 +510,198 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- End of Existing Admin Controls -->
+
+                            <hr class="my-4">
+
+                            <!-- New Bento Box Layout for Voice Agents -->
+                            <div class="row">
+                                <!-- Psychic Cloud Bento Box -->
+                                <div class="col-lg-6 d-flex flex-column">
+                                    <div class="platform-bento-box psychic-cloud-bento flex-grow-1">
+                                        <h4 class="bento-box-title"><i class="bi bi-cloud-fill me-2"></i>Psychic Cloud Agents</h4>
+                                        
+                                        <h5 class="bento-section-title">Deployed</h5>
+                                        <div class="row g-3 agent-card-row">
+                                            <div class="col-12">
+                                                <div class="alert alert-secondary small" role="alert">
+                                                    No agents currently deployed for Psychic Cloud.
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <hr class="my-3">
+
+                                        <h5 class="bento-section-title">Staging</h5>
+                                        <div class="row g-3 agent-card-row">
+                                            <div class="col-12">
+                                                <div class="alert alert-secondary small" role="alert">
+                                                    No agents currently in staging for Psychic Cloud.
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <hr class="my-3">
+
+                                        <h5 class="bento-section-title">To Be Developed</h5>
+                                        <div class="row g-3 agent-card-row">
+                                            <!-- Cloud Astrologer -->
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #00B09B 0%, #96C93D 100%);">
+                                                    <div class="text-center mb-3">
+                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Astrologer Avatar" class="rounded-circle voice-avatar">
+                                                    </div>
+                                                    <h5 class="fw-bold mb-1">Cloud Astrologer</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                                        <i class="bi bi-mic-fill fs-2"></i>
+                                                    </div>
+                                                    <p class="mb-3">TBD</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                                        <li>• What's my horoscope for today?</li>
+                                                        <li>• How will Mars retrograde affect me?</li>
+                                                        <li>• Best time to start a new project?</li>
+                                                    </ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                            <!-- Cloud Empath -->
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #FF4E50 0%, #F9D423 100%);">
+                                                    <div class="text-center mb-3">
+                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Empath Avatar" class="rounded-circle voice-avatar">
+                                                    </div>
+                                                    <h5 class="fw-bold mb-1">Cloud Empath</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                                        <i class="bi bi-mic-fill fs-2"></i>
+                                                    </div>
+                                                    <p class="mb-3">TBD</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                                        <li>• Share an uplifting affirmation.</li>
+                                                        <li>• Help me process my emotions.</li>
+                                                        <li>• Tips for staying grounded?</li>
+                                                    </ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Psychic Source Bento Box -->
+                                <div class="col-lg-6 d-flex flex-column">
+                                    <div class="platform-bento-box psychic-source-bento flex-grow-1">
+                                        <h4 class="bento-box-title"><i class="bi bi-person-circle me-2"></i>Psychic Source Agents</h4>
+
+                                        <h5 class="bento-section-title">Deployed</h5>
+                                        <div class="row g-3 agent-card-row">
+                                            <!-- Curious Caller Production -->
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <div class="voice-card shadow-lg agent-status-card" data-agent-id="3HFVw3nTZfIivPaHr3ne" style="background: linear-gradient(180deg, #C12C4F 0%, #F8B36C 100%);">
+                                                    <div class="text-center mb-3">
+                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Avatar" class="rounded-circle voice-avatar">
+                                                    </div>
+                                                    <h5 class="fw-bold mb-1">Curious Caller Production</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                                        <i class="bi bi-mic-fill fs-2"></i>
+                                                    </div>
+                                                    <p class="mb-3">Tap to connect</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                                        <li>• What's the vibe around my career path?</li>
+                                                        <li>• Which advisor suits my needs today?</li>
+                                                        <li>• How do I raise my spiritual energy?</li>
+                                                    </ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                            <!-- Member Hospitality Production -->
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <div class="voice-card shadow-lg agent-status-card" data-agent-id="XuUk69oMnn2Z9Sx9sXVu" style="background: linear-gradient(180deg, #12c2e9 0%, #c471ed 50%, #f64f59 100%);">
+                                                    <div class="text-center mb-3">
+                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Hospitality Avatar" class="rounded-circle voice-avatar">
+                                                    </div>
+                                                    <h5 class="fw-bold mb-1">Member Hospitality Production</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                                        <i class="bi bi-mic-fill fs-2"></i>
+                                                    </div>
+                                                    <p class="mb-3">Psychic Source</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                                        <li>• How can I brighten your day?</li>
+                                                        <li>• Need help finding the right advisor?</li>
+                                                        <li>• Curious about membership benefits?</li>
+                                                    </ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <hr class="my-3">
+
+                                        <h5 class="bento-section-title">Staging</h5>
+                                        <div class="row g-3 agent-card-row">
+                                            <!-- Member Hospitality (Testv2) -->
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #0061FF 0%, #60EFFF 100%);">
+                                                    <div class="text-center mb-3">
+                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Member Hospitality Avatar" class="rounded-circle voice-avatar">
+                                                    </div>
+                                                    <h5 class="fw-bold mb-1">Member Hospitality (Testv2)</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                                        <i class="bi bi-mic-fill fs-2"></i>
+                                                    </div>
+                                                    <p class="mb-3">Coming soon</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                                        <li>• How can I assist with your account?</li>
+                                                        <li>• Need help navigating the site?</li>
+                                                        <li>• Questions about membership perks?</li>
+                                                    </ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                            <!-- Curious Caller (Testv2) -->
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #C12C4F 0%, #F8B36C 100%);">
+                                                    <div class="text-center mb-3">
+                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Curious Caller Test Avatar" class="rounded-circle voice-avatar">
+                                                    </div>
+                                                    <h5 class="fw-bold mb-1">Curious Caller (Testv2)</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                                        <i class="bi bi-mic-fill fs-2"></i>
+                                                    </div>
+                                                    <p class="mb-3">Coming soon</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                                        <li>• Test prompt for career path?</li>
+                                                        <li>• Test advisor suitability?</li>
+                                                        <li>• Test spiritual energy query?</li>
+                                                    </ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <hr class="my-3">
+
+                                        <h5 class="bento-section-title">To Be Developed</h5>
+                                        <div class="row g-3 agent-card-row">
+                                            <!-- Admin Companion -->
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #6A00FF 0%, #C46CFF 100%);">
+                                                    <div class="text-center mb-3">
+                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Admin Companion Avatar" class="rounded-circle voice-avatar">
+                                                    </div>
+                                                    <h5 class="fw-bold mb-1">Admin Companion</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
+                                                        <i class="bi bi-mic-fill fs-2"></i>
+                                                    </div>
+                                                    <p class="mb-3">Psychic Source – TBD</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
+                                                        <li>• Summarize today's support tickets.</li>
+                                                        <li>• Any urgent platform alerts?</li>
+                                                        <li>• What's on my admin dashboard?</li>
+                                                    </ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- End of New Bento Box Layout -->
                         </div>
                     </div>
                 </div>
@@ -793,45 +1078,6 @@
     </div>
     <!-- === END GlassFrog Section === -->
 
-    {# === NEW: Voice SDK Tests Section === #}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="accordion" id="voiceSdkAccordion">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingVoiceSdk">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVoiceSdk" aria-expanded="false" aria-controls="collapseVoiceSdk">
-                            Voice SDK Tests <i class="bi bi-mic ms-2"></i>
-                        </button>
-                    </h2>
-                    <div id="collapseVoiceSdk" class="accordion-collapse collapse" aria-labelledby="headingVoiceSdk" data-bs-parent="#voiceSdkAccordion">
-                        <div class="accordion-body">
-                            <p class="text-muted">Prototype for the custom ElevenLabs socket-based voice interface.</p>
-                            <div class="d-flex justify-content-center">
-                                <div class="voice-card shadow-lg" data-agent-id="3HFVw3nTZfIivPaHr3ne">
-                                    <div class="text-center mb-3">
-                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Avatar" class="rounded-circle voice-avatar">
-                                    </div>
-                                    <h5 class="fw-bold mb-1">Ask Lily</h5>
-                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                        <i class="bi bi-mic-fill fs-2"></i>
-                                    </div>
-                                    <p class="mb-3">Tap to connect</p>
-                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                        <li>• What's the vibe around my career path?</li>
-                                        <li>• Which advisor suits my needs today?</li>
-                                        <li>• How do I raise my spiritual energy?</li>
-                                    </ul>
-                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {# === END: Voice SDK Tests Section === #}
-
     {# === Voice SDK Modal === #}
     <div class="modal fade" id="voiceSdkModal" tabindex="-1" aria-labelledby="voiceSdkModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -975,7 +1221,4 @@ document.addEventListener('DOMContentLoaded', function() {
 {{ super() }}
 <!-- Load dashboard-specific JavaScript -->
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-<!-- ElevenLabs Conversational AI SDK (UMD build) must load before our voiceSdk.js -->
-<script src="https://cdn.jsdelivr.net/npm/@11labs/client@0.1.4/dist/index.umd.min.js" integrity="sha256-gk4fTs98Fu1oV7e+J/mxfuaF88SWuwourwT0aXYgxSY=" crossorigin="anonymous"></script>
-<script src="{{ url_for('static', filename='js/voiceSdk.js') }}"></script>
 {% endblock %} 

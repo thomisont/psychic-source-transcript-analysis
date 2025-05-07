@@ -1477,3 +1477,9 @@ h1, h2, h3, h4, h5, h6 {
 .voice-mic-btn:hover { transform: scale(1.05); cursor: pointer; }
 .voice-prompts { max-width: 260px; color: #5A0F23; background: rgba(255,255,255,0.8); border-radius: 10px; padding: 1rem; }
 .voice-powered-by { color: #f8f9fa; opacity: 0.8; }
+
+#voice-overlay-widget > elevenlabs-convai {
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
