@@ -385,12 +385,139 @@ window.Sentiment = Sentiment;
 window.UI = UI;
 window.API = API;
 
+// Function to initialize toast container (needs to be called AFTER DOM is ready)
+function initializeToastContainer() {
+    // Check if container exists, create if not (though should be in base.html)
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        console.warn('#toastContainer not found, creating it.');
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    } else {
+        console.log('#toastContainer found.');
+    }
+}
+
+// Function to initialize the debug panel (assuming it exists here or is globally available)
+function initializeGlobalDebugPanel() {
+    console.log("Initializing Global Debug Panel...");
+    const panel = document.getElementById('debug-panel');
+    const closeBtn = document.getElementById('close-debug');
+
+    if (!panel || !closeBtn) {
+        console.warn("Debug panel elements not found.");
+        return;
+    }
+
+    // Toggle visibility with Alt+D
+    document.addEventListener('keydown', (e) => {
+        if (e.altKey && e.key === 'd') {
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            console.log(`Debug panel toggled ${panel.style.display === 'block' ? 'ON' : 'OFF'}`);
+        }
+    });
+
+    // Close button
+    closeBtn.addEventListener('click', () => {
+        panel.style.display = 'none';
+        console.log("Debug panel closed via button.");
+    });
+    console.log("Global Debug Panel initialized.");
+}
+
 // Make older function names work for backward compatibility (keep if needed)
 window.formatDate = Formatter.date;
 window.formatDuration = Formatter.duration;
 window.sentimentToText = Sentiment.toText;
 window.sentimentToColor = Sentiment.toColor;
 window.copyToClipboard = (text) => UI.copyToClipboard(text);
+
+// ==========================================
+// Global Initializers (Moved from main.js)
+// ==========================================
+
+// Function to initialize toast container
+function initializeToastContainer() {
+    // ... (implementation)
+}
+
+// Function to initialize the debug panel
+function initializeGlobalDebugPanel() {
+   // ... (implementation)
+}
+
+// >>> DEFINE initializeGlobalSyncButton HERE <<<
+function initializeGlobalSyncButton() {
+     console.log("Initializing Global Sync Button...");
+     const actualSyncButton = document.getElementById('sync-button');
+     const actualSyncStatus = document.getElementById('sync-status');
+
+     if (actualSyncButton) {
+          actualSyncButton.addEventListener('click', async () => {
+               if (actualSyncStatus) actualSyncStatus.textContent = 'Syncing...';
+               actualSyncButton.disabled = true;
+               try {
+                    // Use API utility
+                    const result = await API.fetch('/api/sync-conversations', { method: 'POST' }); 
+                    console.log("Sync result:", result);
+
+                    if (result.status === 'success') {
+                         // --- NEW: Populate and show modal --- 
+                         const modalElement = document.getElementById('syncStatusModal');
+                         if (modalElement) {
+                             document.getElementById('modal-db-initial').textContent = result.initial_db_count;
+                             document.getElementById('modal-db-final').textContent = result.final_db_count;
+                             document.getElementById('modal-added').textContent = result.added;
+                             document.getElementById('modal-updated').textContent = result.updated;
+                             document.getElementById('modal-skipped').textContent = result.skipped;
+                             document.getElementById('modal-checked-api').textContent = result.checked_api;
+                             
+                             const failedSection = document.getElementById('modal-failed-section');
+                             const failedCountSpan = document.getElementById('modal-failed');
+                             if (result.failed > 0) {
+                                 failedCountSpan.textContent = result.failed;
+                                 failedSection.classList.remove('d-none');
+                             } else {
+                                 failedSection.classList.add('d-none');
+                             }
+
+                             // Use Bootstrap's JS to show the modal
+                             const modal = new bootstrap.Modal(modalElement);
+                             modal.show();
+                         } else {
+                             // Fallback to toast if modal element not found
+                             console.error("Sync Status Modal element not found. Falling back to toast.");
+                             let msg = `Sync finished. DB: ${result.initial_db_count}->${result.final_db_count}. Added:${result.added}, Updated:${result.updated}, Skipped:${result.skipped}, Failed:${result.failed}.`;
+                             UI.showToast(msg, 'success', 10000); 
+                         }
+                         // --- END MODAL LOGIC ---
+                         
+                         if (actualSyncStatus) actualSyncStatus.textContent = 'Sync Complete';
+                         // Removed call to updateTotalCount as it's not defined globally here
+                         // if (typeof updateTotalCount === 'function') { ... }
+                    } else {
+                         throw new Error(result.message || 'Sync failed with unknown error');
+                    }
+               } catch (error) {
+                    console.error("Sync error:", error);
+                    // UI.showToast is handled by API.fetch
+                    if (actualSyncStatus) actualSyncStatus.textContent = 'Sync Failed';
+               } finally {
+                    actualSyncButton.disabled = false;
+                    // Optionally reset status text after a delay
+                    setTimeout(() => {
+                         if (actualSyncStatus && actualSyncStatus.textContent !== 'Syncing...') { // Avoid clearing if another sync started
+                              actualSyncStatus.textContent = '';
+                         }                    }, 5000);
+               }
+          });
+          console.log("Global sync button initialized.");
+     } else {
+           console.warn("Global sync button #sync-button not found.");
+     }
+}
 
 // ==========================================
 // Date Utilities
@@ -459,3 +586,86 @@ window.getDatesFromTimeframe = getDatesFromTimeframe;
 // ==========================================
 // END Date Utilities
 // ========================================== 
+
+// >>> MOVE initializeGlobalDateRangeSelector definition here <<<
+/**
+ * Initializes the global date range selector buttons.
+ * Assumes buttons with class .date-range-btn and data-timeframe attribute exist.
+ * Calls the callback with the selected timeframe key.
+ * @param {Function} onDateChangeCallback - Function to call when a timeframe button is clicked.
+ */
+function initializeGlobalDateRangeSelector(onDateChangeCallback) {
+    console.log("Initializing global date range selector [Listeners Only - in utils.js]...");
+    const timeframeButtons = document.querySelectorAll('.date-range-btn');
+    const dateRangeDisplay = document.getElementById('date-range-display'); // Optional
+
+    if (!timeframeButtons.length) {
+        console.warn("Date range buttons (.date-range-btn) not found. Skipping date range initialization.");
+        return;
+    }
+
+    const initiallyActiveButton = document.querySelector('.date-range-btn.active');
+    const buttons = timeframeButtons; // Alias for clarity
+
+    timeframeButtons.forEach(button => {
+        console.log(`Attaching listener to date button: ${button.dataset.timeframe}`, button);
+        button.addEventListener('click', function(event) {
+            // Call handler defined below
+            handleTimeframeChange(event, onDateChangeCallback); 
+        });
+    });
+
+    // Set initial active state (if needed globally, pages might handle their own initial load)
+    // Removed the initial call to onDateChangeCallback from here as it should be handled by page-specific logic
+    if (!initiallyActiveButton && buttons.length > 0) {
+        // Fallback: activate the first button if none are marked active
+        buttons[0].classList.add('active');
+        console.log("Fallback: Activated first button in global selector");
+    } else if (initiallyActiveButton) {
+        console.log("Initial active button found in global selector");
+    }
+
+    console.log("Global date range listeners attached.");
+}
+
+// >>> MOVE handleTimeframeChange definition here <<<
+// This function is called when a date range button is clicked.
+function handleTimeframeChange(event, loadDataCallback) {
+    console.log("handleTimeframeChange triggered!"); 
+    const clickedButton = event.target.closest('.date-range-btn');
+    if (!clickedButton) return; // Ignore clicks not on a button
+
+    const timeframe = clickedButton.dataset.timeframe;
+    if (!timeframe) return;
+
+    console.log(`Date range button clicked: ${timeframe}`);
+
+    // Remove active class from all buttons in this group
+    const parentGroup = clickedButton.closest('.btn-group');
+    if (parentGroup) {
+        parentGroup.querySelectorAll('.date-range-btn').forEach(btn => btn.classList.remove('active'));
+    }
+    // Add active class to the clicked button
+    clickedButton.classList.add('active');
+
+    // Trigger the data loading callback if provided
+    if (typeof loadDataCallback === 'function') {
+        console.log(`Calling loadDataCallback with timeframe: ${timeframe}`);
+        loadDataCallback(timeframe);
+    } else {
+        console.warn("loadDataCallback is not a function or was not provided to handleTimeframeChange.");
+    }
+}
+
+// ==========================================
+// END Date Utilities
+// ========================================== 
+
+// Call Initialization on DOMContentLoaded within utils.js itself
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("UTILS.JS: DOMContentLoaded - Initializing Toast, Debug, Sync & Date Range");
+    initializeToastContainer();
+    initializeGlobalDebugPanel();
+    initializeGlobalSyncButton(); 
+    initializeGlobalDateRangeSelector(); // ADDED CALL HERE
+}); 

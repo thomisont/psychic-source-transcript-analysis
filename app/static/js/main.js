@@ -15,68 +15,8 @@ console.log("MAIN.JS LOADED - V7 - Refactored");
 let currentConversationId = null;
 
 // ==========================================
-// Global Date Range Selector Logic (If needed globally)
+// Global Date Range Selector Logic (MOVED TO UTILS.JS)
 // ==========================================
-
-/**
- * Initializes the global date range selector buttons.
- * Assumes buttons with class .date-range-btn and data-timeframe attribute exist.
- * Calls the callback with the selected timeframe key.
- * @param {Function} onDateChangeCallback - Function to call when a timeframe button is clicked.
- */
-function initializeGlobalDateRangeSelector(onDateChangeCallback) {
-    // +++ Add Debug Log +++
-    console.log("DEBUG (main.js): ENTERING initializeGlobalDateRangeSelector function.");
-    // +++ End Debug Log +++
-    console.log("Initializing global date range selector [Listeners Only]...");
-    const timeframeButtons = document.querySelectorAll('.date-range-btn');
-    const dateRangeDisplay = document.getElementById('date-range-display'); // Optional
-
-    if (!timeframeButtons.length) {
-        console.warn("Date range buttons (.date-range-btn) not found. Skipping date range initialization.");
-        return;
-    }
-
-    // *** DEFINE initiallyActiveButton earlier ***
-    const initiallyActiveButton = document.querySelector('.date-range-btn.active');
-    const buttons = timeframeButtons; // Alias for clarity in later fallback
-
-    timeframeButtons.forEach(button => {
-        // *** ADD LOG ***
-        console.log(`Attaching listener to date button: ${button.dataset.timeframe}`, button);
-        button.addEventListener('click', function(event) { // Pass event to handler
-            // Use the specific handler function defined below
-            handleTimeframeChange(event, onDateChangeCallback); 
-        });
-    });
-
-    // Set initial active state (now variable is defined)
-    if (initiallyActiveButton) {
-        // initiallyActiveButton.classList.add('active'); // Already has class
-        console.log("Initial active button found in global selector");
-        // Trigger initial load *only* if a callback is provided
-        if (onDateChangeCallback) { 
-            const initialTimeframe = initiallyActiveButton.dataset.timeframe || 'last_30_days';
-            console.log(`Triggering initial load via callback with timeframe: ${initialTimeframe}`);
-            onDateChangeCallback(initialTimeframe);
-        } else {
-             console.log("No initial load callback provided to global date selector.");
-        }
-    } else if (buttons.length > 0) {
-        // Fallback: activate the first button if none are marked active
-        buttons[0].classList.add('active');
-        console.log("Fallback: Activated first button in global selector");
-        if (onDateChangeCallback) {
-            const initialTimeframe = buttons[0].dataset.timeframe || 'last_30_days';
-            console.log(`Triggering initial load via callback with timeframe: ${initialTimeframe}`);
-            onDateChangeCallback(initialTimeframe);
-        }
-    }
-
-    console.log("Global date range listeners attached.");
-}
-
-window.initializeGlobalDateRangeSelector = initializeGlobalDateRangeSelector;
 
 // ==========================================
 // Dashboard Specific Logic (REMOVED - Now in dashboard.js)
@@ -106,106 +46,89 @@ window.initializeGlobalDateRangeSelector = initializeGlobalDateRangeSelector;
 // Global Initialization & Event Listeners (Remaining)
 // ==========================================
 
-// >>> DEFINE initializeGlobalSyncButton <<<
-function initializeGlobalSyncButton() {
-     const syncButton = document.getElementById('global-sync-button'); // Corrected ID?
-     const syncStatus = document.getElementById('global-sync-status'); // Corrected ID?
+// >>> REMOVE initializeGlobalSyncButton definition (moved to utils.js) <<<
 
-     // Check base.html for correct IDs, e.g., #sync-button, #sync-status
-     const actualSyncButton = document.getElementById('sync-button');
-     const actualSyncStatus = document.getElementById('sync-status');
+// >>> REMOVE updateTotalCount definition (not used globally here) <<<
 
-     if (actualSyncButton) {
-          actualSyncButton.addEventListener('click', async () => {
-               if (actualSyncStatus) actualSyncStatus.textContent = 'Syncing...';
-               actualSyncButton.disabled = true;
-               try {
-                    // Use API utility
-                    const result = await API.fetch('/api/sync-conversations', { method: 'POST' }); 
-                    console.log("Sync result:", result);
+// ==========================================
+// Persistent Voice Drawer Logic 
+// ==========================================
+function initializePersistentVoiceDrawer() {
+    console.log("[Drawer Init] Running initializePersistentVoiceDrawer..."); // Log Entry
+    const drawer = document.getElementById('voice-drawer');
+    const trigger = document.getElementById('voice-drawer-trigger');
+    const closeBtn = document.getElementById('voice-drawer-close-btn');
 
-                    if (result.status === 'success') {
-                         // --- NEW: Populate and show modal --- 
-                         const modalElement = document.getElementById('syncStatusModal');
-                         if (modalElement) {
-                             document.getElementById('modal-db-initial').textContent = result.initial_db_count;
-                             document.getElementById('modal-db-final').textContent = result.final_db_count;
-                             document.getElementById('modal-added').textContent = result.added;
-                             document.getElementById('modal-updated').textContent = result.updated;
-                             document.getElementById('modal-skipped').textContent = result.skipped;
-                             document.getElementById('modal-checked-api').textContent = result.checked_api;
-                             
-                             const failedSection = document.getElementById('modal-failed-section');
-                             const failedCountSpan = document.getElementById('modal-failed');
-                             if (result.failed > 0) {
-                                 failedCountSpan.textContent = result.failed;
-                                 failedSection.classList.remove('d-none');
-                             } else {
-                                 failedSection.classList.add('d-none');
-                             }
+    // Log element finding results
+    console.log(`[Drawer Init] Drawer found: ${!!drawer}`);
+    console.log(`[Drawer Init] Trigger found: ${!!trigger}`);
+    console.log(`[Drawer Init] Close Btn found: ${!!closeBtn}`);
 
-                             // Use Bootstrap's JS to show the modal
-                             const modal = new bootstrap.Modal(modalElement);
-                             modal.show();
-                         } else {
-                             // Fallback to toast if modal element not found
-                             console.error("Sync Status Modal element not found. Falling back to toast.");
-                             let msg = `Sync finished. DB: ${result.initial_db_count}->${result.final_db_count}. Added:${result.added}, Updated:${result.updated}, Skipped:${result.skipped}, Failed:${result.failed}.`;
-                             UI.showToast(msg, 'success', 10000); 
-                         }
-                         // --- END MODAL LOGIC ---
-                         
-                         if (actualSyncStatus) actualSyncStatus.textContent = 'Sync Complete';
-                         if (typeof updateTotalCount === 'function') {
-                            updateTotalCount(result.final_db_count);
-                         }
-                    } else {
-                         throw new Error(result.message || 'Sync failed with unknown error');
-                    }
-               } catch (error) {
-                    console.error("Sync error:", error);
-                    // UI.showToast is handled by API.fetch
-                    if (actualSyncStatus) actualSyncStatus.textContent = 'Sync Failed';
-               } finally {
-                    actualSyncButton.disabled = false;
-                    // Optionally reset status text after a delay
-                    setTimeout(() => {
-                         if (actualSyncStatus && actualSyncStatus.textContent !== 'Syncing...') { // Avoid clearing if another sync started
-                              actualSyncStatus.textContent = '';
-                         }
-                    }, 5000);
-               }
-          });
-          console.log("Global sync button initialized.");
-     } else {
-          // console.log("Global sync button #sync-button not found.");
-     }
-}
-
-// >>> DEFINE updateTotalCount - Global version? <<<
-// This updates a potential global display of total conversations in the DB
-// Ensure the element ID is correct and exists in base.html or relevant templates
-function updateTotalCount(count) {
-    const element = document.getElementById('total-conversations-db'); // Example ID
-    if (element) {
-         element.textContent = `Total Conversations (DB): ${count !== null ? count : 'N/A'}`;
-    } else {
-        // console.warn("#total-conversations-db element not found for global update.");
+    if (!drawer || !trigger || !closeBtn) {
+        console.warn("[Drawer Init] Voice drawer elements missing. Feature disabled.");
+        return;
     }
+
+    const storageKey = 'voiceDrawerIsOpen';
+
+    // Check initial state from localStorage
+    if (localStorage.getItem(storageKey) === 'true') {
+        drawer.classList.add('drawer-open');
+        console.log("Voice drawer initially open based on localStorage.");
+    } else {
+        drawer.classList.remove('drawer-open');
+    }
+
+    // Trigger button opens/closes
+    trigger.addEventListener('click', () => {
+        console.log("[Drawer Trigger] Click detected!"); // Log Click
+        const isOpen = drawer.classList.toggle('drawer-open');
+        localStorage.setItem(storageKey, isOpen);
+        console.log(`[Drawer Trigger] Drawer class toggled. New state: ${isOpen}`);
+        // Potentially trigger voice SDK initialization *if* opening and not already init
+        // e.g., if (isOpen && typeof initializeVoiceSdkIfNeeded === 'function') { initializeVoiceSdkIfNeeded(); }
+    });
+
+    // Close button closes
+    closeBtn.addEventListener('click', () => {
+        console.log("[Drawer Close] Click detected!"); // Log Click
+        drawer.classList.remove('drawer-open');
+        localStorage.setItem(storageKey, 'false');
+        console.log("Voice drawer closed via button.");
+        // Potentially trigger voice SDK endSession if needed
+    });
+
+    // Optional: Close on Escape key
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && drawer.classList.contains('drawer-open')) {
+            console.log("[Drawer Escape] Escape key detected while open."); // Log Escape
+            closeBtn.click(); // Simulate click on close button
+        }
+    });
+
+    // Optional: Close on click outside (more complex, might skip for now)
+    /*
+    document.addEventListener('click', (event) => {
+        if (drawer.classList.contains('drawer-open') && 
+            !drawer.contains(event.target) && 
+            !trigger.contains(event.target)) {
+            closeBtn.click();
+        }
+    });
+    */
+   console.log("Persistent Voice Drawer initialized.");
 }
 
-// --- Main Initialization Logic (Revised) ---
+// ==========================================
+// Initialization on DOMContentLoaded
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOM fully loaded and parsed. Running main initializations.");
+    console.log("MAIN.JS: DOMContentLoaded");
+    // Initialize global features
+    // initializeGlobalDateRangeSelector(); // REMOVE THIS CALL (now in utils.js)
+    initializePersistentVoiceDrawer(); // Initialize the drawer
 
-    // Initialize components common to all pages
-    initializeGlobalSyncButton();
-    updateApiStatus(); // Fetch initial API status
-
-    // Page-specific initializations are now handled by including the specific JS file 
-    // (e.g., dashboard.js, transcript_viewer.js) which contain their own 
-    // DOMContentLoaded listeners.
-
+    console.log("Global initializations complete.");
 });
 
 // ==========================================
@@ -302,33 +225,5 @@ async function updateApiStatus() {
 // Final check: Ensure DOMContentLoaded listeners inside page-specific files 
 // correctly identify their page and execute.
 
-// --- Shared Event Handler ---
-// This function is called when a date range button is clicked.
-function handleTimeframeChange(event, loadDataCallback) {
-    // *** ADD LOG ***
-    console.log("handleTimeframeChange triggered!"); 
-    const clickedButton = event.target.closest('.date-range-btn');
-    if (!clickedButton) return; // Ignore clicks not on a button
-
-    const timeframe = clickedButton.dataset.timeframe;
-    if (!timeframe) return;
-
-    console.log(`Date range button clicked: ${timeframe}`);
-
-    // Remove active class from all buttons in this group
-    const parentGroup = clickedButton.closest('.btn-group');
-    if (parentGroup) {
-        parentGroup.querySelectorAll('.date-range-btn').forEach(btn => btn.classList.remove('active'));
-    }
-    // Add active class to the clicked button
-    clickedButton.classList.add('active');
-
-    // Trigger the data loading callback if provided
-    if (typeof loadDataCallback === 'function') {
-        console.log(`Calling loadDataCallback with timeframe: ${timeframe}`);
-        loadDataCallback(timeframe);
-    } else {
-        console.warn("loadDataCallback is not a function or was not provided.");
-    }
-}
+// --- REMOVE Shared Event Handler handleTimeframeChange (moved to utils.js) ---
 

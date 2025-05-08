@@ -42,8 +42,78 @@
     .btn-warning.active { font-weight: bold; box-shadow: 0 0 0 0.2rem rgba(255,193,7,0.5); }
     /* Constrain chart container height */
     .chart-container { position: relative; height: 280px; max-height: 300px; }
-    /* Light gradient for KPI Card Headers */
-    .stat-card-header { background: linear-gradient(135deg, var(--primary-light-shade), var(--secondary-light-shade)); color: var(--dark-gray) !important; }
+    
+    /* --- KPI Card Styling Refinements --- */
+    .stat-card {
+        background-color: #fff; /* Clean white background */
+        border: 1px solid #e9ecef; /* Softer border */
+        border-radius: 0.5rem; /* Standard Bootstrap rounding */
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075); /* Standard Bootstrap shadow */
+        transition: transform 0.2s ease-in-out;
+        height: 100%; /* Ensure cards in a row have equal height */
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+    }
+    .stat-card-header {
+        /* background: linear-gradient(135deg, var(--primary-light-shade), var(--secondary-light-shade)); /* Original */
+        background-color: transparent; /* Remove specific background for a cleaner look */
+        border-bottom: 1px solid #e9ecef; /* Add a subtle separator */
+        padding: 0.75rem 1rem; /* Adjusted padding */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--dark-gray) !important; 
+    }
+    .stat-metric-name {
+        font-size: 0.9rem;
+        font-weight: 500; /* Medium weight for metric name */
+        color: #495057; /* Darker text for better contrast */
+    }
+    .stat-metric-name .bi-info-circle {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .stat-icon-container {
+        padding: 0.5rem; /* Slightly reduced padding */
+        border-radius: 50%; /* Circular background for icon */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px; /* Fixed width */
+        height: 40px; /* Fixed height */
+    }
+    .stat-icon-container .stat-icon {
+        font-size: 1.25rem; /* Slightly smaller icon */
+        color: #fff; /* White icon, background set by utility classes like .bg-viz-1 */
+    }
+    .stat-card-body {
+        padding: 1rem; /* Standard padding */
+        transition: opacity 0.2s ease-in-out; 
+    }
+    .stat-metric-value {
+        font-size: 1.75rem; /* Prominent metric value */
+        font-weight: 600; /* Semi-bold */
+        color: #212529; /* Main text color */
+        margin-bottom: 0.25rem;
+    }
+    .stat-metric-trend {
+        font-size: 0.8rem;
+        color: #6c757d; /* Muted color for trend text */
+        /* For actual trend indicators (up/down arrows), additional styling might be needed if implemented */
+    }
+    /* Colors for stat icons (can be expanded) */
+    .bg-viz-1 { background-color: #0d6efd !important; } /* Blue */
+    .bg-viz-2 { background-color: #fd7e14 !important; } /* Orange */
+    .bg-viz-3 { background-color: #198754 !important; } /* Green */
+    .bg-viz-4 { background-color: #ffc107 !important; } /* Yellow */
+    .bg-viz-accent { background-color: #6f42c1 !important; } /* Purple */
+    /* Ensure MTD cost progress bar elements are styled appropriately if they use .stat-card structure */
+    #mtd-cost-progress {
+        height: 8px !important; /* Slimmer progress bar */
+    }
+
     /* Gradient for Chart Containers */
     .chart-container { background: linear-gradient(180deg, var(--secondary-light-shade) 0%, var(--light-gray) 100%); border: none; box-shadow: none; }
     /* Underline title */
@@ -226,183 +296,136 @@
                  {# Options populated by JavaScript #}
              </select>
         </div>
+        <!-- Placeholder Filter and Export Buttons -->
+        <div class="ms-auto d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-funnel me-1"></i> Filter
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download me-1"></i> Export
+            </button>
+        </div>
     </div>
     
-    {# Row for Key Performance Indicators (KPIs) - Split into 3 and 2 #}
-    <div class="row stats-container g-4">
-        <!-- First Row: Conversations, Avg Duration, Avg Cost -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="stat-card h-100">
-                <div class="stat-card-header">
-                    <div class="stat-metric-name">
-                        Conversations
-                        <i class="bi bi-info-circle ms-1" 
-                           data-bs-toggle="tooltip" 
-                           data-bs-placement="top" 
-                           title="Shows the number of conversations handled by the selected agent where at least one message was exchanged during the chosen timeframe. Example: If a conversation started yesterday but had messages today, it counts for today's 7-day view.">
-                        </i>
-                    </div>
-                    <div class="stat-icon-container bg-viz-1">
-                        <i class="bi bi-chat-dots stat-icon"></i>
-                    </div>
-                </div>
-                <div class="stat-card-body">
-                    <div id="total-conversations" class="stat-metric-value">--</div>
-                    <div class="stat-metric-trend">In selected period</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Average Duration KPI Card -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="stat-card h-100">
-                <div class="stat-card-header">
-                    <div class="stat-metric-name">Avg Duration
-                        <i class="bi bi-info-circle ms-1" 
-                           data-bs-toggle="tooltip" 
-                           data-bs-placement="top" 
-                           title="Calculates the average length of conversations (from first to last message) handled by the selected agent that were active during the chosen timeframe. Example: If 3 conversations active in the period lasted 5m, 10m, and 15m, the average is 10m.">
-                        </i>
-                    </div>
-                    <div class="stat-icon-container bg-viz-2">
-                        <i class="bi bi-clock-history stat-icon"></i>
-                    </div>
-                </div>
-                <div class="stat-card-body">
-                    <div id="average-duration" class="stat-metric-value">--:--</div>
-                    <div class="stat-metric-trend">Per conversation</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Average Cost KPI Card -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="stat-card h-100">
-                <div class="stat-card-header">
-                    <div class="stat-metric-name">Avg Cost
-                        <i class="bi bi-info-circle ms-1" 
-                           data-bs-toggle="tooltip" 
-                           data-bs-placement="top" 
-                           title="Shows the average cost in ElevenLabs credits for conversations handled by the selected agent that were active during the chosen timeframe. Example: If 3 conversations cost 50, 100, and 150 credits, the average is 100 credits.">
-                        </i>
-                    </div>
-                    <div class="stat-icon-container bg-viz-3">
-                        <i class="bi bi-coin stat-icon"></i>
-                    </div>
-                </div>
-                <div class="stat-card-body">
-                    <div id="average-cost" class="stat-metric-value">--</div>
-                    <div class="stat-metric-trend">Credits per conversation</div>
-                </div>
-            </div>
-        </div>
-    </div> {# End of first KPI row #}
+    <!-- NEW: Top-Level Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" id="dashboardTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="curious-caller-tab" data-bs-toggle="tab" data-bs-target="#curious-caller-pane" type="button" role="tab" aria-controls="curious-caller-pane" aria-selected="true" data-agent-id="3HFVw3nTZfIivPaHr3ne">Curious Caller</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="member-hospitality-tab" data-bs-toggle="tab" data-bs-target="#member-hospitality-pane" type="button" role="tab" aria-controls="member-hospitality-pane" aria-selected="false" data-agent-id="XuUk69oMnn2Z9Sx9sXVu">Member Hospitality</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="success-metrics-tab" data-bs-toggle="tab" data-bs-target="#success-metrics-pane" type="button" role="tab" aria-controls="success-metrics-pane" aria-selected="false">Success Metrics</button>
+        </li>
+        {# Add other top-level tabs here later as needed #}
+    </ul>
 
-    {# Second Row for KPIs #}
-    <div class="row stats-container g-4">
-        <!-- Completion Rate KPI Card -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="stat-card h-100">
-                <div class="stat-card-header">
-                    <div class="stat-metric-name">Completion Rate
-                        <i class="bi bi-info-circle ms-1" 
-                           data-bs-toggle="tooltip" 
-                           data-bs-placement="top" 
-                           title="Percentage of conversations handled by the selected agent during the chosen timeframe that reached a 'completed' status. Example: If 8 out of 10 conversations were completed, the rate is 80%.">
-                        </i>
-                    </div>
-                    <div class="stat-icon-container bg-viz-4">
-                        <i class="bi bi-check-circle-fill stat-icon"></i>
-                    </div>
-                </div>
-                <div class="stat-card-body">
-                    <div id="completion-rate" class="stat-metric-value">--%</div>
-                    <div class="stat-metric-trend">Of conversations completed</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Peak Time KPI Card -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="stat-card h-100">
-                <div class="stat-card-header">
-                    <div class="stat-metric-name">Peak Time
-                        <i class="bi bi-info-circle ms-1" 
-                           data-bs-toggle="tooltip" 
-                           data-bs-placement="top" 
-                           title="Identifies the hour of the day (local time) with the highest number of messages exchanged for the selected agent during the chosen timeframe. Example: If most messages occurred between 2 PM and 3 PM, the peak time is 2 PM.">
-                        </i>
-                    </div>
-                    <div class="stat-icon-container bg-viz-accent">
-                        <i class="bi bi-hourglass-split stat-icon"></i>
+    <!-- Tab Content -->
+    <div class="tab-content" id="dashboardTabContent">
+
+        <!-- Curious Caller Tab Pane -->
+        <div class="tab-pane fade show active" id="curious-caller-pane" role="tabpanel" aria-labelledby="curious-caller-tab">
+            <!-- KPIs for Curious Caller (Copied & Prefixed) -->
+            <div class="row stats-container g-4">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                        <div class="stat-card-header">
+                            <div class="stat-metric-name">Conversations <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-1"><i class="bi bi-chat-dots stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="cc-total-conversations" class="stat-metric-value">--</div>
+                            <div class="stat-metric-trend">In selected period</div>
+                        </div>
                     </div>
                 </div>
-                <div class="stat-card-body">
-                    <div id="peak-time" class="stat-metric-value">--:--</div>
-                    <div class="stat-metric-trend">Most active hour</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- NEW Monthly Cost KPI Card -->
-        <div class="col-lg-4 col-md-6 mb-4">
-            <div class="stat-card h-100">
-                <div class="stat-card-header">
-                    <div class="stat-metric-name">Month-to-Date Cost
-                        <i class="bi bi-info-circle ms-1" 
-                           data-bs-toggle="tooltip" 
-                           data-bs-placement="top" 
-                           title="Total ElevenLabs credits used this calendar month (from the 1st to today) by the selected agent, compared to the monthly budget. Example: Shows credits used so far in April.">
-                        </i>
-                    </div>
-                    <div class="stat-icon-container bg-info"> <!-- Different color? -->
-                        <i class="bi bi-calendar-month stat-icon"></i>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Avg Duration <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-2"><i class="bi bi-clock-history stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="cc-average-duration" class="stat-metric-value">--:--</div>
+                            <div class="stat-metric-trend">Per conversation</div>
+                        </div>
                     </div>
                 </div>
-                <div class="stat-card-body">
-                    <div id="mtd-cost" class="stat-metric-value">--</div>
-                    <div class="stat-metric-trend">Credits used this month</div>
-                    <!-- Progress Bar -->
-                    <div class="progress mt-2" style="height: 10px;">
-                      <div id="mtd-cost-progress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <div class="d-flex justify-content-between mt-1">
-                        <small class="text-muted">0%</small>
-                        <small id="mtd-cost-budget-label" class="text-muted">Budget: --</small>
+                 <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Avg Cost <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-3"><i class="bi bi-coin stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="cc-average-cost" class="stat-metric-value">--</div>
+                            <div class="stat-metric-trend">Credits per conversation</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div> {# End of second KPI row #}
-    
-    <!-- Charts & Graphs Accordion -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="accordion" id="chartsAccordion">
-          <div class="accordion-item">
-            <h2 class="accordion-header" id="headingCharts">
-              <button id="futureFeaturesButton" class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCharts" aria-expanded="true" aria-controls="collapseCharts">
-                Charts & Graphs <i class="bi bi-bar-chart ms-2"></i>
-              </button>
-            </h2>
-            <div id="collapseCharts" class="accordion-collapse collapse show" aria-labelledby="headingCharts" data-bs-parent="#chartsAccordion">
-              <div class="accordion-body">
-                {# Charts Row #}
-                <div class="row">
+             <div class="row stats-container g-4">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Completion Rate <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-4"><i class="bi bi-check-circle-fill stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="cc-completion-rate" class="stat-metric-value">--%</div>
+                            <div class="stat-metric-trend">Of conversations completed</div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Peak Time <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-accent"><i class="bi bi-hourglass-split stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="cc-peak-time" class="stat-metric-value">--:--</div>
+                            <div class="stat-metric-trend">Most active hour</div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Month-to-Date Cost <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-info"><i class="bi bi-calendar-month stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="cc-mtd-cost" class="stat-metric-value">--</div>
+                            <div class="stat-metric-trend">Credits used this month</div>
+                            <div class="progress mt-2" style="height: 10px;">
+                              <div id="cc-mtd-cost-progress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">0%</small>
+                                <small id="cc-mtd-cost-budget-label" class="text-muted">Budget: --</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Charts for Curious Caller (Copied & Prefixed) -->
+             <div class="row mt-4">
                   <div class="col-lg-6 mb-4">
                     <div class="card h-100">
-                      <div class="card-body chart-container" id="volume-chart-container">
-                        <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Tracks the number of distinct conversations per day..."></i></h5>
-                        <canvas id="callVolumeChart"></canvas>
+                      <div class="card-body chart-container" id="cc-volume-chart-container">
+                        <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="cc-callVolumeChart"></canvas>
                         <div class="empty-chart-message" style="display: none;">No volume data for this period.</div>
                       </div>
                     </div>
                   </div>
                   <div class="col-lg-6 mb-4">
                     <div class="card h-100">
-                      <div class="card-body chart-container" id="duration-chart-container">
-                        <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Shows the average conversation duration per day..."></i></h5>
-                        <canvas id="callDurationChart"></canvas>
+                      <div class="card-body chart-container" id="cc-duration-chart-container">
+                        <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="cc-callDurationChart"></canvas>
                         <div class="empty-chart-message" style="display: none;">No duration data for this period.</div>
                       </div>
                     </div>
@@ -411,55 +434,170 @@
                 <div class="row mb-4">
                   <div class="col-lg-6 mb-4">
                     <div class="card h-100">
-                      <div class="card-body chart-container" id="hourly-chart-container">
-                        <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages per hour..."></i></h5>
-                        <canvas id="hourlyActivityChart"></canvas>
+                      <div class="card-body chart-container" id="cc-hourly-chart-container">
+                        <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="cc-hourlyActivityChart"></canvas>
                         <div class="empty-chart-message" style="display: none;">No hourly activity data.</div>
                       </div>
                     </div>
                   </div>
                   <div class="col-lg-6 mb-4">
                     <div class="card h-100">
-                      <div class="card-body chart-container" id="weekday-chart-container">
-                        <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Counts the total number of messages per weekday..."></i></h5>
-                        <canvas id="weekdayActivityChart"></canvas>
+                      <div class="card-body chart-container" id="cc-weekday-chart-container">
+                        <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="cc-weekdayActivityChart"></canvas>
                         <div class="empty-chart-message" style="display: none;">No weekday activity data.</div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
-    </div>
 
-    {# === NEW: Success Metrics Section === #}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="accordion" id="successMetricsAccordion">
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingSuccess">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSuccess" aria-expanded="false" aria-controls="collapseSuccess">
-                            Success Metrics <i class="bi bi-bar-chart-line ms-2"></i>
-                        </button>
-                    </h2>
-                    <div id="collapseSuccess" class="accordion-collapse collapse" aria-labelledby="headingSuccess" data-bs-parent="#successMetricsAccordion">
-                        <div class="accordion-body">
-                            <div class="alert alert-info small" role="alert">
-                                Enter current values to track progress from baseline toward target. Values are stored locally (browser-only) until programmatic sources are wired-in.
-                            </div>
-                            <div id="success-metrics-container" class="row gy-4"></div>
+        <!-- Member Hospitality Tab Pane -->
+        <div class="tab-pane fade" id="member-hospitality-pane" role="tabpanel" aria-labelledby="member-hospitality-tab">
+             <!-- KPIs for Member Hospitality (Copied & Prefixed) -->
+             <div class="row stats-container g-4">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                        <div class="stat-card-header">
+                            <div class="stat-metric-name">Conversations <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-1"><i class="bi bi-chat-dots stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="mh-total-conversations" class="stat-metric-value">--</div>
+                            <div class="stat-metric-trend">In selected period</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Avg Duration <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-2"><i class="bi bi-clock-history stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="mh-average-duration" class="stat-metric-value">--:--</div>
+                            <div class="stat-metric-trend">Per conversation</div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Avg Cost <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-3"><i class="bi bi-coin stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="mh-average-cost" class="stat-metric-value">--</div>
+                            <div class="stat-metric-trend">Credits per conversation</div>
                         </div>
                     </div>
                 </div>
             </div>
+             <div class="row stats-container g-4">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Completion Rate <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-4"><i class="bi bi-check-circle-fill stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="mh-completion-rate" class="stat-metric-value">--%</div>
+                            <div class="stat-metric-trend">Of conversations completed</div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Peak Time <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-viz-accent"><i class="bi bi-hourglass-split stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="mh-peak-time" class="stat-metric-value">--:--</div>
+                            <div class="stat-metric-trend">Most active hour</div>
+                        </div>
+                    </div>
+                </div>
+                 <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="stat-card h-100">
+                         <div class="stat-card-header">
+                            <div class="stat-metric-name">Month-to-Date Cost <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="...tooltip..."></i></div>
+                            <div class="stat-icon-container bg-info"><i class="bi bi-calendar-month stat-icon"></i></div>
+                        </div>
+                        <div class="stat-card-body">
+                            <div id="mh-mtd-cost" class="stat-metric-value">--</div>
+                            <div class="stat-metric-trend">Credits used this month</div>
+                            <div class="progress mt-2" style="height: 10px;">
+                              <div id="mh-mtd-cost-progress" class="progress-bar bg-success" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">0%</small>
+                                <small id="mh-mtd-cost-budget-label" class="text-muted">Budget: --</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Charts for Member Hospitality (Copied & Prefixed) -->
+            <div class="row mt-4">
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="mh-volume-chart-container">
+                        <h5 class="card-title">Call Volume Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="mh-callVolumeChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No volume data for this period.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="mh-duration-chart-container">
+                        <h5 class="card-title">Call Duration Trends <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="mh-callDurationChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No duration data for this period.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row mb-4">
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="mh-hourly-chart-container">
+                        <h5 class="card-title">Hourly Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="mh-hourlyActivityChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No hourly activity data.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                      <div class="card-body chart-container" id="mh-weekday-chart-container">
+                        <h5 class="card-title">Weekday Activity <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="..."></i></h5>
+                        <canvas id="mh-weekdayActivityChart"></canvas>
+                        <div class="empty-chart-message" style="display: none;">No weekday activity data.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
         </div>
-    </div>
-    {# === END: Success Metrics Section === #}
 
-    {# === NEW: Agent Administration Section === #}
+        <!-- Success Metrics Tab Pane -->
+        <div class="tab-pane fade" id="success-metrics-pane" role="tabpanel" aria-labelledby="success-metrics-tab">
+            {# Content from the previous Success Metrics accordion body goes here #}
+            <div class="alert alert-info small" role="alert">
+                Enter current values to track progress from baseline toward target. Values are stored locally (browser-only) until programmatic sources are wired-in.
+            </div>
+            <div id="success-metrics-container" class="row gy-4"></div> {# This container needs to be populated by its specific JS logic #}
+        </div>
+
+        {# Add other top-level tab panes here later #}
+
+    </div> <!-- End Tab Content -->
+
+    {# === Restore Accordions Below Tabs === #}
+
+    {# === Agent Administration Section (Restored) === #}
     <div class="row mb-4">
         <div class="col-12">
             <div class="accordion" id="agentAdminAccordion">
@@ -471,237 +609,295 @@
                     </h2>
                     <div id="collapseAdmin" class="accordion-collapse collapse" aria-labelledby="headingAdmin" data-bs-parent="#agentAdminAccordion">
                         <div class="accordion-body">
-                            <!-- Existing Admin Controls for selected agent -->
-                            <div class="row">
-                                {# Column 1: Widget & Prompt #}
-                                <div class="col-md-6 mb-3">
-                                    <div class="card h-100">
-                                        <div class="card-body prompt-column-card-body">
-                                            <h5 class="card-title">Interact & View Prompt</h5>
-                                            <h6>Interact with Agent:</h6>
-                                            <div id="agent-widget-embed-area" class="mb-3 border rounded p-2" style="min-height: 200px;">
-                                                Loading widget...
+                            <!-- Re-adding Tabbed Interface for Agent Admin Controls -->
+                            <ul class="nav nav-tabs mb-3" id="agentAdminTabsInternal" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="interact-prompt-tab-internal" data-bs-toggle="tab" data-bs-target="#interact-prompt-pane-internal" type="button" role="tab" aria-controls="interact-prompt-pane-internal" aria-selected="true">Interaction & Prompt</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="email-templates-tab-internal" data-bs-toggle="tab" data-bs-target="#email-templates-pane-internal" type="button" role="tab" aria-controls="email-templates-pane-internal" aria-selected="false">Email Templates</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="caller-contacts-tab-internal" data-bs-toggle="tab" data-bs-target="#caller-contacts-pane-internal" type="button" role="tab" aria-controls="caller-contacts-pane-internal" aria-selected="false">Caller Contacts</button>
+                                </li>
+                            </ul>
+                            <div class="tab-content" id="agentAdminTabContentInternal">
+                                <!-- Interaction & Prompt Tab Pane -->
+                                <div class="tab-pane fade show active" id="interact-prompt-pane-internal" role="tabpanel" aria-labelledby="interact-prompt-tab-internal">
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-body prompt-column-card-body">
+                                                    <h5 class="card-title mb-3">Live Agent Interaction & System Prompt</h5>
+                                                    <h6>Interact with Agent:</h6>
+                                                    <div id="agent-widget-embed-area" class="mb-3 border rounded p-2" style="min-height: 200px;">Select an agent from the main dashboard dropdown to load widget.</div>
+                                                    <h6>System Prompt:</h6>
+                                                    <div id="agent-prompt-viewer" class="bg-light p-2 rounded">
+<pre style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.85rem;">
+System Prompt for Engaging and Personalized Caller Interaction
+
+You are Lilly, a highly empathetic and engaging virtual assistant for Psychic Source, a trusted platform offering psychic readings and spiritual guidance. Your primary goal is to build rapport with callers, gently guide them to become more curious, and eventually encourage them to take you up on the offer to receive more information from Psychic Source. Go slow; ask one question at a time and wait for the response before proceeding. The primary goal is to answer questions. A secondary goal is to collect information to trigger the CuriousCaller Tool when appropriate.
+
+LILY&#39;S BACKGROUND &amp; PERSONALITY
+
+Lilly has a deep appreciation for the unique journeys and stories of each caller. She enjoys helping people explore their inner selves and guiding them toward insights that resonate with their personalities. She has a warm and friendly demeanor, always keeping conversations engaging and insightful. Lilly believes in fostering meaningful connections and genuinely enjoys learning about others. She often shares small anecdotes about why she loves her work helping others and how psychic guidance has impacted people&#39;s lives. She has a light sense of humor and loves making conversations feel effortless and natural. Lilly&#39;s home base is Philadelphia, where she operates.
+
+TOOLS
+
+Use the timeDate Tool at the outset of ALL conversations to set the current date and time and store it in the following field: systemDate.
+
+Use the CuriousCaller Tool to send the collected information via webhook when enough data has been gathered.
+
+Build a userProfile field by collecting responses naturally throughout the conversation. The backend n8n will process this data via the CuriousCaller tool for further insights.
+
+GUIDELINES
+
+Provide key information such as the psychic&#39;s profile details (e.g., extension number, specialties, reviews) and invite them to visit the website for full service. Do not attempt to connect calls, schedule appointments, or perform tasks that require actions beyond information sharing.
+
+If the conversation moves toward booking appointments, having a reading done, or connecting with a psychic/advisor, inform the user that those features require signing up on the website. Encourage them to register or log in to access those additional benefits.
+
+Maintain a friendly, helpful tone that emphasizes exploring our services rather than performing actions. For example, when asked about additional functions (like checking availability or sending emails), kindly remind the user that these options are available once they sign up, and provide a clear call-to-action (e.g., &quot;Sign up now to access your full range of services!&quot;).
+
+Clearly communicate what the AI can and cannot do. For instance, state that while you can provide details like profile extensions or reviews, actual connections or scheduling must be handled through the website. This sets realistic expectations and avoids confusion.
+
+Essential Information Collection:
+
+Early in the conversation, ask for the caller&#39;s first name, but don&#39;t press them on any other piece of information. If they provide you with the first name, great. Otherwise, don&#39;t ask for any other piece of information.
+
+Spend time upfront discussing psychic readings and Psychic Source services. Then, over the course of the conversation, collect the caller&#39;s preferences and demographic data. NEVER ask more than two personal questions at a time.
+
+Later, casually, collect their email address.
+
+Establishing Connection:
+
+Ask where the user is calling from and make small talk about the city/location they are in, connecting it to Lilly&#39;s home base of Philadelphia.
+
+Show genuine curiosity about their interests and background without making it feel like a survey.
+
+Personality Assessment:
+
+Assess personality traits from the caller&#39;s answers to better match the caller with a psychic. Add those traits to the userProfile data field
+
+Conversational Flow:
+
+Keep the conversation natural and engaging, guiding it based on the caller&#39;s responses.
+
+Gently encourage curiosity about what Psychic Source can offer.
+
+If the user asks about psychic services, provide helpful and relevant information on Psychic Sources&#39;s website, but don&#39;t be pushy. Offer to help the user find a psychic based on available knowledge.
+
+If the caller hesitates to answer questions, pivot to lighthearted topics while subtly collecting necessary details. Note the hesitation in the userProfile data field.
+
+
+KEY OUTCOME:
+
+Once Lilly has captured the required information (first name, last name, email, and sufficient userProfile details), she should ask if the caller can send their details to Psychic Source to jump-start further exploration.
+
+If they agree, trigger the CuriousCaller Tool and inform them they will receive an email with a summary and next steps.
+
+Handling Interruptions:
+
+If forced to interrupt the user, start by saying, &quot;Thanks for being patient; all is well. I&#39;m just waiting on the internet to get a reply.&quot; Then, say something witty about the internet being slow today.
+
+OUTPUT
+
+The system should store the following required data:
+
+userName = First Name + Last Name
+
+userEmail = Email address given by the user
+
+userProfile = Personality traits, Objections, Skepticism, and any other helpful Background details in a Data String (compiled based on responses)
+
+selectedPsychic = Name of preferred Psychic Source psychic (if applicable)
+
+DATA FORMAT REQUIREMENTS
+
+Store and transmit user details in the following structure:
+
+userName: The user&#39;s full name. Ask for the user&#39;s last name if you only have the first name.
+
+userEmail: The verified user&#39;s email address in the proper format (example: tom@encode.org)
+
+userProfile: A string value containing the summary of background and personality data collected by Lilly during the conversation.
+
+selectedPsychic: The name of the psychic is either given by the user or confirmed when offered by the agent.
+</pre>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <h6>System Prompt:</h6>
-                                            <div id="agent-prompt-viewer" class="bg-light p-2 rounded">Loading prompt...</div>
                                         </div>
                                     </div>
                                 </div>
-                                {# Column 2: Email Templates #}
-                                <div class="col-md-6 mb-3">
-                                    <div class="card h-100">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Email Templates</h5>
-                                            <h6>Team Notification Email:</h6>
-                                            <div id="team-email-viewer" class="border p-2 rounded mb-3">Loading template...</div>
-                                            <h6>Caller Follow-up Email:</h6>
-                                            <div id="caller-email-viewer" class="border p-2 rounded">Loading template...</div>
+                                <!-- Email Templates Tab Pane -->
+                                <div class="tab-pane fade" id="email-templates-pane-internal" role="tabpanel" aria-labelledby="email-templates-tab-internal">
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-body">
+                                                    <h5 class="card-title mb-3">Agent-Specific Email Templates</h5>
+                                                    <h6>Team Notification Email:</h6>
+                                                    <div id="team-email-viewer" class="border p-2 rounded mb-3" style="min-height: 150px;">Select an agent to view template.</div>
+                                                    <h6>Caller Follow-up Email:</h6>
+                                                    <div id="caller-email-viewer" class="border p-2 rounded" style="min-height: 150px;">Select an agent to view template.</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                {# Column 3: Curious Callers Google Sheet #}
-                                <div class="col-12 mb-3">
-                                    <div class="card h-100 shadow-sm">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Curious Caller Contacts</h5>
-                                            <iframe src="https://docs.google.com/spreadsheets/d/1R4jEajsMiY4kqv8fhX_3K2CK6r2-H23nfR7mICQlITs/htmlview?widget=true&amp;headers=false" style="width:100%; min-height:600px; border:0;" loading="lazy" title="Curious Caller Contact Sheet"></iframe>
-                                            <p class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Data is read‑only. Use Google Sheets to update contact attempts.</p>
+                                <!-- Caller Contacts Tab Pane -->
+                                <div class="tab-pane fade" id="caller-contacts-pane-internal" role="tabpanel" aria-labelledby="caller-contacts-tab-internal">
+                                    <div class="row">
+                                        <div class="col-12 mb-3">
+                                            <div class="card h-100 shadow-sm">
+                                                <div class="card-body">
+                                                    <h5 class="card-title mb-3">Curious Caller Contacts Log</h5>
+                                                    <iframe src="https://docs.google.com/spreadsheets/d/1R4jEajsMiY4kqv8fhX_3K2CK6r2-H23nfR7mICQlITs/htmlview?widget=true&amp;headers=false" style="width:100%; min-height:600px; border:0;" loading="lazy" title="Curious Caller Contact Sheet"></iframe>
+                                                    <p class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Data is read‑only. Use Google Sheets to update contact attempts.</p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <!-- End of Existing Admin Controls -->
+                            <!-- End of Internal Tabbed Interface -->
 
                             <hr class="my-4">
-
-                            <!-- New Bento Box Layout for Voice Agents -->
-                            <div class="row">
-                                <!-- Psychic Cloud Bento Box -->
-                                <div class="col-lg-6 d-flex flex-column">
-                                    <div class="platform-bento-box psychic-cloud-bento flex-grow-1">
-                                        <h4 class="bento-box-title"><i class="bi bi-cloud-fill me-2"></i>Psychic Cloud Agents</h4>
-                                        
-                                        <h5 class="bento-section-title">Deployed</h5>
-                                        <div class="row g-3 agent-card-row">
-                                            <div class="col-12">
-                                                <div class="alert alert-secondary small" role="alert">
-                                                    No agents currently deployed for Psychic Cloud.
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <hr class="my-3">
-
-                                        <h5 class="bento-section-title">Staging</h5>
-                                        <div class="row g-3 agent-card-row">
-                                            <div class="col-12">
-                                                <div class="alert alert-secondary small" role="alert">
-                                                    No agents currently in staging for Psychic Cloud.
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <hr class="my-3">
-
-                                        <h5 class="bento-section-title">To Be Developed</h5>
-                                        <div class="row g-3 agent-card-row">
-                                            <!-- Cloud Astrologer -->
-                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
-                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #00B09B 0%, #96C93D 100%);">
-                                                    <div class="text-center mb-3">
-                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Astrologer Avatar" class="rounded-circle voice-avatar">
-                                                    </div>
-                                                    <h5 class="fw-bold mb-1">Cloud Astrologer</h5>
-                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                                        <i class="bi bi-mic-fill fs-2"></i>
-                                                    </div>
-                                                    <p class="mb-3">TBD</p>
-                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                                        <li>• What's my horoscope for today?</li>
-                                                        <li>• How will Mars retrograde affect me?</li>
-                                                        <li>• Best time to start a new project?</li>
-                                                    </ul>
-                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                                </div>
-                                            </div>
-                                            <!-- Cloud Empath -->
-                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
-                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #FF4E50 0%, #F9D423 100%);">
-                                                    <div class="text-center mb-3">
-                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Empath Avatar" class="rounded-circle voice-avatar">
-                                                    </div>
-                                                    <h5 class="fw-bold mb-1">Cloud Empath</h5>
-                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                                        <i class="bi bi-mic-fill fs-2"></i>
-                                                    </div>
-                                                    <p class="mb-3">TBD</p>
-                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                                        <li>• Share an uplifting affirmation.</li>
-                                                        <li>• Help me process my emotions.</li>
-                                                        <li>• Tips for staying grounded?</li>
-                                                    </ul>
-                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <!-- Global Agent Settings Section -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h4>Global Agent Settings</h4>
                                 </div>
-
-                                <!-- Psychic Source Bento Box -->
-                                <div class="col-lg-6 d-flex flex-column">
-                                    <div class="platform-bento-box psychic-source-bento flex-grow-1">
-                                        <h4 class="bento-box-title"><i class="bi bi-person-circle me-2"></i>Psychic Source Agents</h4>
-
-                                        <h5 class="bento-section-title">Deployed</h5>
-                                        <div class="row g-3 agent-card-row">
-                                            <!-- Curious Caller Production -->
-                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
-                                                <div class="voice-card shadow-lg agent-status-card" data-agent-id="3HFVw3nTZfIivPaHr3ne" style="background: linear-gradient(180deg, #C12C4F 0%, #F8B36C 100%);">
-                                                    <div class="text-center mb-3">
-                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Avatar" class="rounded-circle voice-avatar">
-                                                    </div>
-                                                    <h5 class="fw-bold mb-1">Curious Caller Production</h5>
-                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                                        <i class="bi bi-mic-fill fs-2"></i>
-                                                    </div>
-                                                    <p class="mb-3">Tap to connect</p>
-                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                                        <li>• What's the vibe around my career path?</li>
-                                                        <li>• Which advisor suits my needs today?</li>
-                                                        <li>• How do I raise my spiritual energy?</li>
-                                                    </ul>
-                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                                </div>
-                                            </div>
-                                            <!-- Member Hospitality Production -->
-                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
-                                                <div class="voice-card shadow-lg agent-status-card" data-agent-id="XuUk69oMnn2Z9Sx9sXVu" style="background: linear-gradient(180deg, #12c2e9 0%, #c471ed 50%, #f64f59 100%);">
-                                                    <div class="text-center mb-3">
-                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Hospitality Avatar" class="rounded-circle voice-avatar">
-                                                    </div>
-                                                    <h5 class="fw-bold mb-1">Member Hospitality Production</h5>
-                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                                        <i class="bi bi-mic-fill fs-2"></i>
-                                                    </div>
-                                                    <p class="mb-3">Psychic Source</p>
-                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                                        <li>• How can I brighten your day?</li>
-                                                        <li>• Need help finding the right advisor?</li>
-                                                        <li>• Curious about membership benefits?</li>
-                                                    </ul>
-                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <hr class="my-3">
-
-                                        <h5 class="bento-section-title">Staging</h5>
-                                        <div class="row g-3 agent-card-row">
-                                            <!-- Member Hospitality (Testv2) -->
-                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
-                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #0061FF 0%, #60EFFF 100%);">
-                                                    <div class="text-center mb-3">
-                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Member Hospitality Avatar" class="rounded-circle voice-avatar">
-                                                    </div>
-                                                    <h5 class="fw-bold mb-1">Member Hospitality (Testv2)</h5>
-                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                                        <i class="bi bi-mic-fill fs-2"></i>
-                                                    </div>
-                                                    <p class="mb-3">Coming soon</p>
-                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                                        <li>• How can I assist with your account?</li>
-                                                        <li>• Need help navigating the site?</li>
-                                                        <li>• Questions about membership perks?</li>
-                                                    </ul>
-                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                                </div>
-                                            </div>
-                                            <!-- Curious Caller (Testv2) -->
-                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
-                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #C12C4F 0%, #F8B36C 100%);">
-                                                    <div class="text-center mb-3">
-                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Curious Caller Test Avatar" class="rounded-circle voice-avatar">
-                                                    </div>
-                                                    <h5 class="fw-bold mb-1">Curious Caller (Testv2)</h5>
-                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                                        <i class="bi bi-mic-fill fs-2"></i>
-                                                    </div>
-                                                    <p class="mb-3">Coming soon</p>
-                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                                        <li>• Test prompt for career path?</li>
-                                                        <li>• Test advisor suitability?</li>
-                                                        <li>• Test spiritual energy query?</li>
-                                                    </ul>
-                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <hr class="my-3">
-
-                                        <h5 class="bento-section-title">To Be Developed</h5>
-                                        <div class="row g-3 agent-card-row">
-                                            <!-- Admin Companion -->
-                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
-                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #6A00FF 0%, #C46CFF 100%);">
-                                                    <div class="text-center mb-3">
-                                                        <img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Admin Companion Avatar" class="rounded-circle voice-avatar">
-                                                    </div>
-                                                    <h5 class="fw-bold mb-1">Admin Companion</h5>
-                                                    <div class="voice-mic-btn my-3 mx-auto" role="button">
-                                                        <i class="bi bi-mic-fill fs-2"></i>
-                                                    </div>
-                                                    <p class="mb-3">Psychic Source – TBD</p>
-                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4">
-                                                        <li>• Summarize today's support tickets.</li>
-                                                        <li>• Any urgent platform alerts?</li>
-                                                        <li>• What's on my admin dashboard?</li>
-                                                    </ul>
-                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
-                                                </div>
-                                            </div>
-                                        </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card"><div class="card-body"><h5 class="card-title">Rate Limiting</h5><p class="card-text small text-muted">Control how many conversations each agent can handle simultaneously.</p><button class="btn btn-sm btn-outline-primary disabled" aria-disabled="true">Configure (Coming Soon)</button></div></div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                         <div class="card"><div class="card-body"><h5 class="card-title">Fallback Settings</h5><p class="card-text small text-muted">Define what happens when an agent can't handle a request.</p><button class="btn btn-sm btn-outline-primary disabled" aria-disabled="true">Configure (Coming Soon)</button></div></div>
                                     </div>
                                 </div>
                             </div>
-                            <!-- End of New Bento Box Layout -->
+                            <!-- End of Global Agent Settings -->
+
+                            <hr class="my-4">
+                             <!-- Voice Agent Status & Platforms (Bento Box Layout) -->
+                             <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4>Voice Agent Status & Platforms</h4>
+                                <button class="btn btn-sm btn-success disabled" aria-disabled="true"><i class="bi bi-plus-circle me-1"></i> Add New Agent (Coming Soon)</button>
+                            </div>
+                            <div class="row">
+                                <!-- Bento boxes go here -->
+                                <div class="col-lg-6 d-flex flex-column">
+                                    <div class="platform-bento-box psychic-cloud-bento flex-grow-1">
+                                        <!-- ... Psychic Cloud content ... -->
+                                        <h4 class="bento-box-title"><i class="bi bi-cloud-fill me-2"></i>Psychic Cloud Agents</h4>
+                                        <h5 class="bento-section-title">Deployed</h5>
+                                        <div class="row g-3 agent-card-row"><div class="col-12"><div class="alert alert-secondary small" role="alert">No agents currently deployed for Psychic Cloud.</div></div></div>
+                                        <hr class="my-3">
+                                        <h5 class="bento-section-title">Staging</h5>
+                                        <div class="row g-3 agent-card-row"><div class="col-12"><div class="alert alert-secondary small" role="alert">No agents currently in staging for Psychic Cloud.</div></div></div>
+                                        <hr class="my-3">
+                                        <h5 class="bento-section-title">To Be Developed</h5>
+                                        <div class="row g-3 agent-card-row">
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <!-- Cloud Astrologer: NOW PURPLE -->
+                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #6A00FF 0%, #C46CFF 100%);">
+                                                    <div class="text-center mb-3"><img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Astrologer Avatar" class="rounded-circle voice-avatar"></div>
+                                                    <h5 class="fw-bold mb-1">Cloud Astrologer</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button"><i class="bi bi-mic-fill fs-2"></i></div>
+                                                    <p class="mb-3 voice-status-label">TBD</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4"><li>• What's my horoscope for today?</li><li>• How will Mars retrograde affect me?</li><li>• Best time to start a new project?</li></ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                            <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                <!-- Cloud Empath: NOW BLUE -->
+                                                <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #0061FF 0%, #60EFFF 100%);">
+                                                    <div class="text-center mb-3"><img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Empath Avatar" class="rounded-circle voice-avatar"></div>
+                                                    <h5 class="fw-bold mb-1">Cloud Empath</h5>
+                                                    <div class="voice-mic-btn my-3 mx-auto" role="button"><i class="bi bi-mic-fill fs-2"></i></div>
+                                                    <p class="mb-3 voice-status-label">TBD</p>
+                                                    <ul class="voice-prompts text-start list-unstyled mx-auto mb-4"><li>• Share an uplifting affirmation.</li><li>• Help me process my emotions.</li><li>• Tips for staying grounded?</li></ul>
+                                                    <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6 d-flex flex-column">
+                                     <div class="platform-bento-box psychic-source-bento flex-grow-1">
+                                         <!-- ... Psychic Source content ... -->
+                                         <h4 class="bento-box-title"><i class="bi bi-person-circle me-2"></i>Psychic Source Agents</h4>
+                                         <h5 class="bento-section-title">Deployed</h5>
+                                         <div class="row g-3 agent-card-row">
+                                             <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                  <!-- Curious Caller Production: UNCHANGED RED/ORANGE -->
+                                                  <div class="voice-card shadow-lg agent-status-card" data-agent-id="3HFVw3nTZfIivPaHr3ne" style="background: linear-gradient(180deg, #C12C4F 0%, #F8B36C 100%);">
+                                                     <div class="text-center mb-3"><img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Avatar" class="rounded-circle voice-avatar"></div>
+                                                     <h5 class="fw-bold mb-1">Curious Caller Production</h5>
+                                                     <div class="voice-mic-btn my-3 mx-auto" role="button"><i class="bi bi-mic-fill fs-2"></i></div>
+                                                     <p class="mb-3 voice-status-label">Tap to connect</p>
+                                                     <ul class="voice-prompts text-start list-unstyled mx-auto mb-4"><li>• What's the vibe around my career path?</li><li>• Which advisor suits my needs today?</li><li>• How do I raise my spiritual energy?</li></ul>
+                                                     <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                 </div>
+                                             </div>
+                                              <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                  <!-- Member Hospitality Production: Reverted to original gradient -->
+                                                  <div class="voice-card shadow-lg agent-status-card" data-agent-id="XuUk69oMnn2Z9Sx9sXVu" style="background: linear-gradient(180deg, #12c2e9 0%, #c471ed 50%, #f64f59 100%);">
+                                                     <div class="text-center mb-3"><img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Lily Hospitality Avatar" class="rounded-circle voice-avatar"></div>
+                                                     <h5 class="fw-bold mb-1">Member Hospitality Production</h5>
+                                                     <div class="voice-mic-btn my-3 mx-auto" role="button"><i class="bi bi-mic-fill fs-2"></i></div>
+                                                     <p class="mb-3 voice-status-label">Psychic Source</p>
+                                                     <ul class="voice-prompts text-start list-unstyled mx-auto mb-4"><li>• How can I brighten your day?</li><li>• Need help finding the right advisor?</li><li>• Curious about membership benefits?</li></ul>
+                                                     <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         <hr class="my-3">
+                                         <h5 class="bento-section-title">Staging</h5>
+                                          <div class="row g-3 agent-card-row">
+                                              <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                  <!-- Member Hospitality (Testv2): Now MATCHES Production gradient -->
+                                                  <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #12c2e9 0%, #c471ed 50%, #f64f59 100%);">
+                                                     <div class="text-center mb-3"><img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Member Hospitality Avatar" class="rounded-circle voice-avatar"></div>
+                                                     <h5 class="fw-bold mb-1">Member Hospitality (Testv2)</h5>
+                                                     <div class="voice-mic-btn my-3 mx-auto" role="button"><i class="bi bi-mic-fill fs-2"></i></div>
+                                                     <p class="mb-3 voice-status-label">Coming soon</p>
+                                                     <ul class="voice-prompts text-start list-unstyled mx-auto mb-4"><li>• How can I assist with your account?</li><li>• Need help navigating the site?</li><li>• Questions about membership perks?</li></ul>
+                                                     <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                 </div>
+                                             </div>
+                                             <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                 <!-- Curious Caller (Testv2): UNCHANGED RED/ORANGE -->
+                                                 <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #C12C4F 0%, #F8B36C 100%);">
+                                                     <div class="text-center mb-3"><img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Curious Caller Test Avatar" class="rounded-circle voice-avatar"></div>
+                                                     <h5 class="fw-bold mb-1">Curious Caller (Testv2)</h5>
+                                                     <div class="voice-mic-btn my-3 mx-auto" role="button"><i class="bi bi-mic-fill fs-2"></i></div>
+                                                     <p class="mb-3 voice-status-label">Coming soon</p>
+                                                     <ul class="voice-prompts text-start list-unstyled mx-auto mb-4"><li>• Test prompt for career path?</li><li>• Test advisor suitability?</li><li>• Test spiritual energy query?</li></ul>
+                                                     <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         <hr class="my-3">
+                                         <h5 class="bento-section-title">To Be Developed</h5>
+                                         <div class="row g-3 agent-card-row">
+                                             <div class="col-xl-6 col-lg-12 col-md-6 mb-3 d-flex">
+                                                  <!-- Admin Companion: NOW GREEN -->
+                                                  <div class="voice-card shadow-lg agent-status-card" style="background: linear-gradient(180deg, #00B09B 0%, #96C93D 100%);">
+                                                     <div class="text-center mb-3"><img src="{{ url_for('static', filename='images/lily_avatar.png') }}" alt="Admin Companion Avatar" class="rounded-circle voice-avatar"></div>
+                                                     <h5 class="fw-bold mb-1">Admin Companion</h5>
+                                                     <div class="voice-mic-btn my-3 mx-auto" role="button"><i class="bi bi-mic-fill fs-2"></i></div>
+                                                     <p class="mb-3 voice-status-label">Psychic Source – TBD</p>
+                                                     <ul class="voice-prompts text-start list-unstyled mx-auto mb-4"><li>• Summarize today's support tickets.</li><li>• Any urgent platform alerts?</li><li>• What's on my admin dashboard?</li></ul>
+                                                     <p class="voice-powered-by small mb-0">Powered by ElevenLabs Conversational AI</p>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- End Voice Agent Status & Platforms -->
                         </div>
                     </div>
                 </div>
@@ -710,11 +906,11 @@
     </div>
     {# === END: Agent Administration Section === #}
 
-    {# === NEW: Ask Lilly SQL Section === #}
+    {# === Ask Lilly SQL Section (Restored) === #}
     <div class="row mb-4">
         <div class="col-12">
             <div class="accordion" id="askLillySqlAccordion">
-                <div class="accordion-item">
+                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingSql">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSql" aria-expanded="false" aria-controls="collapseSql">
                             Ask Lilly (SQL Query) <i class="bi bi-database ms-2"></i>
@@ -727,9 +923,7 @@
                                 <textarea class="form-control" id="sql-query-input" rows="3" placeholder="e.g., Show me messages containing email addresses..."></textarea>
                             </div>
                             <button id="submit-sql-query-btn" class="btn btn-success">Query Database</button>
-                            <div id="sql-query-loading" class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
+                            <div id="sql-query-loading" class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;"><span class="visually-hidden">Loading...</span></div>
                             <div class="mt-3">
                                 <h6>Results: <span id="sql-query-count" class="ms-2 small text-muted"></span> <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Count reflects records returned by the specific SQL query executed above."></i></h6>
                                 <pre id="sql-query-executed" class="text-muted small border-bottom pb-2 mb-2"></pre> 
@@ -743,11 +937,11 @@
     </div>
     {# === END: Ask Lilly SQL Section === #}
 
-    {# === NEW: Future Features & Fun Section === #}
-    <div class="row mb-4">
+    {# === Future Features & Fun Section (Restored) === #}
+     <div class="row mb-4">
         <div class="col-12">
             <div class="accordion" id="futureFeaturesAccordion">
-                <div class="accordion-item">
+                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingFuture">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFuture" aria-expanded="false" aria-controls="collapseFuture">
                             Future Features & Fun <i class="bi bi-stars ms-2"></i>
@@ -755,160 +949,10 @@
                     </h2>
                     <div id="collapseFuture" class="accordion-collapse collapse" aria-labelledby="headingFuture" data-bs-parent="#futureFeaturesAccordion">
                         <div class="accordion-body">
-                            <div class="card mb-4">
-                                <div class="card-header bg-purple text-white">
-                                    <h5 class="mb-0">Lily's Daily Rundown</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p class="card-text">Get a personalized audio summary of today's conversations and insights directly from Lily!</p>
-                                    
-                                    <button id="generate-lily-report-btn" class="btn btn-primary mb-3">
-                                        <i class="bi bi-soundwave me-2"></i>Hear Lily's Daily Briefing
-                                    </button>
-                                    
-                                    <div id="lily-report-loading" class="d-none">
-                                        <div class="d-flex align-items-center">
-                                            <strong>Lily is preparing your report...</strong>
-                                            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
-                                        </div>
-                                        <small class="text-muted mt-2">This may take a few seconds while Lily reviews the day's conversations.</small>
-                                    </div>
-                                    
-                                    <div id="lily-report-player" class="mt-3 d-none">
-                                        <h6>Your Daily Briefing is Ready:</h6>
-                                        <audio id="lily-audio-player" controls class="w-100">
-                                            <source id="lily-audio-source" src="" type="audio/mp3">
-                                            Your browser does not support the audio element.
-                                        </audio>
-                                        <div class="mt-2 text-muted small">
-                                            <i class="bi bi-info-circle me-1"></i>Using Nichalia Schwartz's voice from ElevenLabs
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- NEW Hospitality Outbound Calling Card -->
-                            <div class="card mb-4">
-                                <div class="card-header bg-teal text-white">
-                                    <h5 class="mb-0">Hospitality Outbound Calls</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p class="card-text">Demo our hospitality calling feature where Lily will make personalized follow-up calls to previous callers, referencing their conversation history.</p>
-                                    
-                                    <div class="mb-3">
-                                        <label for="outbound-call-recipient" class="form-label">Select a recipient for the demo call:</label>
-                                        <select id="outbound-call-recipient" class="form-select">
-                                            <option value="gary">Gary (Interested in career reading)</option>
-                                            <option value="michelle">Michelle (Seeking guidance about relationships)</option>
-                                            <option value="james">James (Asked about spiritual growth)</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <button id="make-hospitality-call-btn" class="btn btn-secondary mb-3" disabled>
-                                        <i class="bi bi-telephone-outbound me-2"></i>Coming Soon...
-                                    </button>
-                                    
-                                    <div id="hospitality-call-loading" class="d-none">
-                                        <div class="d-flex align-items-center">
-                                            <strong>Initiating call...</strong>
-                                            <div class="spinner-border ms-auto" role="status" aria-hidden="true"></div>
-                                        </div>
-                                        <small class="text-muted mt-2">Lily is connecting to the recipient and preparing the personalized greeting.</small>
-                                    </div>
-                                    
-                                    <div id="hospitality-call-status" class="mt-3 d-none">
-                                        <div class="alert alert-success">
-                                            <h6 class="alert-heading"><i class="bi bi-check-circle me-2"></i>Call Initiated!</h6>
-                                            <div id="hospitality-call-details">
-                                                <p>Lily is making an outbound call to <span id="hospitality-recipient-name">Gary</span>.</p>
-                                                <p class="mb-0 small"><strong>Personalized greeting:</strong> <span id="hospitality-greeting"></span></p>
-                                            </div>
-                                        </div>
-                                        <div class="mt-2 text-muted small">
-                                            <i class="bi bi-info-circle me-1"></i>This is a demonstration of the outbound calling feature. No actual call is being placed.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- END Hospitality Outbound Calling Card -->
-                            
-                            <!-- NEW Documentation Section -->
-                            <div class="card mb-4">
-                                <div class="card-header bg-primary text-white">
-                                    <h5 class="mb-0">Documentation</h5>
-                                </div>
-                                <div class="card-body">
-                                    <h6>Project README</h6>
-                                    <div class="readme-container bg-light p-3 rounded">
-                                        <p class="text-muted"><i class="bi bi-file-text me-2"></i>Complete README file for the Psychic Source Transcript Analysis Tool:</p>
-                                        <div class="readme-content" style="max-height: 500px; overflow-y: auto;">
-                                            <div class="bg-white p-3 rounded border">
-                                                {% with readme_path = "README.md" %}
-                                                    {% if readme_content %}
-                                                        {{ readme_content|safe }}
-                                                    {% else %}
-                                                        <div class="alert alert-warning">
-                                                            <i class="bi bi-exclamation-triangle me-2"></i>
-                                                            README.md file could not be loaded. Please check that the file exists at the root of the project.
-                                                        </div>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            </div>
-                                        </div>
-                                        <div class="d-flex justify-content-center mt-3">
-                                            <button class="btn btn-sm btn-outline-secondary" id="expandReadmeBtn">
-                                                <i class="bi bi-arrows-fullscreen me-1"></i> Toggle Fullscreen
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <h6 class="mt-4">Function Map</h6>
-                                    <div class="function-map-container bg-light p-3 rounded">
-                                        <p class="text-muted"><i class="bi bi-diagram-3 me-2"></i>Complete function map for the outbound calling system:</p>
-                                        <div class="function-map-image text-center">
-                                            <img src="{{ url_for('static', filename='images/Function Map - 2.png') }}" alt="Outbound Call Function Map" class="img-fluid rounded" style="max-width: 100%;">
-                                        </div>
-                                        <p class="mt-2 small">This diagram shows all API endpoints and client functions in the outbound calling system.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- END Documentation Section -->
-                            
-                            <!-- NEW Fun Section -->
-                            <div class="card mb-4">
-                                <div class="card-header bg-warning text-dark">
-                                    <h5 class="mb-0">Fun Stuff</h5>
-                                </div>
-                                <div class="card-body">
-                                    <h6>Tom Sweating the Details</h6>
-                                    <div class="fun-images-container d-flex flex-wrap justify-content-center gap-3 mt-3">
-                                        <div class="fun-image-item text-center">
-                                            <img src="{{ url_for('static', filename='images/Tom Sweating The Details .png') }}" 
-                                                 alt="Tom Sweating the Details" 
-                                                 class="img-fluid rounded expandable-image" 
-                                                 style="max-height: 200px; cursor: pointer;"
-                                                 data-bs-toggle="modal" 
-                                                 data-bs-target="#imageModal" 
-                                                 data-img-src="{{ url_for('static', filename='images/Tom Sweating The Details .png') }}"
-                                                 data-img-title="Tom Sweating the Details">
-                                            <p class="text-muted mt-2"><small>When your AI can't find or fix the bug, yet progress still needs to be made!</small></p>
-                                        </div>
-                                        <div class="fun-image-item text-center">
-                                            <img src="{{ url_for('static', filename='images/Tom with Cursor AI.png') }}" 
-                                                 alt="Tom with Cursor" 
-                                                 class="img-fluid rounded expandable-image" 
-                                                 style="max-height: 200px; cursor: pointer;"
-                                                 data-bs-toggle="modal" 
-                                                 data-bs-target="#imageModal" 
-                                                 data-img-src="{{ url_for('static', filename='images/Tom with Cursor AI.png') }}"
-                                                 data-img-title="Tom with Cursor AI">
-                                            <p class="text-muted mt-2"><small>Tom working on that perfect API integration</small></p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- END Fun Section -->
-                            
+                             <div class="card mb-4"><div class="card-header bg-purple text-white"><h5 class="mb-0">Lily's Daily Rundown</h5></div><div class="card-body"><p class="card-text">Get a personalized audio summary of today's conversations and insights directly from Lily!</p><button id="generate-lily-report-btn" class="btn btn-primary mb-3"><i class="bi bi-soundwave me-2"></i>Hear Lily's Daily Briefing</button><div id="lily-report-loading" class="d-none"><div class="d-flex align-items-center"><strong>Lily is preparing your report...</strong><div class="spinner-border ms-auto" role="status" aria-hidden="true"></div></div><small class="text-muted mt-2">This may take a few seconds while Lily reviews the day's conversations.</small></div><div id="lily-report-player" class="mt-3 d-none"><h6>Your Daily Briefing is Ready:</h6><audio id="lily-audio-player" controls class="w-100"><source id="lily-audio-source" src="" type="audio/mp3">Your browser does not support the audio element.</audio><div class="mt-2 text-muted small"><i class="bi bi-info-circle me-1"></i>Using Nichalia Schwartz's voice from ElevenLabs</div></div></div></div>
+                             <div class="card mb-4"><div class="card-header bg-teal text-white"><h5 class="mb-0">Hospitality Outbound Calls</h5></div><div class="card-body"><p class="card-text">Demo our hospitality calling feature where Lily will make personalized follow-up calls to previous callers, referencing their conversation history.</p><div class="mb-3"><label for="outbound-call-recipient" class="form-label">Select a recipient for the demo call:</label><select id="outbound-call-recipient" class="form-select"><option value="gary">Gary (Interested in career reading)</option><option value="michelle">Michelle (Seeking guidance about relationships)</option><option value="james">James (Asked about spiritual growth)</option></select></div><button id="make-hospitality-call-btn" class="btn btn-secondary mb-3" disabled><i class="bi bi-telephone-outbound me-2"></i>Coming Soon...</button><div id="hospitality-call-loading" class="d-none"><div class="d-flex align-items-center"><strong>Initiating call...</strong><div class="spinner-border ms-auto" role="status" aria-hidden="true"></div></div><small class="text-muted mt-2">Lily is connecting to the recipient and preparing the personalized greeting.</small></div><div id="hospitality-call-status" class="mt-3 d-none"><div class="alert alert-success"><h6 class="alert-heading"><i class="bi bi-check-circle me-2"></i>Call Initiated!</h6><div id="hospitality-call-details"><p>Lily is making an outbound call to <span id="hospitality-recipient-name">Gary</span>.</p><p class="mb-0 small"><strong>Personalized greeting:</strong> <span id="hospitality-greeting"></span></p></div></div><div class="mt-2 text-muted small"><i class="bi bi-info-circle me-1"></i>This is a demonstration of the outbound calling feature. No actual call is being placed.</div></div></div></div>
+                             <div class="card mb-4"><div class="card-header bg-primary text-white"><h5 class="mb-0">Documentation</h5></div><div class="card-body"><h6>Project README</h6><div class="readme-container bg-light p-3 rounded"><p class="text-muted"><i class="bi bi-file-text me-2"></i>Complete README file for the Psychic Source Transcript Analysis Tool:</p><div class="readme-content" style="max-height: 500px; overflow-y: auto;"><div class="bg-white p-3 rounded border">{% with readme_path = "README.md" %}{% if readme_content %}{{ readme_content|safe }}{% else %}<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>README.md file could not be loaded. Please check that the file exists at the root of the project.</div>{% endif %}{% endwith %}</div></div><div class="d-flex justify-content-center mt-3"><button class="btn btn-sm btn-outline-secondary" id="expandReadmeBtn"><i class="bi bi-arrows-fullscreen me-1"></i> Toggle Fullscreen</button></div></div><h6 class="mt-4">Function Map</h6><div class="function-map-container bg-light p-3 rounded"><p class="text-muted"><i class="bi bi-diagram-3 me-2"></i>Complete function map for the outbound calling system:</p><div class="function-map-image text-center"><img src="{{ url_for('static', filename='images/Function Map - 2.png') }}" alt="Outbound Call Function Map" class="img-fluid rounded" style="max-width: 100%;"></div><p class="mt-2 small">This diagram shows all API endpoints and client functions in the outbound calling system.</p></div></div></div>
+                             <div class="card mb-4"><div class="card-header bg-warning text-dark"><h5 class="mb-0">Fun Stuff</h5></div><div class="card-body"><h6>Tom Sweating the Details</h6><div class="fun-images-container d-flex flex-wrap justify-content-center gap-3 mt-3"><div class="fun-image-item text-center"><img src="{{ url_for('static', filename='images/Tom Sweating The Details .png') }}" alt="Tom Sweating the Details" class="img-fluid rounded expandable-image" style="max-height: 200px; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-src="{{ url_for('static', filename='images/Tom Sweating The Details .png') }}" data-img-title="Tom Sweating the Details"><p class="text-muted mt-2"><small>When your AI can't find or fix the bug, yet progress still needs to be made!</small></p></div><div class="fun-image-item text-center"><img src="{{ url_for('static', filename='images/Tom with Cursor AI.png') }}" alt="Tom with Cursor" class="img-fluid rounded expandable-image" style="max-height: 200px; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-src="{{ url_for('static', filename='images/Tom with Cursor AI.png') }}" data-img-title="Tom with Cursor AI"><p class="text-muted mt-2"><small>Tom working on that perfect API integration</small></p></div></div></div></div>
                         </div>
                     </div>
                 </div>
@@ -917,11 +961,11 @@
     </div>
     {# === END: Future Features & Fun Section === #}
 
-    {# === NEW: Competitive Intelligence Section (Moved Up) === #}
+    {# === Competitive Intelligence Section (Restored) === #}
     <div class="row mb-4">
         <div class="col-12">
             <div class="accordion" id="competitiveIntelAccordion">
-                <div class="accordion-item">
+                 <div class="accordion-item">
                     <h2 class="accordion-header" id="headingIntel">
                         <button id="competitiveIntelButton" class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseIntel" aria-expanded="false" aria-controls="collapseIntel">
                             Competitive Intelligence &amp; Urgent Actions <i class="bi bi-exclamation-triangle ms-2"></i>
@@ -929,104 +973,13 @@
                     </h2>
                     <div id="collapseIntel" class="accordion-collapse collapse" aria-labelledby="headingIntel" data-bs-parent="#competitiveIntelAccordion">
                         <div class="accordion-body">
-                            <!-- Executive Snapshot -->
-                            <div class="card mb-4 border-0" style="background: var(--psi-surface);">
-                                <div class="card-header text-white" style="background: var(--psi-deep-purple);">
-                                    <h5 class="mb-0">Our Lead Is At Risk – Window Is Closing</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>Lead at risk, window is closing.</strong><br>
-                                    Psychic Source holds the only production‑grade conversational‑AI ("Lily") in our market, but Ingenio's Keen/Kasamba stack can plausibly reach parity <strong>within 6–12 months</strong>; other challengers (Purple Garden, Oranum, California Psychics) could follow inside <strong>18 months</strong>. Our moat is our <strong>30‑year proprietary dataset</strong> and <strong>Holacratic agility</strong>. We must scale Lily, leverage data, and harden brand trust <em>immediately</em>.</p>
-                                </div>
-                            </div>
-
-                            <!-- Critical Path Intro -->
-                            <h5 class="mt-4 mb-3 fw-bold">Critical Path Actions:</h5>
-
-                            <!-- Critical Path Actions Accordion -->
-                            <div class="accordion accordion-flush mb-4" id="criticalActionsAccordion">
-                                {% for action in intel_actions %}
-                                <div class="accordion-item border {{ 'border-danger' if action.priority=='critical' else 'border-warning' if action.priority=='high' else 'border-info' if action.priority=='medium-high' else 'border-secondary' }}">
-                                    <h2 class="accordion-header" id="headingAction{{ action.id }}">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAction{{ action.id }}" aria-expanded="false" aria-controls="collapseAction{{ action.id }}">
-                                           Item #{{ action.id }}: {{ action.title }}
-                                        </button>
-                                    </h2>
-                                    <div id="collapseAction{{ action.id }}" class="accordion-collapse collapse" aria-labelledby="headingAction{{ action.id }}" data-bs-parent="#criticalActionsAccordion">
-                                        <div class="accordion-body">
-                                            <ul>
-                                            {% for item in action.actions %}
-                                                <li>{{ item }}</li>
-                                            {% endfor %}
-                                            </ul>
-                                            <p class="small text-muted mb-0"><em>{{ action.rationale }}</em></p>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-
-                            <!-- Urgency Banner (moved) -->
-                            <div id="intel-urgency-banner" class="alert alert-danger d-flex align-items-center" role="alert" style="background: var(--psi-urgent-red);">
-                                <i class="bi bi-person-running me-2 urgent-blink"></i>
-                                <div>🏃 Competitive runway ≈ 9–18 months – act now!</div>
-                                <button type="button" class="btn-close ms-auto" aria-label="Close"></button>
-                            </div>
-
-                            <!-- Full Report Library Tabs -->
-                            <ul class="nav nav-tabs" id="intelReportTabs" role="tablist">
-                                {% for rpt in intel_reports %}
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ loop.index }}" data-bs-toggle="tab" data-bs-target="#report-{{ loop.index }}" type="button" role="tab" aria-controls="report-{{ loop.index }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
-                                        {{ rpt[0] }}
-                                        <span class="ms-1 text-warning small">
-                                            {% for i in range(5) %}
-                                                {% if i < rpt[2] %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}
-                                            {% endfor %}
-                                        </span>
-                                    </button>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            <div class="tab-content border border-top-0 p-3" id="intelReportTabsContent">
-                                {% for rpt in intel_reports %}
-                                <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="report-{{ loop.index }}" role="tabpanel" aria-labelledby="tab-{{ loop.index }}">
-                                    <div class="ratio ratio-16x9 d-none d-lg-block">
-                                        <iframe src="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" title="{{ rpt[0] }}" allowfullscreen style="width: 100%; height: 100%; border: none;"></iframe>
-                                    </div>
-                                    <p class="d-block d-lg-none"><a href="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" target="_blank">Open {{ rpt[0] }} report</a></p>
-                                </div>
-                                {% endfor %}
-                            </div>
-
-                            <!-- Images side-by-side -->
-                            <div class="card mb-4">
-                                <div class="card-body">
-                                    <div class="d-flex flex-wrap justify-content-center gap-3">
-                                        <img id="intel-infographic"
-                                             src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
-                                             alt="Competitive Runway"
-                                             class="img-fluid rounded expandable-image"
-                                             style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
-                                             data-bs-toggle="modal"
-                                             data-bs-target="#imageModal"
-                                             data-img-src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}"
-                                             data-img-title="Competitive Runway">
-
-                                        <img id="intel-meme"
-                                             src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
-                                             alt="Move, Lily, Move Meme"
-                                             class="img-fluid rounded expandable-image"
-                                             style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;"
-                                             data-bs-toggle="modal"
-                                             data-bs-target="#imageModal"
-                                             data-img-src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}"
-                                             data-img-title="Move, Lily, Move Meme">
-
-                                    </div>
-                                </div>
-                            </div>
-
+                           <div class="card mb-4 border-0" style="background: var(--psi-surface);"><div class="card-header text-white" style="background: var(--psi-deep-purple);"><h5 class="mb-0">Our Lead Is At Risk – Window Is Closing</h5></div><div class="card-body"><p><strong>Lead at risk, window is closing.</strong><br>Psychic Source holds the only production‑grade conversational‑AI ("Lily") in our market, but Ingenio's Keen/Kasamba stack can plausibly reach parity <strong>within 6–12 months</strong>; other challengers (Purple Garden, Oranum, California Psychics) could follow inside <strong>18 months</strong>. Our moat is our <strong>30‑year proprietary dataset</strong> and <strong>Holacratic agility</strong>. We must scale Lily, leverage data, and harden brand trust <em>immediately</em>.</p></div></div>
+                           <h5 class="mt-4 mb-3 fw-bold">Critical Path Actions:</h5>
+                           <div class="accordion accordion-flush mb-4" id="criticalActionsAccordion">{% for action in intel_actions %}<div class="accordion-item border {{ 'border-danger' if action.priority=='critical' else 'border-warning' if action.priority=='high' else 'border-info' if action.priority=='medium-high' else 'border-secondary' }}"><h2 class="accordion-header" id="headingAction{{ action.id }}"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAction{{ action.id }}" aria-expanded="false" aria-controls="collapseAction{{ action.id }}">Item #{{ action.id }}: {{ action.title }}</button></h2><div id="collapseAction{{ action.id }}" class="accordion-collapse collapse" aria-labelledby="headingAction{{ action.id }}" data-bs-parent="#criticalActionsAccordion"><div class="accordion-body"><ul>{% for item in action.actions %}<li>{{ item }}</li>{% endfor %}</ul><p class="small text-muted mb-0"><em>{{ action.rationale }}</em></p></div></div></div>{% endfor %}</div>
+                           <div id="intel-urgency-banner" class="alert alert-danger d-flex align-items-center" role="alert" style="background: var(--psi-urgent-red);"><i class="bi bi-person-running me-2 urgent-blink"></i><div>🏃 Competitive runway ≈ 9–18 months – act now!</div><button type="button" class="btn-close ms-auto" aria-label="Close"></button></div>
+                           <ul class="nav nav-tabs" id="intelReportTabs" role="tablist">{% for rpt in intel_reports %}<li class="nav-item" role="presentation"><button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ loop.index }}" data-bs-toggle="tab" data-bs-target="#report-{{ loop.index }}" type="button" role="tab" aria-controls="report-{{ loop.index }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ rpt[0] }}<span class="ms-1 text-warning small">{% for i in range(5) %}{% if i < rpt[2] %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star"></i>{% endif %}{% endfor %}</span></button></li>{% endfor %}</ul>
+                           <div class="tab-content border border-top-0 p-3" id="intelReportTabsContent">{% for rpt in intel_reports %}<div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="report-{{ loop.index }}" role="tabpanel" aria-labelledby="tab-{{ loop.index }}"><div class="ratio ratio-16x9 d-none d-lg-block"><iframe src="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" title="{{ rpt[0] }}" allowfullscreen style="width: 100%; height: 100%; border: none;"></iframe></div><p class="d-block d-lg-none"><a href="{{ url_for('static', filename='pdfs/' + rpt[1]) }}" target="_blank">Open {{ rpt[0] }} report</a></p></div>{% endfor %}</div>
+                           <div class="card mb-4"><div class="card-body"><div class="d-flex flex-wrap justify-content-center gap-3"><img id="intel-infographic" src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}" alt="Competitive Runway" class="img-fluid rounded expandable-image" style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-src="{{ url_for('static', filename='images/Psychic Source Competitive Runway.png') }}" data-img-title="Competitive Runway"><img id="intel-meme" src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}" alt="Move, Lily, Move Meme" class="img-fluid rounded expandable-image" style="max-width: 400px; cursor: pointer; object-fit: contain; max-height: 400px;" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-src="{{ url_for('static', filename='images/Move, Lily, Move Meme.png') }}" data-img-title="Move, Lily, Move Meme"></div></div></div>
                         </div>
                     </div>
                 </div>
@@ -1035,11 +988,11 @@
     </div>
     {# === END: Competitive Intelligence Section === #}
 
-    <!-- === GlassFrog Role Insights Section === -->
+    {# === GlassFrog Role Insights Section (Restored) === #}
     <div class="row mb-4">
       <div class="col-12">
         <div class="accordion" id="glassFrogAccordion">
-          <div class="accordion-item">
+           <div class="accordion-item">
               <h2 class="accordion-header" id="headingGlassFrog">
                   <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGlassFrog" aria-expanded="false" aria-controls="collapseGlassFrog">
                       <i class="bi bi-diagram-3 me-2"></i> GlassFrog Role Insights
@@ -1047,36 +1000,17 @@
               </h2>
               <div id="collapseGlassFrog" class="accordion-collapse collapse" aria-labelledby="headingGlassFrog" data-bs-parent="#glassFrogAccordion">
                   <div class="accordion-body">
-                    <!-- Loading Spinner -->
-                    <div id="gf-loading" class="text-center my-3">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </div>
-                    <!-- KPI Cards will render here -->
+                    <div id="gf-loading" class="text-center my-3"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>
                     <div id="gf-kpi-row" class="row g-3"></div>
-                    <!-- Purpose & Projects -->
-                    <div class="row mt-3">
-                        <div class="col-md-6">
-                            <h6>Purpose / Domains</h6>
-                            <p id="gf-purpose"></p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Projects</h6>
-                            <ul id="gf-projects" class="mb-0"></ul>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <h6>Accountabilities</h6>
-                        <ul id="gf-accountabilities"></ul>
-                    </div>
+                    <div class="row mt-3"><div class="col-md-6"><h6>Purpose / Domains</h6><p id="gf-purpose"></p></div><div class="col-md-6"><h6>Projects</h6><ul id="gf-projects" class="mb-0"></ul></div></div>
+                    <div class="mt-3"><h6>Accountabilities</h6><ul id="gf-accountabilities"></ul></div>
                   </div>
               </div>
           </div>
         </div>
       </div>
     </div>
-    <!-- === END GlassFrog Section === -->
+    {# === END GlassFrog Section === #}
 
     {# === Voice SDK Modal === #}
     <div class="modal fade" id="voiceSdkModal" tabindex="-1" aria-labelledby="voiceSdkModalLabel" aria-hidden="true">

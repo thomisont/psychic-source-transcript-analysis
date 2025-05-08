@@ -1,0 +1,142 @@
+ ElevenLabs Voice Widget + Modal Integration Guide
+
+_Last updated: 2025-05-02_
+
+This document walks through **how the ElevenLabs Convai (Conversational Voice) widget is embedded inside our persistent right-side drawer modal**, so future developers (or Designer agents) can confidently port the pattern into other environments.
+
+> ⚠️  **Scope** – This guide focuses _only_ on the React/Next.js implementation living under `frontend/`.  Back-end streaming, agent logic, and ElevenLabs account setup are out of scope.
+
+---
+
+## 1 | Architectural Overview
+
+```text
+┌ Navbar CTA ("Vibe with Me")
+│   ⇣ _click_
+│   useVoiceOverlayStore.openOverlay()
+│
+├── voiceOverlayStore   (zustand) – global open/close state
+│
+├── GlobalVoiceOverlay  (client component & React Portal)
+│     ├ right-side drawer (flex column)
+│     │   ├ intro copy / CTAs
+│     │   ├ <div class="flex-grow" />           ← spacer pushes widget down
+│     │   └ VoiceAgentWidget  (embedded widget)
+│     └ close button ➜ voiceOverlayStore.closeOverlay()
+│
+└── VoiceAgentWidget    (client component)
+      ├ lazy-loads Convai script once (idempotent)
+      └ mounts <elevenlabs-convai> with attrs:
+          • agent-id          (default Tom's Twin)
+          • variant=expandable (embedded inside flex column)
+          • disable_banner    (omitted so vendor banner shows)
+          • trigger-phrase    (optional prop)
+```
+
+Key points:
+
+1. **Zustand store** isolates open/close state so any component (e.g. navbar button, Esc key listener) can toggle the overlay.
+2. **React Portal** (`createPortal`) mounts the drawer at `document.body` level, ensuring it survives Next.js route changes.
+3. **Lazy script loader** prevents duplicate `<script src="https://elevenlabs.io/convai-widget/index.js">` tags when the widget remounts.
+4. We intentionally _do not_ set `disable_banner`, leaving the built-in ElevenLabs credit visible to comply with branding guidelines.
+
+---
+
+## 2 | Core Files & Responsibilities
+
+| Path | Responsibility |
+|------|---------------|
+| `frontend/lib/voiceOverlayStore.ts` | Lightweight zustand store with `open`, `openOverlay`, `closeOverlay`. |
+| `frontend/components/GlobalVoiceOverlay.tsx` | Right-side drawer UI, portal mount, Esc key listener. |
+| `frontend/components/VoiceAgentWidget.tsx` | Thin wrapper that injects the `elevenlabs-convai` element. |
+| `frontend/components/navbar-with-mindset-enhanced.tsx` | Triggers overlay via store (CTA buttons). |
+| `static/css/style.css` & Tailwind classes | Minor overrides to size/position widget. |
+
+> 📝  **Hint** – Open each file while reading this doc to see the referenced code.
+
+---
+
+## 3 | Step-by-Step Execution Flow
+
+1. **User clicks** the "Vibe with Me" CTA in the navbar.
+2. Click handler invokes `useVoiceOverlayStore.getState().openOverlay()`.
+3. The Zustand store flips `open` to `true`.
+4. `GlobalVoiceOverlay` (always mounted via layout) sees `open === true` and renders the drawer **via a portal**.  It also attaches an `Esc` key listener to call `closeOverlay()`.
+5. Drawer layout: flex-column with `flex-grow` spacer _above_ `VoiceAgentWidget` so the widget pins to the bottom.
+6. On first render `VoiceAgentWidget`:
+   - Checks for existing `<script src="https://elevenlabs.io/convai-widget/index.js">` in `document` – **idempotent guard**.
+   - If missing, appends the script tag `async` to `<body>`.
+   - Creates an `elevenlabs-convai` custom element inside `containerRef` **only once** (guarded by `children.length` check).
+   - Sets required attributes:
+     ```html
+     <elevenlabs-convai
+       agent-id="C0KhTEFDonVfm74yX6rL"
+       variant="expandable"
+       trigger-phrase="optional"
+     ></elevenlabs-convai>
+     ```
+7. ElevenLabs SDK hydrates the custom element, opening a mic-enabled voice chat session with the given `agent-id`.
+8. When the user clicks the ✕ button or presses Esc, `closeOverlay()` sets `open = false`, unmounting the drawer and **stopping the widget** (unmount cleanup in `VoiceAgentWidget` is automatic because the custom element is removed).
+
+---
+
+## 4 | Props & Customisation
+
+`<VoiceAgentWidget>` supports these props:
+
+| Prop | Type | Default | Notes |
+|------|------|---------|-------|
+| `height` | `number` | `384` | Applied as inline `height` (Tailwind `h-96` equivalent). |
+| `triggerPhrase` | `string` | `undefined` | Custom attribute understood by ElevenLabs to start specific flows. |
+| `agentId` | `string` | **Tom's Twin** (`C0KhTEFDonVfm74yX6rL`) | Swap with your own agent. |
+| `inline` | `boolean` | `false` | When `true`, widget renders immediately (no floating bubble). |
+
+To hook up a different agent:
+```tsx
+<VoiceAgentWidget agentId="YOUR_AGENT_ID" triggerPhrase="hello" />
+```
+
+---
+
+## 5 | Styling & Layout Tips
+
+1. **Keep the drawer `flex` vertical** – the `flex-grow` spacer ensures the widget sticks to the bottom regardless of banner height.
+2. Global CSS (see `static/css/style.css`) contains a rule for `elevenlabs-convai` when embedded in our overlay – it scales to 100% width/height and centers content.
+3. If you need to _hide_ the ElevenLabs banner (e.g. in an embedded marketing page), pass `disable_banner="true"` attribute **but confirm licensing** first.
+
+---
+
+## 6 | Re-using the Pattern in Another App
+
+1. **Copy the three React pieces** (`voiceOverlayStore`, `GlobalVoiceOverlay`, `VoiceAgentWidget`).
+2. Mount `GlobalVoiceOverlay` high in your tree (e.g. in `_app.tsx` for Next.js or `Layout.tsx`).
+3. Add a trigger (button, link, etc.) that calls `openOverlay()` from the store.
+4. Ensure Tailwind (or equivalent CSS) provides:
+   ```css
+   elevenlabs-convai { width:100%; height:100%; display:flex; }
+   ```
+5. Verify the Convai script loads exactly **once** – inspect `<head>` for duplicates.
+6. Test mic permissions and audio playback in Chrome & Safari (mobile iOS needs user gesture).
+
+---
+
+## 7 | Gotchas & Known Issues
+
+| Issue | Symptom | Fix |
+|-------|---------|-----|
+| Widget overlays header inside drawer | ElevenLabs element ignores flex rules | Add spacer `<div class="flex-grow" />` _before_ widget. |
+| Duplicate script tags on hot reload | `elevenlabs-convai` fails to init | Guard with `document.querySelector()` before injecting script. |
+| Overlay persists across pages | Good for UX, bad for some flows | Call `closeOverlay()` in `useEffect` on route change if needed. |
+| Mic blocked | Browser asks repeatedly | Clear site settings; ensure page served over https. |
+
+---
+
+## 8 | Future Enhancements
+
+• Auto-scroll chat transcript alongside audio (use ElevenLabs data API).
+• Allow selecting different agents in the drawer without full reload.
+• Integrate analytics to measure engagement start/stop events.
+
+---
+
+### End of Guide 

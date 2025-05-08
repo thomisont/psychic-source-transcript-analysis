@@ -1483,3 +1483,114 @@ h1, h2, h3, h4, h5, h6 {
     height: 100%;
     display: flex;
 }
+
+/* === Voice Drawer Styles === */
+.voice-drawer {
+    position: fixed;
+    bottom: 0;
+    right: -350px; /* Start off-screen */
+    width: 320px; /* Narrower drawer */
+    height: 100%;
+    max-height: 80vh; /* Limit height */
+    background: linear-gradient(180deg, #8c2d3f 0%, #c12c4f 40%, #e67e22 100%); /* Psychic Source red/orange gradient */
+    border-top-left-radius: 15px;
+    border-bottom-left-radius: 15px;
+    box-shadow: -5px 0px 15px rgba(0, 0, 0, 0.2);
+    padding: 1.5rem 1rem;
+    transition: right 0.3s ease-in-out;
+    z-index: 1055; /* Above debug panel */
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.voice-drawer.active {
+    right: 0; /* Slide in */
+}
+
+#voice-drawer-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    filter: brightness(0) invert(1);
+    opacity: 0.8;
+}
+
+.voice-drawer-trigger {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    background-color: #C12C4F; /* Match Psychic Source primary red */
+    border-color: #a82545;
+}
+
+/* Voice card adjustments inside drawer */
+.voice-drawer .voice-card {
+    background: transparent; /* Use drawer background */
+    border: none;
+    box-shadow: none;
+    max-width: 100%; /* Allow card to fill drawer width */
+    padding: 0; /* Remove card padding */
+    flex-grow: 1; /* Allow card to take up space */
+}
+
+.voice-drawer .voice-avatar {
+    width: 80px; height: 80px; margin-bottom: 1rem; /* Smaller avatar */
+}
+
+.voice-drawer .voice-mic-btn {
+    width: 60px; height: 60px; font-size: 1.5rem; /* Smaller mic button */
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.voice-drawer .voice-prompts {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+}
+
+.voice-drawer .voice-transcript-area {
+    background: rgba(0,0,0,0.1);
+    border-radius: 5px;
+    padding: 0.5rem;
+    color: #eee;
+}
+
+.voice-drawer .voice-powered-by {
+    color: #eee;
+    opacity: 0.7;
+}
+
+/* === General Voice Card Mic Button Enhancements === */
+.voice-mic-btn {
+    transition: transform 0.2s ease, background-color 0.2s ease; /* Add background transition */
+}
+
+.voice-mic-btn:hover {
+    transform: scale(1.08); /* Slightly larger hover */
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.voice-mic-btn.recording {
+    background-color: #dc3545 !important; /* Red background when recording */
+    animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+.voice-status-label {
+    font-style: italic;
+    opacity: 0.9;
+}
