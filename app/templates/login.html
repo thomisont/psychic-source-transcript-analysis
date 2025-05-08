@@ -36,4 +36,16 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Clear drawer state when login page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('[Login Page] Clearing voice drawer localStorage flags.');
+        localStorage.removeItem('voiceDrawerIsOpen');
+        localStorage.removeItem('voiceSessionWasActive');
+    });
+</script>
 {% endblock %} 

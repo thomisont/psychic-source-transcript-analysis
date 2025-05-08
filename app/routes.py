@@ -15,6 +15,7 @@ import pandas as pd
 from sqlalchemy import func
 import time
 from pathlib import Path
+import re
 
 # Import db and models for test route
 from app.extensions import db
@@ -155,10 +156,12 @@ def index():
             ("Synthesis", "Synthesized findings and recommendations from the four competitive analyses (Gemini, Grok, Perplexity, OpenAI o3) for Psychic Source-1.pdf", 5)
         ]
 
+        # Use standard render_template
         return render_template('index.html',
                                readme_content=readme_content,
                                intel_actions=intel_actions,
-                               intel_reports=intel_reports)
+                               intel_reports=intel_reports
+        )
     except Exception as e:
         # Log the error but still try to render something
         logging.error(f"Error rendering index page: {e}", exc_info=True)
@@ -207,6 +210,7 @@ def data_selection():
             logging.error(f"Error fetching conversation {conversation_id}: {e}")
             flash(f"Error loading conversation {conversation_id}: {str(e)}", "error")
     
+    # Use standard render_template
     return render_template('data_selection.html', 
                           start_date="",
                           end_date=end_date,
@@ -264,6 +268,7 @@ def analysis_page():
 @main_bp.route('/themes-sentiment')
 def themes_sentiment_page():
     """Renders the refactored Themes & Sentiment analysis page."""
+    # Use standard render_template
     return render_template('themes_sentiment_refactored.html')
 
 @main_bp.route('/api/total_conversations')

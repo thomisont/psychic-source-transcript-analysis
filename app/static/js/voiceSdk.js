@@ -2,206 +2,250 @@ import { Conversation } from 'https://esm.sh/@11labs/client@0.1.4';
 
 console.log('[VoiceSDK] Module loaded');
 
+// Ensure the global instance tracker exists only once
+if (typeof window._drawerConvoInstance === 'undefined') {
+    window._drawerConvoInstance = null;
+}
+
+// --- Central Voice Session Manager ---
+// This runs only once and listens for custom events
+if (!window._voiceSessionManagerInitialized) {
+    console.log('[VoiceSDK Manager] Initializing Voice Session Manager...');
+    let isProcessingToggle = false; // Prevent rapid toggles
+
+    // Listener for the custom event to toggle the session
+    document.addEventListener('toggleVoiceSession', async (event) => {
+        console.log('[VoiceSDK Manager] Received toggleVoiceSession event');
+        if (isProcessingToggle) {
+            console.warn('[VoiceSDK Manager] Already processing a toggle request, ignoring.');
+            return;
+        }
+        isProcessingToggle = true;
+
+        const agentId = event.detail?.agentId;
+        const micBtn = event.detail?.micBtn;
+        const statusLabel = event.detail?.statusLabel;
+        const transcriptArea = event.detail?.transcriptArea;
+
+        if (!agentId || !micBtn || !statusLabel) {
+            console.error('[VoiceSDK Manager] Missing detail in toggleVoiceSession event.');
+            isProcessingToggle = false;
+            return;
+        }
+
+        statusLabel.textContent = 'Processing...';
+        micBtn.disabled = true;
+
+        try {
+            if (!window._drawerConvoInstance) {
+                console.log(`[VoiceSDK Manager] No active session, attempting to start for ${agentId}...`);
+                // Call the separate init function (defined below)
+                await initializeNewConversation(agentId, micBtn, statusLabel, transcriptArea);
+                 // State handled by callbacks within initializeNewConversation
+            } else {
+                console.log(`[VoiceSDK Manager] Active session found, attempting to end for ${agentId}...`);
+                await window._drawerConvoInstance.endSession();
+                console.log(`[VoiceSDK Manager] endSession call initiated via manager for ${agentId}.`);
+                // Explicitly clear instance and flag here after calling endSession,
+                // as onDisconnect might be slow and allow a new session to start.
+                window._drawerConvoInstance = null;
+                localStorage.setItem('voiceSessionWasActive', 'false');
+                console.log('[VoiceSDK Manager] Cleared global instance and flag immediately after endSession call.');
+            }
+        } catch (err) {
+            console.error(`[VoiceSDK Manager] Error during toggle handling for ${agentId}:`, err);
+            statusLabel.textContent = 'Error! Tap to retry';
+            // Ensure state is reset on error
+            micBtn.classList.remove('recording');
+            localStorage.setItem('voiceSessionWasActive', 'false');
+        } finally {
+             micBtn.disabled = false; // Always re-enable button
+             isProcessingToggle = false; // Allow next toggle
+        }
+    });
+
+    console.log('[VoiceSDK Manager] Voice Session Manager initialized and listener attached.');
+    window._voiceSessionManagerInitialized = true;
+}
+
+// Separate function to initialize a *new* conversation (called by manager or auto-init)
+async function initializeNewConversation(agentId, micBtn, statusLabel, transcriptArea) {
+     console.log(`[VoiceSDK Init] Starting NEW conversation for ${agentId}...`);
+     let newConvo = null;
+
+     // Make sure any previous instance ref is cleared before starting
+     // This prevents potential race conditions if disconnect was slow
+     window._drawerConvoInstance = null;
+     localStorage.setItem('voiceSessionWasActive', 'false');
+
+     try {
+        // 1. Ensure microphone permission
+         try {
+             await navigator.mediaDevices.getUserMedia({ audio: true });
+         } catch (permErr) {
+             console.error('[VoiceSDK Init] Microphone permission error:', permErr);
+             statusLabel.textContent = 'Mic needed!';
+             alert('Microphone access is required. Please grant permission and click the mic again.');
+             throw permErr; 
+         }
+
+         // 2. Prepare session options (fetch token/signed URL)
+         const opts = {};
+         let signedUrlFetched = false;
+         try {
+             const suResp = await fetch(`/api/voice-sdk/signed-url/${agentId}`);
+             if (suResp.ok) {
+                 const suData = await suResp.json();
+                 if (suData.signed_url) {
+                     opts.signedUrl = suData.signed_url;
+                     signedUrlFetched = true;
+                     console.log(`[VoiceSDK Init] Using signedUrl for ${agentId}`);
+                 }
+             }
+             if (!signedUrlFetched) {
+                 console.warn(`[VoiceSDK Init] No signed URL for ${agentId}, falling back.`);
+             }
+         } catch (e) {
+              console.warn(`[VoiceSDK Init] Error fetching signed URL for ${agentId}:`, e);
+         }
+
+         if (!signedUrlFetched) {
+             opts.agentId = agentId;
+             // Optional API key fetch logic remains the same
+             try {
+                const tokenResp = await fetch('/api/voice-sdk/token');
+                if (tokenResp.ok) {
+                    const tokenData = await tokenResp.json();
+                    if (tokenData.token) opts.apiKey = tokenData.token;
+                }
+             } catch (tokErr) { console.warn(`[VoiceSDK Init] Token fetch error:`, tokErr); }
+         }
+
+        // 3. Start the session
+         newConvo = await Conversation.startSession({
+             ...opts,
+             onConnect: () => {
+                 console.log(`[VoiceSDK Init] Connected: ${agentId}`);
+                 micBtn.classList.add('recording');
+                 statusLabel.textContent = 'Listening... (Tap to stop)';
+                 if (transcriptArea) transcriptArea.innerHTML = ''; 
+                 micBtn.disabled = false; 
+                 // Session is live - CONFIRM instance is stored and set flag
+                 if (window._drawerConvoInstance === newConvo) { // Confirm it's the one we just created
+                     localStorage.setItem('voiceSessionWasActive', 'true');
+                     console.log('[VoiceSDK Init] Drawer session confirmed active. Flag set.');
+                 } else {
+                     console.warn('[VoiceSDK Init] onConnect fired but global instance doesn\'t match? Overwriting.');
+                     window._drawerConvoInstance = newConvo; // Ensure it's set anyway
+                     localStorage.setItem('voiceSessionWasActive', 'true');
+                 }
+             },
+             onError: (e) => {
+                 console.error(`[VoiceSDK Init] Session Error (${agentId}):`, e);
+                 statusLabel.textContent = 'Error! Tap to retry';
+                 micBtn.classList.remove('recording');
+                 micBtn.disabled = false;
+                 window._drawerConvoInstance = null; // Clear global instance
+                 localStorage.setItem('voiceSessionWasActive', 'false');
+                 console.log('[VoiceSDK Init] Drawer session INACTIVE (error). Instance cleared.');
+             },
+             onMessage: (msg) => {
+                 // ... (same message handling) ...
+                 if (transcriptArea && msg) {
+                    if (msg.type === 'user_transcript' && msg.user_transcription_event?.user_transcript) {
+                        transcriptArea.innerHTML = `<strong>You:</strong> ${msg.user_transcription_event.user_transcript}`;
+                    }
+                    if (msg.type === 'agent_response' && msg.agent_response_event?.agent_response) {
+                        transcriptArea.innerHTML += `<br><strong>Lily:</strong> ${msg.agent_response_event.agent_response}`;
+                        transcriptArea.scrollTop = transcriptArea.scrollHeight; 
+                    }
+                 }
+             },
+             onModeChange: (m) => {
+                 // Update label only if connection is active (check instance)
+                 if(window._drawerConvoInstance) {
+                    statusLabel.textContent = m.mode === 'speaking' ? 'Agent speaking... (Tap to stop)' : 'Listening... (Tap to stop)';
+                 }
+             },
+             onDisconnect: () => {
+                 console.log(`[VoiceSDK Init] Disconnected: ${agentId}`);
+                 statusLabel.textContent = 'Tap to talk';
+                 micBtn.classList.remove('recording');
+                 micBtn.disabled = false;
+                 window._drawerConvoInstance = null; // Clear global instance
+                 localStorage.setItem('voiceSessionWasActive', 'false');
+                 console.log('[VoiceSDK Init] Drawer session INACTIVE (disconnect). Instance cleared.');
+             }
+         });
+         // Assign to global instance IMMEDIATELY after session starts
+         window._drawerConvoInstance = newConvo;
+         console.log(`[VoiceSDK Init] Conversation object created and assigned to global instance for ${agentId}. Waiting for onConnect.`);
+         // Don't return convo here, callbacks handle state update
+     } catch (initErr) {
+         console.error(`[VoiceSDK Init] CRITICAL ERROR initializing session for ${agentId}:`, initErr);
+         statusLabel.textContent = 'Failed to start';
+         micBtn.disabled = false; 
+         window._drawerConvoInstance = null; // Ensure cleared on failure
+         localStorage.setItem('voiceSessionWasActive', 'false');
+         throw initErr; // Propagate error
+     }
+}
+
+
 // Centralized function to attach event handlers to a voice card
-async function attachHandlers(card) {
+// Now *only* attaches the click listener that dispatches the custom event
+function attachHandlers(card) { // REMOVED async as it doesn't await now
     if (card._voiceBound) { 
-        // console.log(`[VoiceSDK] Card already bound: ${card.dataset.agentId}`);
         return; 
     } 
     
     const agentId = card.dataset.agentId;
     const micBtn = card.querySelector('.voice-mic-btn');
     const statusLabel = card.querySelector('.voice-status-label');
-    const transcriptArea = card.querySelector('.voice-transcript-area'); // Optional
-    let recording = false; // Track state locally
-    let isDrawerCard = card.closest('#voice-drawer'); // Check if this card is inside the drawer
+    const transcriptArea = card.querySelector('.voice-transcript-area');
+    let isDrawerCard = card.closest('#voice-drawer');
 
     if (!agentId || !micBtn || !statusLabel) {
-        console.warn('[VoiceSDK] Skipping card - missing required elements (agentId, micBtn, statusLabel). Card:', card);
+        console.warn('[VoiceSDK Attach] Skipping card - missing required elements. Card:', card);
         return;
     }
 
-    // console.log(`[VoiceSDK] Attaching handlers to card for agent: ${agentId}`);
-
-    let convo = null;
-
-    async function initConversation() {
-        if (convo) {
-            console.log(`[VoiceSDK] Conversation already exists for ${agentId}`);
-            return convo;
-        }
-        console.log(`[VoiceSDK] Initializing conversation for ${agentId}...`);
-        statusLabel.textContent = 'Connecting...';
-        micBtn.disabled = true; // Disable while initializing
-
-        try {
-            // 1. Ensure microphone permission
-            try {
-                await navigator.mediaDevices.getUserMedia({ audio: true });
-            } catch (permErr) {
-                console.error('[VoiceSDK] Microphone permission error:', permErr);
-                statusLabel.textContent = 'Mic needed!';
-                alert('Microphone access is required. Please grant permission and click the mic again.');
-                throw permErr; // Stop initialization
-            }
-
-            // 2. Prepare session options (fetch token/signed URL)
-            const opts = {};
-            let signedUrlFetched = false;
-            try {
-                 // Prefer signed URL if available
-                 const suResp = await fetch(`/api/voice-sdk/signed-url/${agentId}`);
-                 if (suResp.ok) {
-                     const suData = await suResp.json();
-                     if (suData.signed_url) {
-                         opts.signedUrl = suData.signed_url;
-                         signedUrlFetched = true;
-                         console.log(`[VoiceSDK] Using signedUrl for ${agentId}`);
-                     }
-                 }
-                 if (!signedUrlFetched) {
-                      console.warn(`[VoiceSDK] No signed URL for ${agentId}, falling back to agentId/API key.`);
-                 }
-            } catch (e) {
-                 console.warn(`[VoiceSDK] Error fetching signed URL for ${agentId}:`, e);
-            }
-
-            // Fallback or default: Use agentId and fetch API key if no signed URL
-            if (!signedUrlFetched) {
-                opts.agentId = agentId;
-                try {
-                    const tokenResp = await fetch('/api/voice-sdk/token');
-                    if (tokenResp.ok) {
-                        const tokenData = await tokenResp.json();
-                        if (tokenData.token) {
-                            opts.apiKey = tokenData.token; // Correct option name is apiKey
-                            console.log(`[VoiceSDK] Using API key for ${agentId}`);
-                        } else {
-                             console.warn(`[VoiceSDK] Token endpoint OK but no token found for ${agentId}. Assuming public agent.`);
-                        }
-                    } else {
-                        console.warn(`[VoiceSDK] Token fetch failed for ${agentId}: ${tokenResp.status}. Assuming public agent.`);
-                    }
-                } catch (tokErr) {
-                    console.warn(`[VoiceSDK] Error fetching token for ${agentId}:`, tokErr);
-                }
-            }
-
-            // 3. Start the session with the imported class
-            convo = await Conversation.startSession({
-                ...opts,
-                onConnect: () => {
-                    console.log(`[VoiceSDK] Connected: ${agentId}`);
-                    recording = true;
-                    micBtn.classList.add('recording');
-                    statusLabel.textContent = 'Listening... (Tap to stop)';
-                    if (transcriptArea) transcriptArea.innerHTML = ''; // Clear transcript
-                    micBtn.disabled = false; // Re-enable button
-                    // If this is the drawer card, mark session as active
-                    if (isDrawerCard) {
-                        localStorage.setItem('voiceSessionWasActive', 'true');
-                        console.log('[VoiceSDK] Drawer session marked as active in localStorage.');
-                    }
-                },
-                onError: (e) => {
-                    console.error(`[VoiceSDK] Session Error (${agentId}):`, e);
-                    statusLabel.textContent = 'Error! Tap to retry';
-                    recording = false;
-                    micBtn.classList.remove('recording');
-                    convo = null; // Reset convo on error
-                    micBtn.disabled = false;
-                    // Clear active flag on error for drawer card
-                    if (isDrawerCard) {
-                        localStorage.setItem('voiceSessionWasActive', 'false');
-                         console.log('[VoiceSDK] Drawer session marked as INACTIVE in localStorage due to error.');
-                    }
-                },
-                onMessage: (msg) => {
-                    if (transcriptArea && msg) {
-                        if (msg.type === 'user_transcript' && msg.user_transcription_event?.user_transcript) {
-                            transcriptArea.innerHTML = `<strong>You:</strong> ${msg.user_transcription_event.user_transcript}`;
-                        }
-                        if (msg.type === 'agent_response' && msg.agent_response_event?.agent_response) {
-                            transcriptArea.innerHTML += `<br><strong>Lily:</strong> ${msg.agent_response_event.agent_response}`;
-                            transcriptArea.scrollTop = transcriptArea.scrollHeight; 
-                        }
-                    }
-                },
-                onModeChange: (m) => {
-                    // console.log(`[VoiceSDK] Mode change (${agentId}):`, m.mode);
-                    if (recording) { // Only update label if we are actively recording
-                       statusLabel.textContent = m.mode === 'speaking' ? 'Agent speaking... (Tap to stop)' : 'Listening... (Tap to stop)';
-                    }
-                },
-                onDisconnect: () => {
-                    console.log(`[VoiceSDK] Disconnected: ${agentId}`);
-                    statusLabel.textContent = 'Tap to talk';
-                    recording = false;
-                    micBtn.classList.remove('recording');
-                    convo = null;
-                    micBtn.disabled = false;
-                     // Clear active flag on disconnect for drawer card
-                    if (isDrawerCard) {
-                        localStorage.setItem('voiceSessionWasActive', 'false');
-                        console.log('[VoiceSDK] Drawer session marked as INACTIVE in localStorage due to disconnect.');
-                    }
-                }
-            });
-            return convo;
-        } catch (initErr) {
-            console.error(`[VoiceSDK] CRITICAL ERROR initializing session for ${agentId}:`, initErr);
-            statusLabel.textContent = 'Failed to start';
-            micBtn.disabled = false; // Ensure button is re-enabled on failure
-            throw initErr; // Propagate error
-        }
-    }
-
     // Attach the single click listener to the mic button
-    micBtn.addEventListener('click', async (e) => {
+    micBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        micBtn.disabled = true; // Disable during operation
-        statusLabel.textContent = 'Processing...';
-
-        try {
-            if (!convo) { // If no active conversation, try to start one
-                await initConversation(); 
-                // Recording state and UI managed by onConnect
-            } else { // If conversation exists, end it
-                await convo.endSession();
-                // Recording state and UI managed by onDisconnect
-                console.log(`[VoiceSDK] endSession called for ${agentId}.`);
-                // Manually clear flag here too, as onDisconnect might be delayed
-                if (isDrawerCard) {
-                    localStorage.setItem('voiceSessionWasActive', 'false');
-                    console.log('[VoiceSDK] Drawer session marked as INACTIVE in localStorage due to manual stop.');
-                }
-                convo = null; 
+        console.log(`[VoiceSDK Attach] Mic button clicked for ${agentId}. Dispatching toggleVoiceSession event.`);
+        // Dispatch custom event with necessary details
+        document.dispatchEvent(new CustomEvent('toggleVoiceSession', { 
+            detail: { 
+                agentId: agentId, 
+                micBtn: micBtn, 
+                statusLabel: statusLabel,
+                transcriptArea: transcriptArea
+                // Pass any other elements the manager needs
             }
-        } catch (err) {
-            console.error(`[VoiceSDK] Click handler error for ${agentId}:`, err);
-            statusLabel.textContent = 'Error. Tap to retry'; // More informative error state
-            recording = false;
-            micBtn.classList.remove('recording');
-            convo = null;
-        } finally {
-            micBtn.disabled = false; // Always re-enable
-        }
+        }));
     });
 
     card._voiceBound = true; // Mark as bound
-    console.log(`[VoiceSDK] Handlers attached for agent ${agentId}`);
+    console.log(`[VoiceSDK Attach] Event dispatcher attached for agent ${agentId}`);
 
-    // *** NEW: Auto-initiate connection if drawer was open and session was active ***
-    if (isDrawerCard && localStorage.getItem('voiceDrawerIsOpen') === 'true' && localStorage.getItem('voiceSessionWasActive') === 'true') {
-        console.log(`[VoiceSDK] Drawer was open and session was active. Auto-initiating connection for ${agentId}...`);
+    // *** REVISED Auto-initiation check ***
+    // Log the state *before* the check
+    console.log(`[VoiceSDK Attach] Auto-init check for ${agentId}. DrawerOpen: ${localStorage.getItem('voiceDrawerIsOpen')}, SessionActive: ${localStorage.getItem('voiceSessionWasActive')}, LiveInstance: ${!!window._drawerConvoInstance}`);
+    
+    if (isDrawerCard && 
+        localStorage.getItem('voiceDrawerIsOpen') === 'true' && 
+        localStorage.getItem('voiceSessionWasActive') === 'true' && 
+        !window._drawerConvoInstance) { // CHECK the GLOBAL instance
+        
+        console.log(`[VoiceSDK Attach] Drawer open, session was active, NO live global connection. Auto-initiating connection for ${agentId}...`);
         // Wrap in try/catch to prevent blocking other UI
         (async () => { 
             try {
-                await initConversation();
-                // State should be handled by onConnect
+                // Directly call the new init function
+                await initializeNewConversation(agentId, micBtn, statusLabel, transcriptArea);
             } catch (autoInitErr) {
-                 console.error('[VoiceSDK] Error during auto-initiation:', autoInitErr);
-                 // UI should reflect error state via initConversation's error handling
+                 console.error('[VoiceSDK Attach] Error during auto-initiation:', autoInitErr);
             }
         })();
     }
@@ -212,7 +256,6 @@ function bindAllVoiceCards() {
     console.log('[VoiceSDK] bindAllVoiceCards running...');
     if (typeof Conversation === 'undefined' || typeof Conversation.startSession !== 'function') {
         console.error('[VoiceSDK] Conversation class not ready yet.');
-        // Optionally retry after a delay if needed, but MutationObserver should handle it.
         return;
     }
     document.querySelectorAll('.voice-card[data-agent-id]').forEach(attachHandlers);
@@ -233,6 +276,7 @@ if (document.readyState === 'loading') {
 
 // Use MutationObserver to handle dynamically added cards (e.g., in modals/drawers)
 // Initialize observer
+/* // --- TEMPORARILY DISABLE MutationObserver ---
 function initializeVoiceObserver() {
      console.log('[VoiceSDK] Initializing MutationObserver...');
      if (typeof Conversation === 'undefined') {
@@ -254,6 +298,7 @@ function initializeVoiceObserver() {
 // Wait slightly before initializing observer
 // Increased delay slightly to ensure module is definitely ready
 setTimeout(initializeVoiceObserver, 750); 
+*/ // --- END TEMPORARY DISABLE --- 
 
 
 // --- NEW: Accordion Listener --- 
@@ -275,15 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Attempt to end session gracefully if drawer session is active when navigating away
 window.addEventListener('beforeunload', () => {
     console.log('[VoiceSDK] beforeunload event triggered.');
-    // Find the drawer card and its state (this is less reliable than checking localStorage directly)
-    const drawerCard = document.querySelector('#voice-drawer .voice-card[data-agent-id]');
-    if (drawerCard && drawerCard._voiceBound) {
-        // Need access to the specific `convo` instance for this card.
-        // This is difficult here. Let's rely on localStorage flag instead.
-        console.warn('[VoiceSDK] Cannot reliably access specific convo instance in beforeunload.');
-    }
-    
-    // Simpler: Just clear the flag. The connection will timeout anyway.
     if (localStorage.getItem('voiceSessionWasActive') === 'true') {
         console.log('[VoiceSDK] Clearing active session flag on page unload.');
         localStorage.setItem('voiceSessionWasActive', 'false');

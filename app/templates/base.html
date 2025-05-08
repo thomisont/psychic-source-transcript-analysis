@@ -42,6 +42,9 @@
     {% block head_extra %}{% endblock %}
 </head>
 <body>
+    <!-- Toast Container for notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+    
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
@@ -52,28 +55,22 @@
                 <ul class="navbar-nav">
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}" 
-                            href="{{ url_for('main.index') }}" aria-current="{% if request.endpoint == 'main.index' %}page{% endif %}">
+                            href="{{ url_for('main.index') }}" 
+                            aria-current="{% if request.endpoint == 'main.index' %}page{% endif %}">
                             <i class="fas fa-chart-line me-1"></i>Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.data_selection' %}active{% endif %}" 
-                            href="{{ url_for('main.data_selection') }}" aria-current="{% if request.endpoint == 'main.data_selection' %}page{% endif %}">
+                            href="{{ url_for('main.data_selection') }}" 
+                            aria-current="{% if request.endpoint == 'main.data_selection' %}page{% endif %}">
                             <i class="fas fa-comments me-1"></i>Transcript Viewer
                         </a>
                     </li>
-                    {# Removed Engagement Metrics link #}
-                    {# 
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'main.visualization_page' %}active{% endif %}" 
-                            href="{{ url_for('main.visualization_page') }}" aria-current="{% if request.endpoint == 'main.visualization_page' %}page{% endif %}">
-                            <i class="fas fa-chart-bar me-1"></i>Engagement Metrics
-                        </a>
-                    </li>
-                    #}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.themes_sentiment_page' %}active{% endif %}" 
-                            href="{{ url_for('main.themes_sentiment_page') }}" aria-current="{% if request.endpoint == 'main.themes_sentiment_page' %}page{% endif %}">
+                            href="{{ url_for('main.themes_sentiment_page') }}" 
+                            aria-current="{% if request.endpoint == 'main.themes_sentiment_page' %}page{% endif %}">
                             <i class="fas fa-smile me-1"></i>Themes & Sentiment
                         </a>
                     </li>
@@ -91,7 +88,6 @@
                 <button type="button" class="btn btn-primary btn-sm me-2" id="sync-button" title="Fetch new conversations from ElevenLabs">
                     <i class="fas fa-sync-alt me-1"></i> Sync New
                 </button>
-                {# NEW: Add Voice Drawer Trigger Button Here #}
                 <button id="voice-drawer-trigger" class="btn btn-danger rounded-circle shadow-lg ms-2" title="Talk to Lily">
                      <i class="bi bi-mic-fill"></i>
                 </button>
@@ -100,22 +96,19 @@
             </div>
         </div>
     </nav>
-    
-    <!-- Toast Container for notifications -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
-    
-    <!-- Main Content -->
-    <main class="container-fluid mt-4" id="content">
+        
+    <!-- Main Content - Always render this wrapper and the block -->
+    <main class="container-fluid mt-4" id="content" data-hx-swap-main> {# Ensure ID is here #}
         {% block content %}{% endblock %}
     </main>
-    
+        
     <!-- Footer -->
     <footer class="footer mt-5 py-3 bg-light">
         <div class="container text-center">
             <span class="text-muted">Psychic Source Agent: How's Lily Doing &copy; {{ now.year }}</span>
         </div>
     </footer>
-    
+
     <!-- REMOVE Voice Overlay Launcher & Drawer (ElevenLabs) -->
     {# 
     <button id="openVoiceOverlayBtn" class="btn btn-primary position-fixed bottom-0 end-0 m-4 shadow d-flex align-items-center gap-2" style="z-index:1040;">
@@ -444,5 +437,6 @@
         border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
     </style>
+
 </body>
 </html> 
