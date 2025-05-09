@@ -154,6 +154,37 @@ def get_conversation_details(conversation_id):
         current_app.logger.error(f"Unexpected error in /api/conversations/{conversation_id}: {str(e)}", exc_info=True)
         return jsonify({'error': f"An unexpected server error occurred while fetching details: {str(e)}"}), 500
 
+# +++ NEW Route to save Human Input notes +++
+@api.route('/conversations/<conversation_id>/notes', methods=['POST'])
+def save_conversation_hi_notes(conversation_id):
+    """API endpoint to save human input notes for a specific conversation."""
+    try:
+        data = request.get_json()
+        if not data or 'hi_notes' not in data:
+            current_app.logger.warning(f"Missing hi_notes in request for conversation {conversation_id}")
+            return jsonify({'error': 'Missing hi_notes in request body'}), 400
+
+        hi_notes_text = data['hi_notes']
+        
+        current_app.logger.info(f"Attempting to save HI notes for conversation_id (external): {conversation_id}")
+
+        # Use the ConversationService to update the notes
+        service = current_app.conversation_service
+        success, message = service.update_conversation_notes(conversation_id, hi_notes_text)
+
+        if success:
+            current_app.logger.info(f"Successfully saved HI notes for conversation {conversation_id}")
+            return jsonify({'success': True, 'message': message})
+        else:
+            current_app.logger.error(f"Failed to save HI notes for conversation {conversation_id}: {message}")
+            status_code = 404 if "not found" in message.lower() else 500
+            return jsonify({'success': False, 'error': message}), status_code
+            
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error in /api/conversations/{conversation_id}/notes: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': f"An unexpected server error occurred: {str(e)}"}), 500
+# +++ END NEW Route +++
+
 # RENAME and MODIFY the sync endpoint
 @api.route('/sync-conversations', methods=['POST']) # Renamed route
 def sync_conversations_route():

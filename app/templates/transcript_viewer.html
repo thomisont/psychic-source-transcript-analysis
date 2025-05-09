@@ -349,9 +349,34 @@ function createTranscriptUI(data, container) {
                         <p><strong>Duration:</strong> ${duration}</p>
                     </div>
                 </div>
+                <hr>
             </div>
         </div>
         
+        // +++ Add AI Summary and HI Notes Section Here +++
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">Analysis & Notes</h6>
+            </div>
+            <div class="card-body">
+                <div class="col-12">
+                    <h6>AI Summary</h6>
+                    <p id="ai-summary-text" class="text-muted small">${data.summary ? data.summary : 'No AI summary available.'}</p>
+                </div>
+                <div class="col-12 mt-3">
+                    <h6>Human Input Notes</h6>
+                    <form id="hi-notes-form">
+                        <textarea id="hi-notes-textarea" class="form-control" rows="4" placeholder="Enter human input notes here...">${data.hi_notes ? data.hi_notes : ''}</textarea>
+                        <button type="button" id="save-hi-notes-btn" class="btn btn-sm btn-outline-success mt-2">
+                            <i class="fas fa-save me-1"></i> Save Notes
+                        </button>
+                        <span id="save-notes-status" class="ms-2 small"></span>
+                    </form>
+                </div>
+            </div>
+        </div>
+        // +++ End of new section +++
+
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h5 class="card-title mb-0">
@@ -424,7 +449,61 @@ function createTranscriptUI(data, container) {
     
     container.innerHTML = html;
     logDebug(`Rendered transcript with ${transcript.length} messages`);
+    
+    // +++ Add event listener for the save notes button +++
+    const saveNotesBtn = document.getElementById('save-hi-notes-btn');
+    if (saveNotesBtn) {
+        saveNotesBtn.addEventListener('click', function() {
+            saveHiNotes(conversationId);
+        });
+    }
+    // +++ End of event listener +++
 }
+
+// +++ New function to save HI notes +++
+function saveHiNotes(conversationId) {
+    const notesTextarea = document.getElementById('hi-notes-textarea');
+    const notesStatus = document.getElementById('save-notes-status');
+    const notes = notesTextarea.value;
+
+    if (!notesStatus) {
+        logDebug("Error: Save notes status element not found.");
+        return;
+    }
+    notesStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    logDebug(`Saving HI notes for conversation ${conversationId}: ${notes.substring(0, 50)}...`);
+
+    fetch(`/api/conversations/${conversationId}/notes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ hi_notes: notes }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.error || `HTTP error ${response.status}`) });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            notesStatus.innerHTML = '<i class="fas fa-check-circle text-success"></i> Saved!';
+            logDebug(`Successfully saved HI notes for ${conversationId}.`);
+        } else {
+            notesStatus.innerHTML = `<i class="fas fa-times-circle text-danger"></i> Error: ${data.error || 'Unknown error'}`;
+            logDebug(`Error saving HI notes for ${conversationId}: ${data.error || 'Unknown server error'}`);
+        }
+        setTimeout(() => { notesStatus.innerHTML = ''; }, 3000); // Clear status after 3 seconds
+    })
+    .catch(error => {
+        console.error('Error saving HI notes:', error);
+        notesStatus.innerHTML = `<i class="fas fa-exclamation-triangle text-danger"></i> Error: ${error.message}`;
+        logDebug(`Fetch error saving HI notes for ${conversationId}: ${error.message}`);
+        setTimeout(() => { notesStatus.innerHTML = ''; }, 5000); // Clear status after 5 seconds
+    });
+}
+// +++ End of new function +++
 
 function formatDuration(seconds) {
     if (!seconds || isNaN(seconds)) return 'Unknown';

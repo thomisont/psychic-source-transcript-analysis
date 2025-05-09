@@ -65,7 +65,7 @@ type = "request"
 logging = {}
 
 [deployment]
-run = ["python", "run.py", "--port", "8080"]
+run = ["gunicorn", "app:create_app()"]
 deploymentTarget = "cloudrun"
 
 [[ports]]

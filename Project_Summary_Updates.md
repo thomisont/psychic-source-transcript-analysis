@@ -29,3 +29,37 @@
 ---
 Here is the context from the prior Agent working session.  Use it to orient around what's next. After reviewing, wait for my direction on the next steps.  
 --- 
+
+### AGENT HAND‑OFF SUMMARY  (2025‑05‑09 17:00 UTC)
+
+1. Context & Goals  
+• Initial: Resolve Replit deployment failures (SQLAlchemy init, circular imports).  
+• New: Implement UI/backend for human reviewers to add/save notes to conversations (RLHF).
+
+2. Work Completed This Session  
+• Traced SQLAlchemy `_all__` error to `analysis_service.py` import timing.  
+• Began `analysis_service.py` refactor: added `_get_model_classes()`, commented out deprecated methods.  
+• Added `hi_notes` field to `Conversation` model and ran Supabase migration.  
+• Updated `SupabaseConversationService` to fetch and save `hi_notes`.  
+• Added `hi_notes` textarea and save JS to `transcript_viewer.html` (HTML structure needs manual fix).  
+• Created Flask API route `/api/conversations/<id>/notes` to save `hi_notes`.
+
+3. Outstanding Issues (blocking)  
+• Replit deployment: Still failing, likely due to incomplete `analysis_service.py` refactor.  
+• Replit secrets: `DATABASE_URL`, Supabase keys not persisting in UI; critical platform issue.  
+• RLHF UI: `hi_notes` textarea not visible due to HTML error; user needs to apply provided snippet.  
+• `analysis_service.py`: Deferred model import needs to be applied to all relevant methods.
+
+4. New Learnings / Tech‑Stack Notes  
+• SQLAlchemy `_all__` error likely from `clsregistry.py` inspecting a partially init `sqlalchemy` module.  
+• Deferred imports are crucial for breaking Flask model/service circular dependencies.  
+• Replit UI bug may be causing newly added deployment secrets to not save reliably.
+
+5. Immediate Next Steps (actionable)  
+• User: Manually apply corrected HTML snippet to `transcript_viewer.html` for `hi_notes`.  
+• User: Test the "Save Notes" functionality for RLHF.  
+• User/AI: Fully refactor `analysis_service.py` with deferred model imports.  
+• User: Ensure Replit secrets are correctly set & persist before next deployment attempt.  
+• User/AI: Attempt Replit deployment again; analyze logs if errors persist.
+
+--- 

@@ -13,7 +13,7 @@ import pandas as pd
 from app.extensions import db
 import random
 from sqlalchemy import func, distinct, text
-from app.models import Conversation, Message
+# from app.models import Conversation, Message # Removed top-level import
 import json
 import os
 from collections import Counter, defaultdict
@@ -44,6 +44,11 @@ def _get_openai_embedding(text, client, model="text-embedding-3-large"):
 
 class AnalysisService:
     """Service for handling conversation analysis operations."""
+    
+    def _get_model_classes(self):
+        """Helper to defer import of model classes."""
+        from app.models import Conversation, Message
+        return Conversation, Message
     
     def __init__(self, conversation_service: SupabaseConversationService, cache=None, lightweight_mode=False):
         """
@@ -228,108 +233,112 @@ class AnalysisService:
         Returns:
             Dictionary containing categorized results.
         """
-        # This method is likely superseded by the RAG approach, but kept for potential other uses.
-        # Consider adding a deprecation warning if it's no longer the primary path.
-        logging.warning("get_categorized_themes called - this method might be deprecated in favor of RAG analysis.")
-        logging.info(f"AnalysisService: Getting categorized themes (start: {start_date}, end: {end_date})")
-        
-        # ... (rest of the keyword/pattern logic remains unchanged for now) ...
-        # --- Define Categories and their Keywords/Patterns ---
-        common_question_keywords = {
-            'Love & Relationships': ['love', 'relationship', 'boyfriend', 'girlfriend', 'partner', 'marriage', 'divorce',
-                                  'dating', 'ex', 'husband', 'wife', 'breakup', 'soulmate', 'twin flame', 'romance', 
-                                  'romantic', 'affair', 'crush', 'connection'],
-            'Career & Finances': ['job', 'career', 'money', 'work', 'business', 'financial', 'finance', 'salary', 'promotion',
-                           'interview', 'application', 'boss', 'workplace', 'income', 'debt', 'investment', 'retirement',
-                           'savings', 'profession', 'opportunity', 'success'],
-            'Family & Children': ['family', 'mother', 'father', 'sister', 'brother', 'daughter', 'son', 'parent', 'child',
-                     'grandparent', 'relative', 'sibling', 'aunt', 'uncle', 'cousin', 'in-law', 'adoption',
-                     'pregnant', 'pregnancy', 'baby', 'children'],
-            'Future Predictions': ['future', 'prediction', 'happen', 'will i', 'going to', 'forecast', 'destiny', 'fate',
-                      'path', 'timeline', 'when will', 'outcome', 'result', 'eventually', 'someday'],
-            'Psychic Source Services': [
-                'number', 'phone', 'toll-free', 'international', 'website', 'app', 'account', 'login', 'membership',
-                'credit', 'subscription', 'sign up', 'register', 'access',
-                'price', 'cost', 'fee', 'charge', 'minute', 'package', 'special', 'discount', 'offer', 'promotion',
-                'how long', 'duration', 'schedule', 'appointment', 'booking', 'available', 'time slot', 'reservation',
-                'reader', 'advisor', 'psychic', 'specialist', 'recommend', 'suggestion', 'best for', 'top', 'profile',
-                'extension', 'review', 'rating', 'feedback', 'experienced', 'popular', 'good at', 'specialized',
-                'problem', 'issue', 'error', 'trouble', 'help', 'assist', 'support', 'connect', 'payment', 'receipt',
-                'transaction', 'refund', 'credit card', 'billing', 'statement', 'email', 'contact us'
-            ],
-            'Spiritual & Metaphysical Concepts': ['spirit', 'energy', 'aura', 'chakra', 'meditation', 'vibration', 'frequency',
-                                 'cleansing', 'sage', 'crystal', 'ritual', 'blessing', 'prayer', 'guardian angel',
-                                 'spirit guide', 'intuition', 'empath', 'clairvoyant', 'psychic ability', 'universe',
-                                 'manifestation', 'law of attraction', 'karma', 'past life', 'reincarnation', 'soul'],
-            'Health & Wellness': ['health', 'wellness', 'medical', 'doctor', 'therapy', 'healing', 'illness', 'disease',
-                              'condition', 'symptom', 'diagnosis', 'recovery', 'treatment', 'medicine', 'surgery',
-                              'mental health', 'depression', 'anxiety', 'stress', 'sleep', 'diet', 'exercise', 'pain',
-                              'addiction', 'weight', 'nutrition', 'wellbeing']
-        }
-        concerns_keywords = {
-             'General Concerns': ['worry', 'worried', 'concern', 'concerned', 'anxious', 'nervous', 'afraid', 'scared', 'confused',
-                              'unsure', 'doubt', 'hesitant', 'problem', 'issue', 'difficult', 'hard', 'stuck', 'lost', 'overwhelmed'],
-             'Doubts about Readings': ['really work', 'accurate', 'true', 'possible', 'skeptical', 'believe', 'proof',
-                                  'evidence', 'real', 'genuine', 'how do you know', 'sure about this', 'convinced', 'skepticism'],
-             'Skepticism about Process': ['scam', 'fraud', 'trick', 'fake', 'rip off', 'waste of money', 'fortune teller', 'cold reading',
-                                     'general', 'vague', 'barnum', 'expensive', 'worth it', 'make this up', 'not sure']
-        }
-        
-        # --- Fetch Snippets for Each Category --- 
-        common_questions_results = []
-        try:
-            all_q_keywords = [kw for sublist in common_question_keywords.values() for kw in sublist]
-            q_patterns = ['%?%'] 
-            logging.info(f"Fetching common question snippets...")
-            question_snippets = current_app.conversation_service.get_relevant_message_snippets(
-                start_date=start_date, end_date=end_date, keywords=all_q_keywords, 
-                patterns=q_patterns, speaker_filter=['user'], limit_per_conv=3
-            )
-            logging.info(f"Found {len(question_snippets)} raw question snippets.")
-            
-            categorized_questions = {cat_name: [] for cat_name in common_question_keywords.keys()}
-            other_questions = []
-            for snippet in question_snippets:
-                text = snippet['text'].lower()
-                categorized = False
-                for cat_name, keywords in common_question_keywords.items():
-                    if any(word.lower() in text for word in keywords):
-                         categorized_questions[cat_name].append(snippet)
-                         categorized = True; break
-                if not categorized and '?' in text: other_questions.append(snippet)
-            if other_questions: categorized_questions['Other Questions'] = other_questions
-            for cat_name, snippets in categorized_questions.items():
-                if snippets: common_questions_results.append({'category': cat_name, 'count': len(snippets), 'examples': snippets})
-            common_questions_results = sorted(common_questions_results, key=lambda x: x['count'], reverse=True)
-        except Exception as e:
-             logging.error(f"Error processing common questions: {e}", exc_info=True)
-             common_questions_results = []
-             
-        concerns_skepticism_results = []
-        try:
-            all_c_keywords = [kw for sublist in concerns_keywords.values() for kw in sublist]
-            logging.info(f"Fetching concern/skepticism snippets...")
-            concern_snippets = current_app.conversation_service.get_relevant_message_snippets(
-                 start_date=start_date, end_date=end_date, keywords=all_c_keywords,
-                 patterns=None, speaker_filter=['user'], limit_per_conv=3
-            )
-            logging.info(f"Found {len(concern_snippets)} raw concern snippets.")
-            categorized_concerns = {cat_name: [] for cat_name in concerns_keywords.keys()}
-            for snippet in concern_snippets:
-                 text = snippet['text'].lower()
-                 for cat_name, keywords in concerns_keywords.items():
-                     if any(word.lower() in text for word in keywords):
-                          categorized_concerns[cat_name].append(snippet); break
-            for cat_name, snippets in categorized_concerns.items():
-                if snippets: concerns_skepticism_results.append({'category': cat_name, 'count': len(snippets), 'examples': snippets})
-            concerns_skepticism_results = sorted(concerns_skepticism_results, key=lambda x: x['count'], reverse=True)
-        except Exception as e:
-             logging.error(f"Error processing concerns/skepticism: {e}", exc_info=True)
-             concerns_skepticism_results = []
-        
-        final_result = {'common_questions': common_questions_results, 'concerns_skepticism': concerns_skepticism_results, 'other_analysis': {}}
-        logging.info(f"AnalysisService: Finished getting categorized themes. Found {len(common_questions_results)} question categories and {len(concerns_skepticism_results)} concern categories.")
-        return final_result
+        logging.warning("get_categorized_themes is DEPRECATED and effectively a no-op. RAG analysis should be used instead.")
+        # Entire original body of this method commented out for future reference if needed,
+        # but considered deprecated.
+        # 
+        # logging.warning("get_categorized_themes called - this method might be deprecated in favor of RAG analysis.")
+        # logging.info(f"AnalysisService: Getting categorized themes (start: {start_date}, end: {end_date})")
+        # 
+        # # ... (rest of the keyword/pattern logic remains unchanged for now) ...
+        # # --- Define Categories and their Keywords/Patterns ---
+        # common_question_keywords = {
+        #     'Love & Relationships': ['love', 'relationship', 'boyfriend', 'girlfriend', 'partner', 'marriage', 'divorce',
+        #                           'dating', 'ex', 'husband', 'wife', 'breakup', 'soulmate', 'twin flame', 'romance', 
+        #                           'romantic', 'affair', 'crush', 'connection'],
+        #     'Career & Finances': ['job', 'career', 'money', 'work', 'business', 'financial', 'finance', 'salary', 'promotion',
+        #                    'interview', 'application', 'boss', 'workplace', 'income', 'debt', 'investment', 'retirement',
+        #                    'savings', 'profession', 'opportunity', 'success'],
+        #     'Family & Children': ['family', 'mother', 'father', 'sister', 'brother', 'daughter', 'son', 'parent', 'child',
+        #              'grandparent', 'relative', 'sibling', 'aunt', 'uncle', 'cousin', 'in-law', 'adoption',
+        #              'pregnant', 'pregnancy', 'baby', 'children'],
+        #     'Future Predictions': ['future', 'prediction', 'happen', 'will i', 'going to', 'forecast', 'destiny', 'fate',
+        #               'path', 'timeline', 'when will', 'outcome', 'result', 'eventually', 'someday'],
+        #     'Psychic Source Services': [
+        #         'number', 'phone', 'toll-free', 'international', 'website', 'app', 'account', 'login', 'membership',
+        #         'credit', 'subscription', 'sign up', 'register', 'access',
+        #         'price', 'cost', 'fee', 'charge', 'minute', 'package', 'special', 'discount', 'offer', 'promotion',
+        #         'how long', 'duration', 'schedule', 'appointment', 'booking', 'available', 'time slot', 'reservation',
+        #         'reader', 'advisor', 'psychic', 'specialist', 'recommend', 'suggestion', 'best for', 'top', 'profile',
+        #         'extension', 'review', 'rating', 'feedback', 'experienced', 'popular', 'good at', 'specialized',
+        #         'problem', 'issue', 'error', 'trouble', 'help', 'assist', 'support', 'connect', 'payment', 'receipt',
+        #         'transaction', 'refund', 'credit card', 'billing', 'statement', 'email', 'contact us'
+        #     ],
+        #     'Spiritual & Metaphysical Concepts': ['spirit', 'energy', 'aura', 'chakra', 'meditation', 'vibration', 'frequency',
+        #                          'cleansing', 'sage', 'crystal', 'ritual', 'blessing', 'prayer', 'guardian angel',
+        #                          'spirit guide', 'intuition', 'empath', 'clairvoyant', 'psychic ability', 'universe',
+        #                          'manifestation', 'law of attraction', 'karma', 'past life', 'reincarnation', 'soul'],
+        #     'Health & Wellness': ['health', 'wellness', 'medical', 'doctor', 'therapy', 'healing', 'illness', 'disease',
+        #                       'condition', 'symptom', 'diagnosis', 'recovery', 'treatment', 'medicine', 'surgery',
+        #                       'mental health', 'depression', 'anxiety', 'stress', 'sleep', 'diet', 'exercise', 'pain',
+        #                       'addiction', 'weight', 'nutrition', 'wellbeing']
+        # }
+        # concerns_keywords = {
+        #      'General Concerns': ['worry', 'worried', 'concern', 'concerned', 'anxious', 'nervous', 'afraid', 'scared', 'confused',
+        #                       'unsure', 'doubt', 'hesitant', 'problem', 'issue', 'difficult', 'hard', 'stuck', 'lost', 'overwhelmed'],
+        #      'Doubts about Readings': ['really work', 'accurate', 'true', 'possible', 'skeptical', 'believe', 'proof',
+        #                           'evidence', 'real', 'genuine', 'how do you know', 'sure about this', 'convinced', 'skepticism'],
+        #      'Skepticism about Process': ['scam', 'fraud', 'trick', 'fake', 'rip off', 'waste of money', 'fortune teller', 'cold reading',
+        #                              'general', 'vague', 'barnum', 'expensive', 'worth it', 'make this up', 'not sure']
+        # }
+        # 
+        # # --- Fetch Snippets for Each Category --- 
+        # common_questions_results = []
+        # try:
+        #     all_q_keywords = [kw for sublist in common_question_keywords.values() for kw in sublist]
+        #     q_patterns = ['%?%'] 
+        #     logging.info(f"Fetching common question snippets...")
+        #     question_snippets = current_app.conversation_service.get_relevant_message_snippets(
+        #         start_date=start_date, end_date=end_date, keywords=all_q_keywords, 
+        #         patterns=q_patterns, speaker_filter=['user'], limit_per_conv=3
+        #     )
+        #     logging.info(f"Found {len(question_snippets)} raw question snippets.")
+        #     
+        #     categorized_questions = {cat_name: [] for cat_name in common_question_keywords.keys()}
+        #     other_questions = []
+        #     for snippet in question_snippets:
+        #         text = snippet['text'].lower()
+        #         categorized = False
+        #         for cat_name, keywords in common_question_keywords.items():
+        #             if any(word.lower() in text for word in keywords):
+        #                  categorized_questions[cat_name].append(snippet)
+        #                  categorized = True; break
+        #         if not categorized and '?' in text: other_questions.append(snippet)
+        #     if other_questions: categorized_questions['Other Questions'] = other_questions
+        #     for cat_name, snippets in categorized_questions.items():
+        #         if snippets: common_questions_results.append({'category': cat_name, 'count': len(snippets), 'examples': snippets})
+        #     common_questions_results = sorted(common_questions_results, key=lambda x: x['count'], reverse=True)
+        # except Exception as e:
+        #      logging.error(f"Error processing common questions: {e}", exc_info=True)
+        #      common_questions_results = []
+        #      
+        # concerns_skepticism_results = []
+        # try:
+        #     all_c_keywords = [kw for sublist in concerns_keywords.values() for kw in sublist]
+        #     logging.info(f"Fetching concern/skepticism snippets...")
+        #     concern_snippets = current_app.conversation_service.get_relevant_message_snippets(
+        #          start_date=start_date, end_date=end_date, keywords=all_c_keywords,
+        #          patterns=None, speaker_filter=['user'], limit_per_conv=3
+        #     )
+        #     logging.info(f"Found {len(concern_snippets)} raw concern snippets.")
+        #     categorized_concerns = {cat_name: [] for cat_name in concerns_keywords.keys()}
+        #     for snippet in concern_snippets:
+        #          text = snippet['text'].lower()
+        #          for cat_name, keywords in concerns_keywords.items():
+        #              if any(word.lower() in text for word in keywords):
+        #                   categorized_concerns[cat_name].append(snippet); break
+        #     for cat_name, snippets in categorized_concerns.items():
+        #         if snippets: concerns_skepticism_results.append({'category': cat_name, 'count': len(snippets), 'examples': snippets})
+        #     concerns_skepticism_results = sorted(concerns_skepticism_results, key=lambda x: x['count'], reverse=True)
+        # except Exception as e:
+        #      logging.error(f"Error processing concerns/skepticism: {e}", exc_info=True)
+        #      concerns_skepticism_results = []
+        # 
+        # final_result = {'common_questions': common_questions_results, 'concerns_skepticism': concerns_skepticism_results, 'other_analysis': {}}
+        # logging.info(f"AnalysisService: Finished getting categorized themes. Found {len(common_questions_results)} question categories and {len(concerns_skepticism_results)} concern categories.")
+        # return final_result
+        pass # Method is deprecated
+        return {'common_questions': [], 'concerns_skepticism': [], 'other_analysis': {}} # Return empty structure
     
     def get_transcripts_for_conversations(self, conversation_ids):
         """
@@ -394,37 +403,48 @@ class AnalysisService:
         DEPRECATED? Extract themes/topics from conversations and their associated sentiment.
         This likely needs refactoring or removal if RAG analysis replaces it.
         """
-        logging.warning("_extract_themes called - this method might be deprecated or need refactoring.")
-        try:
-            # ... (Existing logic, may need review) ...
-            logging.info(f"Starting theme extraction from {len(df)} conversations")
-            if 'conversation_id' not in df.columns: return {'top_themes': [], 'sentiment_by_theme': []}
-            conversation_ids = df['conversation_id'].unique().tolist() # Assumes these are EXTERNAL IDs now?
-            conversation_map = self.get_transcripts_for_conversations(conversation_ids) # Pass external IDs
-            conversations_with_transcripts = list(conversation_map.values())
-            if not conversations_with_transcripts: return {'top_themes': [], 'sentiment_by_theme': []}
-            
-            # Assuming analyzer methods can handle the structure from get_transcripts_for_conversations
-            logging.info("Using unified_theme_sentiment_analysis for more accurate results")
-            unified_results = self.analyzer.unified_theme_sentiment_analysis(conversations_with_transcripts)
-            top_themes = unified_results.get('themes', [])
-            sentiment_by_theme = unified_results.get('correlations', [])
-            
-            logging.info("Calling extract_common_questions with conversation transcripts")
-            common_questions = self.analyzer.extract_common_questions(conversations_with_transcripts)
-            logging.info("Calling extract_concerns_and_skepticism with conversation transcripts")
-            concerns_skepticism = self.analyzer.extract_concerns_and_skepticism(conversations_with_transcripts)
-            logging.info("Calling extract_positive_interactions with conversation transcripts")
-            positive_interactions = self.analyzer.extract_positive_interactions(conversations_with_transcripts)
-
-            return {
-                'top_themes': top_themes, 'sentiment_by_theme': sentiment_by_theme,
-                'common_questions': common_questions, 'concerns_skepticism': concerns_skepticism,
-                'positive_interactions': positive_interactions
-            }
-        except Exception as e:
-            logging.error(f"Error extracting themes: {e}", exc_info=True)
-            return {'top_themes': [], 'sentiment_by_theme': [], 'common_questions': [], 'concerns_skepticism': [], 'positive_interactions': []}
+        logging.warning("_extract_themes is DEPRECATED and effectively a no-op. RAG analysis should be used instead.")
+        # Entire original body of this method commented out for future reference if needed,
+        # but considered deprecated.
+        #
+        # Conversation, Message = self._get_model_classes() # This line was added in a previous step
+        # logging.warning("_extract_themes called - this method might be deprecated or need refactoring.")
+        # try:
+        #     # ... (Existing logic, may need review) ...
+        #     logging.info(f"Starting theme extraction from {len(df)} conversations")
+        #     if 'conversation_id' not in df.columns: return {'top_themes': [], 'sentiment_by_theme': []}
+        #     conversation_ids = df['conversation_id'].unique().tolist() # Assumes these are EXTERNAL IDs now?
+        #     conversation_map = self.get_transcripts_for_conversations(conversation_ids) # Pass external IDs
+        #     conversations_with_transcripts = list(conversation_map.values())
+        #     if not conversations_with_transcripts: return {'top_themes': [], 'sentiment_by_theme': []}
+        #     
+        #     # Assuming analyzer methods can handle the structure from get_transcripts_for_conversations
+        #     logging.info("Using unified_theme_sentiment_analysis for more accurate results")
+        #     unified_results = self.analyzer.unified_theme_sentiment_analysis(conversations_with_transcripts)
+        #     top_themes = unified_results.get('themes', [])
+        #     sentiment_by_theme = unified_results.get('correlations', [])
+        #     
+        #     logging.info("Calling extract_common_questions with conversation transcripts")
+        #     common_questions = self.analyzer.extract_common_questions(conversations_with_transcripts)
+        #     logging.info("Calling extract_concerns_and_skepticism with conversation transcripts")
+        #     concerns_skepticism = self.analyzer.extract_concerns_and_skepticism(conversations_with_transcripts)
+        #     logging.info("Calling extract_positive_interactions with conversation transcripts")
+        #     positive_interactions = self.analyzer.extract_positive_interactions(conversations_with_transcripts)
+        #
+        #     return {
+        #         'top_themes': top_themes, 'sentiment_by_theme': sentiment_by_theme,
+        #         'common_questions': common_questions, 'concerns_skepticism': concerns_skepticism,
+        #         'positive_interactions': positive_interactions
+        #     }
+        # except Exception as e:
+        #     logging.error(f"Error extracting themes: {e}", exc_info=True)
+        #     return {'top_themes': [], 'sentiment_by_theme': [], 'common_questions': [], 'concerns_skepticism': [], 'positive_interactions': []}
+        pass # Method is deprecated
+        return {
+            'top_themes': [], 'sentiment_by_theme': [], 
+            'common_questions': [], 'concerns_skepticism': [], 
+            'positive_interactions': []
+        } # Return empty structure
     
     # --- NEW Method for Comprehensive Analysis --- 
     def get_full_themes_sentiment_analysis(self, start_date: str, end_date: str) -> Dict[str, Any]:

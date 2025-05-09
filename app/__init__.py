@@ -154,7 +154,7 @@ def create_app(test_config=None):
     logging.info("Importing models...")
     try:
         with app.app_context(): # Ensure context for model definition
-            # from app import models 
+            from app import models 
             logging.info("Models imported successfully.")
     except Exception as e:
         logging.error(f"Error importing models: {e}", exc_info=True)
@@ -283,17 +283,16 @@ def create_app(test_config=None):
     # --- Initialize Conversation & Analysis Services ---
     try:
         from app.services.supabase_conversation_service import SupabaseConversationService
+        from app.services.analysis_service import AnalysisService
+        from app.services.export_service import ExportService
+
         if app.supabase_client:
             app.conversation_service = SupabaseConversationService(supabase_client=app.supabase_client)
             logging.info("SupabaseConversationService initialized and attached to app context.")
         else:
             logging.error("Supabase client unavailable; cannot initialize ConversationService.")
             app.conversation_service = None
-    except Exception as svc_err:
-        logging.error(f"Failed to initialize SupabaseConversationService: {svc_err}", exc_info=True)
-        app.conversation_service = None
 
-    try:
         if app.conversation_service:
             # Determine whether to run in lightweight mode based on presence of an OpenAI key.
             lightweight_flag = False if os.getenv("OPENAI_API_KEY") else True
@@ -308,9 +307,15 @@ def create_app(test_config=None):
         else:
             logging.warning("ConversationService not available; AnalysisService not initialized.")
             app.analysis_service = None
-    except Exception as as_err:
-        logging.error(f"Failed to initialize AnalysisService: {as_err}", exc_info=True)
+
+        app.export_service = ExportService()
+        logging.info("Export service initialized.")
+        
+    except Exception as svc_err:
+        logging.error(f"Failed to initialize core services: {svc_err}", exc_info=True)
+        app.conversation_service = None
         app.analysis_service = None
+        app.export_service = None
 
     # After Supabase client initialization
     @app.before_request

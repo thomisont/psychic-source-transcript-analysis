@@ -1,6 +1,9 @@
 from datetime import datetime
 from sqlalchemy.sql import func
 from app.extensions import db # Ensure this line imports from extensions
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import DateTime, Text, Float, Boolean, Integer # Ensure Integer is imported if used
+import uuid
 
 # Comment out or remove the incorrect import if it exists
 # from app import db 
@@ -22,6 +25,8 @@ class Conversation(db.Model):
     cost_credits = db.Column(db.Integer, nullable=True) # Matches Supabase int4, nullable
     # +++ Add summary field +++
     summary = db.Column(db.Text, nullable=True) # Stores the conversation summary
+    # +++ Add HI Notes field for human feedback +++
+    hi_notes = db.Column(db.Text, nullable=True) # Stores human input notes/commentary
 
     # Relationship to messages
     messages = db.relationship('Message', backref='conversation', lazy='selectin', cascade="all, delete-orphan")
@@ -46,5 +51,23 @@ class Message(db.Model):
 
     def __repr__(self):
         return f'<Message {self.id} in Conv {self.conversation_id}>'
+
+class Agent(db.Model):
+    __tablename__ = 'agents' # Define table name
+
+    id = db.Column(db.String, primary_key=True) # Agent ID from ElevenLabs will be string
+    name = db.Column(db.String, nullable=False)
+    system_prompt = db.Column(db.Text, nullable=True)
+    # Timestamps
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Example additional fields (can be expanded)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String, nullable=True, default='active') # e.g., active, inactive, maintenance
+    avatar_url = db.Column(db.String, nullable=True)
+
+    def __repr__(self):
+        return f'<Agent {self.id} ({self.name})>'
 
 # TODO: Add other analysis models (Themes, Sentiments, Questions, Concerns, PositiveInteractions, Embeddings, AnalysisCache) later. 

@@ -333,7 +333,7 @@ class SupabaseConversationService:
             # Step 1: Fetch the conversation by external_id, including cost_credits AND summary
             logging.info(f"Fetching conversation details for external_id: {conversation_id}")
             conv_response = self.supabase.client.table('conversations') \
-                        .select("id, external_id, title, created_at, status, cost_credits, summary, agent_id") \
+                        .select("id, external_id, title, created_at, status, cost_credits, summary, agent_id, hi_notes") \
                         .eq('external_id', str(conversation_id))\
                         .limit(1)\
                         .maybe_single()\
@@ -420,7 +420,8 @@ class SupabaseConversationService:
                 'transcript': transcript,
                 'duration': duration,
                 'cost': conversation.get('cost_credits'), # Change key to 'cost'
-                'summary': conversation.get('summary') # ADD summary field
+                'summary': conversation.get('summary'), # ADD summary field
+                'hi_notes': conversation.get('hi_notes') # ADD hi_notes field
             }
             
             logging.info(f"Successfully retrieved details for conversation {conversation_id}")
@@ -813,3 +814,56 @@ class SupabaseConversationService:
         except Exception as e:
             logging.error(f"Error in get_conversation_details_by_id: {e}", exc_info=True)
             return None 
+
+    def update_conversation_notes(self, external_id: str, notes_text: str) -> tuple[bool, str]:
+        """
+        Updates the hi_notes for a conversation identified by its external_id.
+
+        Args:
+            external_id: The external ID of the conversation.
+            notes_text: The text of the human input notes.
+
+        Returns:
+            A tuple (success: bool, message: str).
+        """
+        if not self.initialized or not self.supabase or not self.supabase.client:
+            logging.error("Supabase client not available in update_conversation_notes")
+            return False, "Supabase client not initialized"
+
+        try:
+            logging.info(f"Attempting to update hi_notes for conversation external_id: {external_id}")
+            
+            update_data = {'hi_notes': notes_text}
+            
+            response = self.supabase.client.table('conversations') \
+                .update(update_data) \
+                .eq('external_id', external_id) \
+                .execute()
+
+            # Check if the update was successful and if any row was actually updated.
+            # Supabase update typically returns data (the updated rows) or an error.
+            # If no row matches `eq`, data might be empty or count might be 0 depending on client version & settings.
+            if response.data:
+                logging.info(f"Successfully updated hi_notes for conversation {external_id}. Rows affected: {len(response.data)}")
+                return True, "Notes updated successfully."
+            elif hasattr(response, 'count') and response.count == 0:
+                logging.warning(f"Update hi_notes: No conversation found with external_id {external_id}. No rows updated.")
+                return False, "Conversation not found."
+            elif response.error:
+                logging.error(f"Supabase error updating hi_notes for {external_id}: {response.error.message if response.error else 'Unknown error'}")
+                return False, f"Database error: {response.error.message if response.error else 'Unknown error'}"
+            else:
+                # This case might occur if the record was found but data not returned, or other scenarios.
+                # Depending on Supabase client version, a successful update with no returned data might happen.
+                # We can infer success if there's no error and no explicit indication of failure.
+                # However, it's safer to check if at least one row was matched. If not, treat as 'not found'.
+                # For now, let's assume if no data and no error, it might mean no row was matched.
+                logging.warning(f"Update hi_notes: Update for {external_id} executed but no data returned and no error. Assuming not found or no change.")
+                return False, "Conversation not found or notes already up-to-date."
+
+        except APIError as e:
+            logging.error(f"Supabase APIError updating notes for {external_id}: {e.message}", exc_info=True)
+            return False, f"Database API error: {e.message}"
+        except Exception as e:
+            logging.error(f"Unexpected error updating notes for {external_id}: {e}", exc_info=True)
+            return False, f"An unexpected server error occurred: {str(e)}" 
