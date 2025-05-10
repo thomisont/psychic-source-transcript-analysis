@@ -26,9 +26,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import models here after db initialization
 # from app.models import Conversation, Message  # noqa
 
-# Initialize services
-from app.services.analysis_service import AnalysisService
-from app.services.data_service import DataService
+# # Initialize services  <-- REMOVE THIS BLOCK
+# from app.services.analysis_service import AnalysisService # <-- REMOVE
+# from app.services.data_service import DataService # <-- REMOVE
 
 # Global services
 # >>> Remove these global variables as services are attached to the app context <<<

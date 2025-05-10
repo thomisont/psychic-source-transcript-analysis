@@ -17,10 +17,6 @@ import time
 from pathlib import Path
 import re
 
-# Import db and models for test route
-from app.extensions import db
-from app.models import Conversation, Message
-
 # Import Supabase services
 sys.path.append(str(Path(__file__).parent.parent))
 try:
@@ -36,6 +32,8 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/test-db')
 def test_db_connection():
     """Simple route to test database connection during runtime."""
+    from app.extensions import db
+    from app.models import Conversation
     try:
         # Attempt a simple query (even if table doesn't exist, connection is tested)
         count = db.session.query(Conversation).count()
@@ -274,55 +272,44 @@ def themes_sentiment_page():
 @main_bp.route('/api/total_conversations')
 def total_conversations():
     """API endpoint to get the total number of conversations from the database."""
+    from app.extensions import db
+    from app.models import Conversation
+    from sqlalchemy import func
     try:
         # --- Query database count --- 
-        from app.extensions import db
-        from app.models import Conversation
-        from sqlalchemy import func
-        
-        try:
-            total = db.session.query(func.count(Conversation.id)).scalar() or 0
-            logging.info(f"Total conversations count from DB: {total}")
-        except Exception as db_err:
-            logging.error(f"Database error getting conversation count: {db_err}", exc_info=True)
-            # Fallback to a fixed count if database query fails
-            total = 150  # Fallback to a reasonable value
-            logging.warning(f"Using fallback total conversations count: {total}")
-        
-        # Create response with unique timestamp for cache control
-        timestamp = datetime.now().isoformat()
-        random_value = str(random.randint(10000, 99999))
-        
-        result = {
-            'total': total,
-            'timestamp': timestamp,
-            'random': random_value,
-            'is_fallback': not isinstance(total, int) or db_err if 'db_err' in locals() else False
-        }
-        
-        # Use jsonify to ensure proper JSON encoding
-        response = jsonify(result)
-        
-        # Add extremely aggressive cache control headers
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        response.headers['X-Accel-Expires'] = '0'  # For Nginx
-        response.headers['X-Cache-Control'] = 'no-cache'
-        response.headers['Surrogate-Control'] = 'no-store'
-        response.headers['Vary'] = '*'  # Ensure unique caching per request
-        response.headers['Content-Type'] = 'application/json; charset=utf-8'  # Explicit content type
-        
-        return response
-        
-    except Exception as e:
-        # Generic error handling for database query issues
-        logging.error(f"Error getting total conversations from DB: {e}", exc_info=True)
-        return jsonify({
-            'error': f"Failed to retrieve total conversation count: {str(e)}",
-            'total': 150,  # Fallback value
-            'is_fallback': True
-        }), 200  # Return 200 instead of 500 to avoid breaking the frontend
+        total = db.session.query(func.count(Conversation.id)).scalar() or 0
+        logging.info(f"Total conversations count from DB: {total}")
+    except Exception as db_err:
+        logging.error(f"Database error getting conversation count: {db_err}", exc_info=True)
+        # Fallback to a fixed count if database query fails
+        total = 150  # Fallback to a reasonable value
+        logging.warning(f"Using fallback total conversations count: {total}")
+    
+    # Create response with unique timestamp for cache control
+    timestamp = datetime.now().isoformat()
+    random_value = str(random.randint(10000, 99999))
+    
+    result = {
+        'total': total,
+        'timestamp': timestamp,
+        'random': random_value,
+        'is_fallback': not isinstance(total, int) or db_err if 'db_err' in locals() else False
+    }
+    
+    # Use jsonify to ensure proper JSON encoding
+    response = jsonify(result)
+    
+    # Add extremely aggressive cache control headers
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['X-Accel-Expires'] = '0'  # For Nginx
+    response.headers['X-Cache-Control'] = 'no-cache'
+    response.headers['Surrogate-Control'] = 'no-store'
+    response.headers['Vary'] = '*'  # Ensure unique caching per request
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'  # Explicit content type
+    
+    return response
 
 @main_bp.route('/api/visualization/data')
 def visualization_data():
