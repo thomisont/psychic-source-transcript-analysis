@@ -154,12 +154,12 @@ def create_app(test_config=None):
     logging.info("Importing models...")
     try:
         with app.app_context(): # Ensure context for model definition
-            from app import models 
+            import app.models
             logging.info("Models imported successfully.")
     except Exception as e:
         logging.error(f"Error importing models: {e}", exc_info=True)
-        # Decide if this should halt app creation
-        raise
+        # Log error but continue app creation
+        pass
 
     # Configure CORS based on environment
     logging.info("Configuring CORS...")

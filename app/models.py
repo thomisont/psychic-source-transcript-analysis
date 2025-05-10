@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, Text, Float, Boolean, Integer
 import uuid
 
 # Import db from extensions
+from flask_sqlalchemy import SQLAlchemy
 from app.extensions import db 
 
 class Conversation(db.Model):
