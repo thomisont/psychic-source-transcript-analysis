@@ -1,7 +1,6 @@
 from datetime import datetime
-from sqlalchemy.sql import func
+from sqlalchemy import func, DateTime, Text, Float, Boolean, Integer
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy import DateTime, Text, Float, Boolean, Integer
 import uuid
 
 # Import db from extensions
@@ -69,4 +68,4 @@ class Agent(db.Model):
     def __repr__(self):
         return f'<Agent {self.id} ({self.name})>'
 
-# TODO: Add other analysis models (Themes, Sentiments, Questions, Concerns, PositiveInteractions, Embeddings, AnalysisCache) later. 
+# TODO: Add other analysis models (Themes, Sentiments, Questions, Concerns, PositiveInteractions, Embeddings, AnalysisCache) later.
