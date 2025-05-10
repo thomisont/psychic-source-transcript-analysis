@@ -19,6 +19,7 @@ language = "python3"
 
 [nix]
 channel = "stable-23_05"
+packages = ["cargo", "glibcLocales", "libiconv", "rustc"]
 
 [packager]
 language = "python3"
@@ -65,7 +66,7 @@ type = "request"
 logging = {}
 
 [deployment]
-run = ["gunicorn", "app:create_app()"]
+run = ["sh", "-c", "gunicorn 'app:create_app()'"]
 deploymentTarget = "cloudrun"
 
 [[ports]]
