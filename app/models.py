@@ -1,12 +1,11 @@
 from datetime import datetime
 from sqlalchemy.sql import func
-from app.extensions import db # Ensure this line imports from extensions
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy import DateTime, Text, Float, Boolean, Integer # Ensure Integer is imported if used
+from sqlalchemy import DateTime, Text, Float, Boolean, Integer
 import uuid
 
-# Comment out or remove the incorrect import if it exists
-# from app import db 
+# Import db from extensions
+from app.extensions import db 
 
 class Conversation(db.Model):
     __tablename__ = 'conversations'
