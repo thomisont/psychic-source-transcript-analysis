@@ -4,9 +4,8 @@ from flask import Flask, g, current_app, redirect, url_for, request
 from flask_cors import CORS
 import logging
 from dotenv import load_dotenv
-import nltk
 # Import extensions from the new file
-from app.extensions import db, migrate
+from app.extensions import db, migrate, cache, server_session
 # Move client and service imports inside create_app
 # from app.api.elevenlabs_client import ElevenLabsClient
 # import datetime
@@ -15,9 +14,11 @@ from app.extensions import db, migrate
 # from app.services.export_service import ExportService
 from flask_caching import Cache
 from tools.supabase_client import SupabaseClient
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 # Add the project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(__file__).parent.parent))
 
 # Remove global instantiations from here
 # db = SQLAlchemy()
@@ -41,6 +42,7 @@ cache = Cache() # Ensure cache is initialized before create_app uses it
 
 # --- Ensure NLTK Data ---
 def ensure_nltk_data():
+    import nltk  # <-- Move import here, not global
     required = [
         ('tokenizers/punkt', 'punkt'),
         ('corpora/stopwords', 'stopwords'),
@@ -142,6 +144,10 @@ def create_app(test_config=None):
         logging.info(f"Attempting cache.init_app(app) with type: {app.config.get('CACHE_TYPE')}, dir: {app.config.get('CACHE_DIR')}...")
         cache.init_app(app)
         logging.info("Cache initialized.")
+
+        logging.info("Attempting server_session.init_app(app)...")
+        server_session.init_app(app)
+        logging.info("Server session initialized.")
 
     except Exception as e:
         # Print the full exception details to stderr for visibility, especially in CLI context
@@ -417,6 +423,19 @@ def create_app(test_config=None):
         logging.error(f"Failed to initialise GlassFrog integration: {e}", exc_info=True)
         app.glassfrog_client = None
         app.glassfrog_service = None
+
+    # Configure logging
+    if not app.debug and not app.testing:
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+        file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('Application startup')
 
     return app
 

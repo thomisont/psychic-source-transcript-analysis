@@ -1,8 +1,8 @@
 { pkgs }: {
   deps = [
     pkgs.nano
-    pkgs.python311Packages.pytest
-    pkgs.python311Packages.uvicorn
+    pkgs.python310Packages.pytest
+    pkgs.python310Packages.uvicorn
     pkgs.python310
     pkgs.gcc
     pkgs.glibc
@@ -14,6 +14,7 @@
     pkgs.openssl
     pkgs.zlib
     pkgs.stdenv
+    pkgs.libstdcxx5
   ];
 }
 ## New comment
