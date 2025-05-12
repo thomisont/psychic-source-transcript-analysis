@@ -149,13 +149,11 @@ def create_app(test_config=None):
         raise # Re-raise exception to halt app creation if DB fails
     logging.info("Extensions initialized.")
 
-    # --- Import Models (after db init) --- #
-    # This still needs to happen AFTER db.init_app
+    # Initialize models without app context
     logging.info("Importing models...")
     try:
-        with app.app_context(): # Ensure context for model definition
-            import app.models
-            logging.info("Models imported successfully.")
+        import app.models
+        logging.info("Models imported successfully.")
     except Exception as e:
         logging.error(f"Error importing models: {e}", exc_info=True)
         # Log error but continue app creation

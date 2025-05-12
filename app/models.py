@@ -3,9 +3,9 @@ from sqlalchemy import func, DateTime, Text, Float, Boolean, Integer
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 import uuid
 
-# Import db from extensions
 from app.extensions import db
 
+# Define models
 class Conversation(db.Model):
     __tablename__ = 'conversations'
 
