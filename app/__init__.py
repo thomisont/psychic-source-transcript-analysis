@@ -72,17 +72,17 @@ def create_app(test_config=None):
     # Log the ElevenLabs env variables for debugging
     logging.info(f"ELEVENLABS_API_KEY: {os.getenv('ELEVENLABS_API_KEY')}")
     logging.info(f"ELEVENLABS_AGENT_ID: {os.getenv('ELEVENLABS_AGENT_ID')}")
-    
+
     # Configure logging
     logging.basicConfig(
         level=logging.DEBUG, # Set log level to DEBUG
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
     logging.info("Creating Flask app instance...")
     app = Flask(__name__, instance_relative_config=True)
     logging.info("Flask app instance created.")
-    
+
     # Load configuration from environment variables first
     logging.info("Loading configuration...")
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
@@ -92,7 +92,7 @@ def create_app(test_config=None):
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = True # Enable SQLAlchemy query logging
-    
+
     # >>> ADD Supabase config explicitly from env vars <<<
     app.config['SUPABASE_URL'] = os.environ.get('SUPABASE_URL')
     app.config['SUPABASE_SERVICE_KEY'] = os.environ.get('SUPABASE_SERVICE_KEY')
@@ -133,7 +133,7 @@ def create_app(test_config=None):
         logging.info("Attempting db.init_app(app)...")
         db.init_app(app)
         logging.info("SQLAlchemy (db) initialized.")
-        
+
         logging.info("Attempting migrate.init_app(app, db)...")
         migrate.init_app(app, db)
         logging.info("Migrate initialized.")
@@ -176,34 +176,34 @@ def create_app(test_config=None):
         app.logger.info("Development mode: CORS configured for all origins")
         CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     logging.info("CORS configured.")
-    
+
     # Log the API key (just first few chars for security)
     api_key = os.getenv('ELEVENLABS_API_KEY')
     if api_key:
         logging.info(f"Loaded ElevenLabs API key: {api_key[:5]}...")
     else:
         logging.warning("No ElevenLabs API key found")
-        
+
     # Log if OpenAI key is available
     openai_key = os.getenv('OPENAI_API_KEY')
     if openai_key:
         logging.info(f"Loaded OpenAI API key: {openai_key[:5]}...")
     else:
         logging.warning("No OpenAI API key found, analysis features will use fallbacks")
-    
+
     # Ensure instance folder exists
     try:
         os.makedirs(app.instance_path, exist_ok=True)
     except OSError:
         pass
-    
+
     # Add current date to context for templates
     @app.context_processor
     def inject_now():
         # Import datetime inside function if not imported globally
         import datetime 
         return {'now': datetime.datetime.now()}
-    
+
     # Create and attach ElevenLabs client
     from app.api.elevenlabs_client import ElevenLabsClient
     try:
@@ -256,9 +256,9 @@ def create_app(test_config=None):
 
     # app.export_service = ExportService()
     logging.info("Export service initialized.")
-    
+
     # logging.info(f"Service Status - Conversation: {'OK (' + service_mode + ')' if app.conversation_service else 'Failed'}, Analysis: {'OK' if app.analysis_service else 'Failed'}, Export: {'OK' if app.export_service else 'Failed'}")
-    
+
     if hasattr(app, 'elevenlabs_client') and app.elevenlabs_client and app.elevenlabs_client.api_key:
         logging.info("Main ElevenLabsClient available on app context with API key.")
     elif hasattr(app, 'elevenlabs_client') and app.elevenlabs_client:
@@ -311,7 +311,7 @@ def create_app(test_config=None):
 
         app.export_service = ExportService()
         logging.info("Export service initialized.")
-        
+
     except Exception as svc_err:
         logging.error(f"Failed to initialize core services: {svc_err}", exc_info=True)
         app.conversation_service = None
@@ -395,6 +395,16 @@ def create_app(test_config=None):
             sys.exit(1) # Exit with error code
         logging.info("CLI: Sync command finished.")
 
+    @app.cli.command("clear-cache")
+    def clear_cache_command():
+        """Clear the application cache."""
+        try:
+            cache.clear()
+            click.echo("Cache cleared successfully")
+        except Exception as e:
+            click.echo(f"Failed to clear cache: {e}", err=True)
+            sys.exit(1)
+
     # --- Attach GlassFrog client & service ---
     try:
         from tools.glassfrog_client import GlassFrogClient
@@ -427,4 +437,4 @@ def create_app(test_config=None):
 # Consider moving error handlers into create_app or registering them on the blueprint level.
 
 # >>> REMOVED GLOBAL SERVICE INSTANTIATIONS <<<
-# >>> MOVED INITIALIZATION INSIDE create_app <<< 
+# >>> MOVED INITIALIZATION INSIDE create_app <<<
