@@ -336,33 +336,90 @@ document.addEventListener('DOMContentLoaded', () => {
         updateText(`${prefix}average-cost`, data?.avg_cost_credits ?? 0, Formatter.number);
         updateText(`${prefix}completion-rate`, data?.completion_rate ?? 0, Formatter.percent);
         updateText(`${prefix}peak-time`, data?.peak_time_hour, Formatter.peakTime);
-        updateText(`${prefix}mtd-cost`, data?.month_to_date_cost ?? 0, Formatter.number);
-        updateText(`${prefix}mtd-cost-budget-label`, data?.monthly_budget ? `Budget: ${Formatter.number(data.monthly_budget)}` : 'Budget: --');
+        
+        // --- Conditional MTD Cost / Credit Cycle Update ---
+        if (prefix === 'cc-') {
+            // Update NEW "Current Credit Cycle" card for Curious Caller
+            const orgUsed = data?.org_credits_used ?? 0;
+            const orgRemaining = data?.org_credits_remaining ?? 0;
+            const orgTotal = data?.org_credits_total ?? 2000000; // Default if not provided
+            const orgRenewal = data?.org_renewal_date ?? '14th monthly';
+            const orgOverageRate = data?.org_overage_rate ?? 0.18; // Default cost per 1000 if not provided
 
-        // Update MTD Cost Progress Bar
-        const progressBar = document.getElementById(`${prefix}mtd-cost-progress`);
-        const budget = data?.monthly_budget ?? 0;
-        const cost = data?.month_to_date_cost ?? 0;
-        if (progressBar && budget > 0) {
-            const percentage = Math.min((cost / budget) * 100, 100);
-            progressBar.style.width = `${percentage}%`;
-            progressBar.setAttribute('aria-valuenow', percentage);
-            progressBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
-            if (percentage >= 90) {
-                progressBar.classList.add('bg-danger');
-            } else if (percentage >= 75) {
-                progressBar.classList.add('bg-warning');
-            } else {
-                progressBar.classList.add('bg-success');
+            updateText('cc-credits-used', orgUsed, Formatter.number);
+            updateText('cc-credits-remaining', orgRemaining, Formatter.number);
+            updateText('cc-credits-total', orgTotal, Formatter.number);
+            updateText('cc-credits-renewal', `Renews: ${Formatter.simpleDate(orgRenewal) || orgRenewal}`);
+
+            const creditProgressBar = document.getElementById('cc-credits-progress');
+            const creditPercentText = document.getElementById('cc-credits-percent');
+            const creditOverageContainer = document.getElementById('cc-credits-overage');
+            const creditOverageAmountText = document.getElementById('cc-credits-overage-amount');
+
+            if (creditProgressBar && creditPercentText) {
+                if (orgTotal > 0) {
+                    const percentage = Math.min(Math.max((orgUsed / orgTotal) * 100, 0), 100); // Clamp between 0 and 100
+                    creditProgressBar.style.width = `${percentage}%`;
+                    creditProgressBar.setAttribute('aria-valuenow', percentage.toFixed(2));
+                    creditPercentText.textContent = `${percentage.toFixed(1)}%`;
+
+                    creditProgressBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+                    if (percentage >= 90) {
+                        creditProgressBar.classList.add('bg-danger');
+                    } else if (percentage >= 75) {
+                        creditProgressBar.classList.add('bg-warning');
+                    } else {
+                        creditProgressBar.classList.add('bg-success');
+                    }
+                } else {
+                    creditProgressBar.style.width = '0%';
+                    creditProgressBar.setAttribute('aria-valuenow', 0);
+                    creditPercentText.textContent = '0%';
+                    creditProgressBar.classList.remove('bg-warning', 'bg-danger');
+                    creditProgressBar.classList.add('bg-success');
+                }
             }
-            progressBar.textContent = ''; // Clear error text if any
-        } else if (progressBar) {
-             progressBar.style.width = `0%`;
-             progressBar.setAttribute('aria-valuenow', 0);
-             progressBar.classList.remove('bg-warning', 'bg-danger');
-             progressBar.classList.add('bg-success');
-             progressBar.textContent = '';
+
+            if (creditOverageContainer && creditOverageAmountText) {
+                if (orgRemaining < 0) {
+                    const overageAmount = Math.abs(orgRemaining) * (orgOverageRate / 1000);
+                    creditOverageAmountText.textContent = Formatter.currency(overageAmount);
+                    creditOverageContainer.classList.remove('d-none');
+                } else {
+                    creditOverageContainer.classList.add('d-none');
+                }
+            }
+
+        } else if (prefix === 'mh-') {
+            // Update OLD "Month-to-Date Cost" card for Member Hospitality
+            updateText(`${prefix}mtd-cost`, data?.month_to_date_cost ?? 0, Formatter.number);
+            updateText(`${prefix}mtd-cost-budget-label`, data?.monthly_budget ? `Budget: ${Formatter.number(data.monthly_budget)}` : 'Budget: --');
+            
+            const progressBar = document.getElementById(`${prefix}mtd-cost-progress`);
+            const budget = data?.monthly_budget ?? 0;
+            const cost = data?.month_to_date_cost ?? 0;
+            if (progressBar && budget > 0) {
+                const percentage = Math.min((cost / budget) * 100, 100);
+                progressBar.style.width = `${percentage}%`;
+                progressBar.setAttribute('aria-valuenow', percentage);
+                progressBar.classList.remove('bg-success', 'bg-warning', 'bg-danger');
+                if (percentage >= 90) {
+                    progressBar.classList.add('bg-danger');
+                } else if (percentage >= 75) {
+                    progressBar.classList.add('bg-warning');
+                } else {
+                    progressBar.classList.add('bg-success');
+                }
+                progressBar.textContent = ''; // Clear error text if any
+            } else if (progressBar) {
+                 progressBar.style.width = `0%`;
+                 progressBar.setAttribute('aria-valuenow', 0);
+                 progressBar.classList.remove('bg-warning', 'bg-danger');
+                 progressBar.classList.add('bg-success');
+                 progressBar.textContent = '';
+            }
         }
+        // --- End Conditional MTD Cost Update ---
 
         // --- Update Charts --- 
         

@@ -443,6 +443,7 @@ class SupabaseConversationService:
            to calculate average cost and completion rate.
         3. Cleans and combines the results into a dictionary for the dashboard API.
         """
+        logging.critical("[[[CRITICAL DEBUG]]] ENTERING get_dashboard_stats FUNCTION NOW!") # CRITICAL LOGGING TEST
         try:
             logging.info(f"Calling Supabase RPC get_message_activity_in_range with start: {start_date}, end: {end_date}, agent_id: {agent_id}")
             # Prepare parameters for the RPC call, including agent_id
@@ -644,6 +645,92 @@ class SupabaseConversationService:
             monthly_budget = current_app.config.get('MONTHLY_CREDIT_BUDGET', 2000000) # Default if not set
             stats_data['monthly_credit_budget'] = monthly_budget
             # --- End Get Budget --- 
+
+            # --- ORG-LEVEL AGGREGATION ---
+            # Always include org-level stats for dashboard
+            try:
+                now = datetime.now(timezone.utc)
+                
+                # Determine the start of the current billing cycle
+                if now.day >= 14:
+                    # Current cycle started on the 14th of this month
+                    cycle_start_date = now.replace(day=14, hour=0, minute=0, second=0, microsecond=0)
+                    # Next renewal will be the 14th of next month
+                    next_renewal_month_year = (now.replace(day=28) + timedelta(days=5)) # Helper to get into next month reliably
+                    next_renewal_date = datetime(next_renewal_month_year.year, next_renewal_month_year.month, 14, tzinfo=timezone.utc)
+                else:
+                    # Current cycle started on the 14th of last month
+                    prev_month_date = (now.replace(day=1) - timedelta(days=1)) # End of last month
+                    cycle_start_date = prev_month_date.replace(day=14, hour=0, minute=0, second=0, microsecond=0)
+                    # Next renewal will be the 14th of this month
+                    next_renewal_date = now.replace(day=14, hour=0, minute=0, second=0, microsecond=0)
+
+                logging.info(f"Credit Cycle Start: {cycle_start_date.isoformat()}, Next Renewal: {next_renewal_date.isoformat()}")
+
+                # Query all conversations within the current billing cycle
+                # The cycle runs from cycle_start_date up to (but not including) next_renewal_date
+                org_query = self.supabase.client.table('conversations') \
+                    .select('agent_id, cost_credits, created_at', count='exact') \
+                    .gte('created_at', cycle_start_date.isoformat()) \
+                    .lt('created_at', next_renewal_date.isoformat()) # Use strictly less than next renewal
+
+                org_response = org_query.execute() # Store the response
+                org_data = org_response.data or []
+                
+                # +++ Add Detailed Logging +++
+                record_count = org_response.count if hasattr(org_response, 'count') else len(org_data)
+                logging.warning(f"[[[DEBUG]]] [Org Aggregation] Query fetched {record_count} conversation records for the cycle.")
+                if org_data:
+                     logging.debug(f"[Org Aggregation] First record timestamp: {org_data[0].get('created_at')}, Last record timestamp (if >1): {org_data[-1].get('created_at') if len(org_data) > 1 else 'N/A'}")
+                # +++ End Logging +++
+
+                org_credits_used = sum(float(conv.get('cost_credits') or 0) for conv in org_data)
+                
+                # +++ Add Logging for Sum +++
+                logging.warning(f"[[[DEBUG]]] [Org Aggregation] Calculated Total Credits Used: {org_credits_used}")
+                # +++ End Logging +++
+
+                org_credits_total = float(current_app.config.get('MONTHLY_CREDIT_BUDGET', 2000000))
+                org_credits_remaining = org_credits_total - org_credits_used
+
+                # Per-agent breakdown (for this cycle)
+                per_agent_credits = {}
+                for conv in org_data:
+                    agent = conv.get('agent_id')
+                    cost = float(conv.get('cost_credits') or 0)
+                    if agent:
+                        per_agent_credits[agent] = per_agent_credits.get(agent, 0) + cost
+                
+                org_renewal_date_str = next_renewal_date.strftime('%Y-%m-%d')
+                
+                # Plan details (hardcoded or from config)
+                org_plan_name = "Scale" # TODO: Consider moving to config
+                org_plan_cost = 330.0   # TODO: Consider moving to config
+                org_overage_rate = 0.18 # Per 1000 credits. TODO: Consider moving to config
+
+                stats_data.update({
+                    'org_credits_used': org_credits_used,
+                    'org_credits_remaining': org_credits_remaining,
+                    'org_credits_total': org_credits_total,
+                    'org_plan_name': org_plan_name,
+                    'org_plan_cost': org_plan_cost,
+                    'org_overage_rate': org_overage_rate,
+                    'org_renewal_date': org_renewal_date_str,
+                    'per_agent_credits': per_agent_credits,
+                })
+            except Exception as org_err:
+                logging.error(f"Error in org-level credit aggregation: {org_err}", exc_info=True)
+                # Ensure defaults are set in case of error
+                stats_data.update({
+                    'org_credits_used': None,
+                    'org_credits_remaining': None,
+                    'org_credits_total': float(current_app.config.get('MONTHLY_CREDIT_BUDGET', 2000000)),
+                    'org_plan_name': "Scale",
+                    'org_plan_cost': 330.0,
+                    'org_overage_rate': 0.18,
+                    'org_renewal_date': None,
+                    'per_agent_credits': {},
+                })
 
             logging.debug(f"Processed stats data being returned (agent: {agent_id}): {stats_data}")
             return stats_data

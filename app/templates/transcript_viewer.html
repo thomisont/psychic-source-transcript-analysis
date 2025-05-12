@@ -208,7 +208,9 @@ function processConversationData(data) {
         end_time: null,
         duration: 0,
         status: 'unknown',
-        transcript: []
+        transcript: [],
+        summary: null, // Initialize summary
+        hi_notes: null   // Initialize hi_notes
     };
     
     // Debug the incoming data
@@ -253,6 +255,10 @@ function processConversationData(data) {
     
     // Extract status
     processedData.status = data.status || (data.call_successful ? 'done' : 'failed');
+    
+    // Extract summary and hi_notes
+    processedData.summary = data.summary;
+    processedData.hi_notes = data.hi_notes;
     
     // Extract transcript (could be in different properties)
     // First check for standard transcript arrays
@@ -316,6 +322,11 @@ function createTranscriptUI(data, container) {
     const duration = data.duration ? formatDuration(data.duration) : 'Unknown';
     const status = data.status || 'Unknown';
     
+    // +++ Add logging for summary and hi_notes +++
+    logDebug(`Inside createTranscriptUI - data.summary: ${data.summary}`);
+    logDebug(`Inside createTranscriptUI - data.hi_notes: ${data.hi_notes}`);
+    // +++ End logging +++
+    
     // Log detailed debug information about the transcript format
     if (transcript.length > 0) {
         const firstItem = transcript[0];
@@ -353,29 +364,26 @@ function createTranscriptUI(data, container) {
             </div>
         </div>
         
-        // +++ Add AI Summary and HI Notes Section Here +++
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="mb-0">Analysis & Notes</h6>
-            </div>
-            <div class="card-body">
-                <div class="col-12">
-                    <h6>AI Summary</h6>
-                    <p id="ai-summary-text" class="text-muted small">${data.summary ? data.summary : 'No AI summary available.'}</p>
-                </div>
-                <div class="col-12 mt-3">
-                    <h6>Human Input Notes</h6>
-                    <form id="hi-notes-form">
-                        <textarea id="hi-notes-textarea" class="form-control" rows="4" placeholder="Enter human input notes here...">${data.hi_notes ? data.hi_notes : ''}</textarea>
-                        <button type="button" id="save-hi-notes-btn" class="btn btn-sm btn-outline-success mt-2">
-                            <i class="fas fa-save me-1"></i> Save Notes
-                        </button>
-                        <span id="save-notes-status" class="ms-2 small"></span>
-                    </form>
-                </div>
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <p><strong>Summary:</strong> <span id="modal-summary" class="text-muted small">Loading...</span></p>
             </div>
         </div>
-        // +++ End of new section +++
+        
+        <hr>
+        <div class="row mb-3">
+            <div class="col-12">
+                 <h6>Human Input Notes</h6>
+                 <form id="hi-notes-form-modal">
+                    <textarea id="hi-notes-textarea" class="form-control form-control-sm" rows="3" placeholder="Enter human input notes here..."></textarea> 
+                    <button type="button" id="save-hi-notes-btn-modal" class="btn btn-sm btn-outline-success mt-2">
+                        <i class="fas fa-save me-1"></i> Save Notes
+                    </button>
+                    <span id="save-notes-status-modal" class="ms-2 small"></span> 
+                 </form>
+             </div>
+        </div>
+        <hr>
 
         <div class="card">
             <div class="card-header bg-primary text-white">
@@ -451,7 +459,7 @@ function createTranscriptUI(data, container) {
     logDebug(`Rendered transcript with ${transcript.length} messages`);
     
     // +++ Add event listener for the save notes button +++
-    const saveNotesBtn = document.getElementById('save-hi-notes-btn');
+    const saveNotesBtn = document.getElementById('save-hi-notes-btn-modal');
     if (saveNotesBtn) {
         saveNotesBtn.addEventListener('click', function() {
             saveHiNotes(conversationId);
@@ -463,7 +471,7 @@ function createTranscriptUI(data, container) {
 // +++ New function to save HI notes +++
 function saveHiNotes(conversationId) {
     const notesTextarea = document.getElementById('hi-notes-textarea');
-    const notesStatus = document.getElementById('save-notes-status');
+    const notesStatus = document.getElementById('save-notes-status-modal');
     const notes = notesTextarea.value;
 
     if (!notesStatus) {

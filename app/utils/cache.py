@@ -155,61 +155,59 @@ class SimpleCache:
 cache = SimpleCache(cache_dir='instance/cache', max_size=500)
 
 def cache_key(func_name, *args, **kwargs):
-    """Generate a unique key for the cache based on the function name and arguments
-
-    Args:
-        func_name (str): Name of the function being called
-        *args: Positional arguments to the function
-        **kwargs: Keyword arguments to the function
-
-    Returns:
-        str: A unique key for the cache
-    """
-    # Convert args to a JSON-safe format
-    safe_args = []
+    """Generate a unique key for the cache based on the function name and arguments"""
+    safe_args_parts = []
     for arg in args:
         if hasattr(arg, '__dict__'):
-            # For objects, use their class name and id as a unique identifier
-            arg_class = arg.__class__.__name__
-            arg_id = id(arg)
-            safe_args.append(f"{arg_class}_{arg_id}")
+            safe_args_parts.append(f"{arg.__class__.__name__}_{id(arg)}")
         else:
-            # For primitive types, use them directly
             try:
-                # Check if JSON serializable
-                json.dumps(arg)
-                safe_args.append(arg)
+                json.dumps(arg) # Check if serializable
+                safe_args_parts.append(repr(arg)) # Use repr for more uniqueness than str for some types
             except (TypeError, OverflowError):
-                # If not serializable, use string representation
-                safe_args.append(str(arg))
+                safe_args_parts.append(str(arg))
     
-    # Convert kwargs to a JSON-safe format
-    safe_kwargs = {}
+    safe_kwargs_parts = []
     for key, value in sorted(kwargs.items()):
         if hasattr(value, '__dict__'):
-            # For objects, use their class name and id as a unique identifier
-            value_class = value.__class__.__name__
-            value_id = id(value)
-            safe_kwargs[key] = f"{value_class}_{value_id}"
+            safe_kwargs_parts.append(f"{key}={value.__class__.__name__}_{id(value)}")
         else:
-            # For primitive types, use them directly
             try:
-                # Check if JSON serializable
-                json.dumps(value)
-                safe_kwargs[key] = value
+                json.dumps(value) # Check if serializable
+                safe_kwargs_parts.append(f"{key}={repr(value)}") # Use repr
             except (TypeError, OverflowError):
-                # If not serializable, use string representation
-                safe_kwargs[key] = str(value)
+                safe_kwargs_parts.append(f"{key}={str(value)}")
     
-    # Create a string with the function name and safe args/kwargs
-    try:
-        arg_string = json.dumps(safe_args, sort_keys=True) if safe_args else ''
-        kwarg_string = json.dumps(safe_kwargs, sort_keys=True) if safe_kwargs else ''
-        return f"{func_name}_{arg_string}_{kwarg_string}"
-    except Exception as e:
-        # Fallback if JSON serialization fails
-        logging.error(f"Error creating cache key: {e}")
-        return f"{func_name}_{hash(str(safe_args))}_{hash(str(safe_kwargs))}"
+    # Combine all parts for the full argument signature string
+    full_args_signature = "_".join(safe_args_parts) + "__" + "_".join(safe_kwargs_parts)
+    
+    # Limit the length of the unhashed signature part to avoid overly long filenames
+    # If the signature itself is very long, hash it.
+    MAX_SIG_LEN = 180 # Max length for the signature part of the key
+    if len(full_args_signature) > MAX_SIG_LEN:
+        hashed_signature = hashlib.md5(full_args_signature.encode('utf-8')).hexdigest()
+        key_suffix = f"hashed_{hashed_signature}"
+    elif not full_args_signature: # Handle case with no args/kwargs
+        key_suffix = "noargs"
+    else:
+        # Sanitize the signature string to be filename-safe (basic sanitization)
+        # Remove/replace characters that are problematic in filenames
+        sanitized_signature = full_args_signature.replace("[", "_").replace("]", "_") \
+                                                .replace("{", "_").replace("}", "_") \
+                                                .replace("\"", "").replace("'", "") \
+                                                .replace(",", "-").replace(": ", "=") \
+                                                .replace(" ", "")
+        key_suffix = sanitized_signature[:MAX_SIG_LEN] # Truncate if slightly over after sanitizing
+
+    final_key = f"{func_name}_{key_suffix}"
+    
+    # This final length check is mostly a safeguard; primary length control is MAX_SIG_LEN
+    if len(final_key) > 240:
+        # If even after truncation/hashing the func_name makes it too long, hash the whole thing
+        logging.warning(f"Cache key for {func_name} still too long, fully hashing. Key: {final_key[:100]}")
+        return hashlib.md5(f"{func_name}_{full_args_signature}".encode('utf-8')).hexdigest()
+        
+    return final_key
 
 def cache_api_response(ttl=3600):
     """

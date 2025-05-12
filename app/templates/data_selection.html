@@ -207,6 +207,20 @@
                          <p id="modal-summary" class="text-muted small mb-3 fw-bold">Loading summary...</p>
                      </div>
                  </div>
+                 <!-- Human Input Notes Section -->
+                 <div class="row mb-3">
+                   <div class="col-12">
+                     <h6>Human Input Notes</h6>
+                     <form id="hi-notes-form-modal">
+                       <textarea id="hi-notes-textarea" class="form-control form-control-sm" rows="3" placeholder="Enter human input notes here..."></textarea>
+                       <button type="button" id="save-hi-notes-btn-modal" class="btn btn-sm btn-outline-success mt-2">
+                         <i class="fas fa-save me-1"></i> Save Notes
+                       </button>
+                       <span id="save-notes-status-modal" class="ms-2 small"></span>
+                     </form>
+                   </div>
+                 </div>
+                 <!-- End Human Input Notes Section -->
                  <hr>
                  <h6>Transcript</h6>
                 {# New container for iMessage style - ID changed in JS #}

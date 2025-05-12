@@ -66,7 +66,7 @@ type = "request"
 logging = {}
 
 [deployment]
-run = ["sh", "-c", "gunicorn run:app --worker-class gthread --workers 4 --bind 0.0.0.0:8080 --timeout 120"]
+run = ["sh", "-c", "gunicorn --worker-class=gthread --workers=4 --bind 0.0.0.0:8080 --timeout 120 'app:create_app()'"]
 deploymentTarget = "cloudrun"
 
 [[ports]]
@@ -80,6 +80,10 @@ externalPort = 3001
 [[ports]]
 localPort = 3002
 externalPort = 3002
+
+[[ports]]
+localPort = 5000
+externalPort = 6000
 
 [[ports]]
 localPort = 5001

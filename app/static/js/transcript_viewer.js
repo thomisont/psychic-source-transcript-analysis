@@ -474,6 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalDuration = document.getElementById('modal-duration');
         const modalCost = document.getElementById('modal-cost');
         const modalSummary = document.getElementById('modal-summary');
+        const modalHiNotesTextarea = document.getElementById('hi-notes-textarea'); 
         const resultsInfo = document.getElementById('results-info'); // Main page info
         const modalTranscriptContent = document.getElementById('modal-transcript-content');
         const exportDropdownButton = document.querySelector('#conversationModal .modal-footer .dropdown-toggle'); // Get export button
@@ -493,6 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modalDuration.textContent = 'Loading...';
         modalCost.textContent = '...';
         modalSummary.textContent = 'Loading...';
+        if (modalHiNotesTextarea) modalHiNotesTextarea.value = '';
         
         // Show the modal
         if (!transcriptModalInstance) {
@@ -521,10 +523,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Step 2: Populate Overview Section in Modal
             modalTitle.textContent = `Conversation: ${details.conversation_id || conversationId}`;
             modalConvId.textContent = details.conversation_id || 'N/A';
-            modalConvDate.textContent = details.start_time ? Formatter.date(details.start_time) : 'N/A';
+            modalConvDate.textContent = details.start_time ? Formatter.dateTime(details.start_time) : 'N/A';
             modalDuration.textContent = details.duration ? Formatter.duration(details.duration) : 'N/A';
-            modalCost.textContent = details.cost !== null ? Formatter.cost(details.cost) : 'N/A';
-            modalSummary.textContent = details.summary || 'No summary available.';
+            modalCost.textContent = details.cost !== undefined && details.cost !== null ? `${details.cost} credits` : 'N/A';
+            modalSummary.textContent = details.summary || 'No AI summary available.';
+            if (modalHiNotesTextarea) {
+                modalHiNotesTextarea.value = details.hi_notes || '';
+            }
 
             // Step 3: Render Transcript using the updated function
             renderTranscript(details.transcript, transcriptContainer);
@@ -614,6 +619,38 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleFilterSections(); // Set initial visibility of filters
         handleDateSearch(); // Perform initial data load for the table based on default filters
         console.log("Initial filter visibility set and initial data search triggered.");
+
+        // Add event listener for HI Notes Save button in modal
+        const saveNotesBtnModal = document.getElementById('save-hi-notes-btn-modal');
+        if (saveNotesBtnModal) {
+            saveNotesBtnModal.addEventListener('click', async function() {
+                const notesTextarea = document.getElementById('hi-notes-textarea');
+                const notesStatus = document.getElementById('save-notes-status-modal');
+                const notes = notesTextarea.value;
+                const conversationId = document.getElementById('modal-conversation-id').textContent;
+                if (!conversationId || conversationId === 'N/A') {
+                    notesStatus.textContent = 'No conversation ID.';
+                    return;
+                }
+                notesStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                try {
+                    const response = await fetch(`/api/conversations/${conversationId}/notes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ hi_notes: notes })
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        notesStatus.innerHTML = '<i class="fas fa-check-circle text-success"></i> Saved!';
+                    } else {
+                        notesStatus.innerHTML = `<i class="fas fa-times-circle text-danger"></i> Error: ${data.error || 'Unknown error'}`;
+                    }
+                } catch (error) {
+                    notesStatus.innerHTML = `<i class="fas fa-exclamation-triangle text-danger"></i> Error: ${error.message}`;
+                }
+                setTimeout(() => { notesStatus.innerHTML = ''; }, 3000);
+            });
+        }
 
     }); // End of jQuery document ready
 

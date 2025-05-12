@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, current_app, request, abort
 # Removed unused import: from app.api.data_processor import DataProcessor
-from app.tasks.sync import sync_new_conversations # Keep this import
+# from app.tasks.sync import sync_new_conversations # Keep this import
 import functools
 import signal
 from contextlib import contextmanager
@@ -188,6 +188,7 @@ def save_conversation_hi_notes(conversation_id):
 # RENAME and MODIFY the sync endpoint
 @api.route('/sync-conversations', methods=['POST']) # Renamed route
 def sync_conversations_route():
+    from app.tasks.sync import sync_new_conversations # <<< IMPORT MOVED HERE
     """Endpoint to manually trigger the conversation sync task."""
     # REMOVE secret key check - triggered by user action within the app
     # ...
@@ -200,9 +201,12 @@ def sync_conversations_route():
     try:
         # Pass the current app instance AND the full_sync flag
         result, status_code = sync_new_conversations(
-            app=current_app._get_current_object(), 
+            app_context=current_app._get_current_object(), 
             full_sync=full_sync
         )
+        if status_code == 500:
+            # Print the full error details for debugging
+            current_app.logger.error(f"SYNC ENDPOINT: Error details: {result}")
         current_app.logger.info(f"SYNC ENDPOINT: Manual sync finished with status {status_code}. Result: {result}")
         return jsonify(result), status_code
     except Exception as e:

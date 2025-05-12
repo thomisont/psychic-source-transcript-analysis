@@ -177,6 +177,27 @@ if (typeof window.Formatter === 'undefined') { // GUARD
             if (score >= -0.2) return 'warning'; // Neutral
             if (score >= -0.6) return 'danger'; // Negative 
             return 'danger'; // Very Negative (use danger too)
+        },
+        simpleDate(dateStringYMD) { // Expects 'YYYY-MM-DD'
+            if (!dateStringYMD) return 'N/A';
+            try {
+                // Split the string to avoid timezone issues with `new Date()`
+                const parts = dateStringYMD.split('-');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1; // JS months are 0-indexed
+                    const day = parseInt(parts[2]);
+                    const date = new Date(Date.UTC(year, month, day)); // Use Date.UTC
+                    // Format as "Month Day, Year" e.g., "May 14, 2025"
+                    return date.toLocaleDateString(undefined, {
+                        year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' 
+                    });
+                }
+                return dateStringYMD; // Fallback for unexpected format
+            } catch (error) {
+                console.error('Error formatting simpleDate:', dateStringYMD, error);
+                return dateStringYMD; // Fallback
+            }
         }
     };
 } // END GUARD

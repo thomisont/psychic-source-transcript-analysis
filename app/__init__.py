@@ -16,6 +16,7 @@ from flask_caching import Cache
 from tools.supabase_client import SupabaseClient
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from app.config import config # Import the config dictionary
 
 # Add the project root to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -65,135 +66,70 @@ def get_supabase_client():
         raise RuntimeError("Supabase client is not initialized")
 
 def create_app(test_config=None):
-    # Ensure NLTK data is present before any NLTK-dependent code runs
     ensure_nltk_data()
-    logging.info("Starting create_app...") # Log start
-    # Load environment variables from .env file
+    logging.info("Starting create_app...")
     load_dotenv()
     logging.info(".env loaded.")
-    # Log the ElevenLabs env variables for debugging
-    logging.info(f"ELEVENLABS_API_KEY: {os.getenv('ELEVENLABS_API_KEY')}")
-    logging.info(f"ELEVENLABS_AGENT_ID: {os.getenv('ELEVENLABS_AGENT_ID')}")
 
-    # Configure logging
-    logging.basicConfig(
-        level=logging.DEBUG, # Set log level to DEBUG
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    config_name = os.getenv('FLASK_ENV', 'default')
+    logging.info(f"Loading config for environment: {config_name}")
 
-    logging.info("Creating Flask app instance...")
-    app = Flask(__name__, instance_relative_config=True)
+    flask_instance = Flask(__name__, instance_relative_config=True)
     logging.info("Flask app instance created.")
 
-    # Load configuration from environment variables first
-    logging.info("Loading configuration...")
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
-    database_url = os.environ.get('DATABASE_URL', 'sqlite:///:memory:')
-    if database_url.startswith('https://'):
-        database_url = 'postgresql://' + database_url.split('://', 1)[1]
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ECHO'] = True # Enable SQLAlchemy query logging
+    try:
+        flask_instance.config.from_object(config[config_name])
+        logging.info(f"Loaded configuration from {config_name} object.")
+    except KeyError:
+        logging.warning(f"Invalid FLASK_ENV '{config_name}'. Using default config.")
+        flask_instance.config.from_object(config['default'])
+        logging.info("Loaded configuration from default object.")
+    
+    if hasattr(config[config_name], 'init_app'):
+        config[config_name].init_app(flask_instance)
+        logging.info(f"Executed init_app for {config_name}.")
 
-    # Session configuration
-    app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['SESSION_FILE_DIR'] = os.path.join(app.instance_path, 'sessions')
-    app.config['SESSION_PERMANENT'] = False
-    app.config['SESSION_USE_SIGNER'] = True
+    if test_config:
+        flask_instance.config.from_mapping(test_config)
+        logging.info("Overwrote with test configuration.")
 
-    # >>> ADD Supabase config explicitly from env vars <<<
-    app.config['SUPABASE_URL'] = os.environ.get('SUPABASE_URL')
-    app.config['SUPABASE_SERVICE_KEY'] = os.environ.get('SUPABASE_SERVICE_KEY')
-
-    # >>> ADD Cache Configuration <<<
-    app.config['CACHE_TYPE'] = 'FileSystemCache'  # Use file system for caching
-    app.config['CACHE_DIR'] = os.path.join(app.instance_path, 'cache') # Cache directory inside instance folder
-    app.config['CACHE_DEFAULT_TIMEOUT'] = 300 # Default timeout 5 minutes
-
-    # Load remaining configuration from config.py or test_config
-    if test_config is None:
-        try:
-            app.config.from_pyfile('config.py', silent=True)
-            logging.info("Loaded config from config.py.")
-        except Exception as e:
-            logging.warning(f"Could not load config.py: {e}")
-        try:
-            from config import Config
-            app.config.from_object(Config)
-            logging.info("Loaded config from Config object.")
-        except ImportError:
-            logging.info("Main config.py (Config object) not found or import failed, using defaults/env vars.")
-        except Exception as e:
-            logging.warning(f"Error loading Config object: {e}")
-
-    else:
-        # Load test config if provided
-        app.config.from_mapping(test_config)
-        logging.info("Loaded test configuration.")
-
-    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', 'Not Set')
-    logging.info(f"Database URI configured: {db_uri[:15]}...")
+    logging.info(f"DEBUG mode: {flask_instance.config.get('DEBUG')}")
+    db_uri = flask_instance.config.get('SQLALCHEMY_DATABASE_URI', 'Not Set')
+    logging.info(f"Database URI configured: {db_uri[:15]}..." if db_uri != 'Not Set' else "Database URI: Not Set")
+    logging.info(f"Supabase URL configured: {flask_instance.config.get('SUPABASE_URL')}")
     logging.info("Configuration loading complete.")
 
-    # --- Initialize Extensions from app.extensions --- #
     logging.info("Initializing extensions...")
     try:
-        logging.info("Attempting db.init_app(app)...")
-        db.init_app(app)
+        db.init_app(flask_instance)
         logging.info("SQLAlchemy (db) initialized.")
-
-        logging.info("Attempting migrate.init_app(app, db)...")
-        migrate.init_app(app, db)
+        migrate.init_app(flask_instance, db)
         logging.info("Migrate initialized.")
-
-        # >>> INITIALIZE CACHE HERE <<<
-        logging.info(f"Attempting cache.init_app(app) with type: {app.config.get('CACHE_TYPE')}, dir: {app.config.get('CACHE_DIR')}...")
-        cache.init_app(app)
+        cache.init_app(flask_instance)
         logging.info("Cache initialized.")
-
-        logging.info("Attempting server_session.init_app(app)...")
-        server_session.init_app(app)
+        server_session.init_app(flask_instance)
         logging.info("Server session initialized.")
-
     except Exception as e:
-        # Print the full exception details to stderr for visibility, especially in CLI context
         import traceback
-        print(f"ERROR during DB/Migrate initialization: {e}", file=sys.stderr)
+        print(f"ERROR during Extension initialization: {e}", file=sys.stderr)
         traceback.print_exc()
-        logging.error(f"Error initializing DB or Migrate: {e}", exc_info=True)
-        raise # Re-raise exception to halt app creation if DB fails
+        logging.error(f"Error initializing Extensions: {e}", exc_info=True)
+        raise # Halt app creation
     logging.info("Extensions initialized.")
 
-    # Import models here after db initialization
-    logging.info("Importing models...")
-    try:
-        with app.app_context():
-            import app.models
-            logging.info("Models imported successfully.")
-    except Exception as e:
-        logging.error(f"Error importing models: {e}", exc_info=True)
-        # Log error but continue app creation
-        pass
-
-    # Configure CORS based on environment
     logging.info("Configuring CORS...")
-    if os.environ.get('FLASK_ENV') == 'production':
-        # In production, only allow the production domain
-        # If using a custom domain, it will come from BASE_URL
-        from app.config import BASE_URL
-        allowed_origins = [BASE_URL]
-        app.logger.info(f"Production mode: CORS configured for {BASE_URL}")
-        CORS(app, resources={r"/*": {"origins": allowed_origins}}, supports_credentials=True)
+    if flask_instance.config.get('FLASK_ENV') == 'production':
+        allowed_origins = [flask_instance.config.get('BASE_URL')]
+        logging.info(f"Production mode: CORS configured for {allowed_origins}")
+        CORS(flask_instance, resources={r"/*": {"origins": allowed_origins}}, supports_credentials=True)
     else:
-        # In development, allow all origins for easier testing
-        app.logger.info("Development mode: CORS configured for all origins")
-        CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+        logging.info("Development mode: CORS configured for all origins")
+        CORS(flask_instance, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     logging.info("CORS configured.")
 
-    # Log the API key (just first few chars for security)
-    api_key = os.getenv('ELEVENLABS_API_KEY')
-    if api_key:
-        logging.info(f"Loaded ElevenLabs API key: {api_key[:5]}...")
+    api_key_config = flask_instance.config.get('ELEVENLABS_API_KEY')
+    if api_key_config:
+        logging.info(f"Loaded ElevenLabs API key: {api_key_config[:5]}...")
     else:
         logging.warning("No ElevenLabs API key found")
 
@@ -204,162 +140,105 @@ def create_app(test_config=None):
     else:
         logging.warning("No OpenAI API key found, analysis features will use fallbacks")
 
-    # Ensure instance folder exists
     try:
-        os.makedirs(app.instance_path, exist_ok=True)
-        os.makedirs(os.path.join(app.instance_path, 'sessions'), exist_ok=True)
+        os.makedirs(flask_instance.instance_path, exist_ok=True)
+        os.makedirs(os.path.join(flask_instance.instance_path, 'sessions'), exist_ok=True)
     except OSError:
         pass
 
-    # Add current date to context for templates
-    @app.context_processor
+    @flask_instance.context_processor
     def inject_now():
         # Import datetime inside function if not imported globally
         import datetime 
         return {'now': datetime.datetime.now()}
 
-    # Create and attach ElevenLabs client
     from app.api.elevenlabs_client import ElevenLabsClient
     try:
-        api_key = os.getenv('ELEVENLABS_API_KEY', '')
-        # Allow fallback env var name and make agent_id optional
-        agent_id = os.getenv('ELEVENLABS_AGENT_ID') or os.getenv('ELEVENLABS_AGENT_ID_CURIOUS') or None
+        el_api_key = flask_instance.config.get('ELEVENLABS_API_KEY')
+        el_agent_id = flask_instance.config.get('ELEVENLABS_AGENT_ID')
 
-        if api_key:
-            app.elevenlabs_client = ElevenLabsClient(api_key=api_key, agent_id=agent_id)
-            logging.info(f"ElevenLabs client initialized and attached to app context. Agent ID: {agent_id if agent_id else 'None'}")
+        if el_api_key:
+            flask_instance.elevenlabs_client = ElevenLabsClient(api_key=el_api_key, agent_id=el_agent_id)
+            logging.info(f"ElevenLabs client initialized from config. Agent ID: {el_agent_id if el_agent_id else 'None'}")
         else:
-            logging.warning("ELEVENLABS_API_KEY missing; ElevenLabs client not initialized.")
-            app.elevenlabs_client = None
+            logging.warning("ELEVENLABS_API_KEY missing in config; ElevenLabs client not initialized.")
+            flask_instance.elevenlabs_client = None
     except Exception as e:
         logging.error(f"Error initializing ElevenLabs client: {e}", exc_info=True)
-        app.elevenlabs_client = None # Ensure it's None on failure
+        flask_instance.elevenlabs_client = None
 
-    # --- Initialize Services (Supabase Only) ---
-    logging.info("Initializing services...")
-    # supabase_url = os.getenv('SUPABASE_URL')
-    # supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
-    # supabase_client_instance = None
-    # conversation_service_instance = None
-    # service_mode = "Supabase"
-
-    # if supabase_url and supabase_key:
-    #     logging.info("Supabase environment variables found. Attempting Supabase initialization...")
-    #     try:
-    #         logging.info(f"Initializing SupabaseClient with URL: {supabase_url[:20]}... KEY: {supabase_key[:5]}...")
-    #         supabase_client_instance = SupabaseClient(supabase_url, supabase_key)
-    #         if not supabase_client_instance or not supabase_client_instance.client:
-    #             raise Exception("SupabaseClient object or underlying client failed to initialize.")
-    #         logging.info("SupabaseClient initialized successfully.")
-
-    #         conversation_service_instance = SupabaseConversationService(supabase_client=supabase_client_instance)
-    #         logging.info("SupabaseConversationService initialized.")
-
-    #     except Exception as e:
-    #         logging.error(f"Supabase Initialization FAILED: {e}.", exc_info=True)
-    #         supabase_client_instance = None
-    #         conversation_service_instance = None
-
-    # if conversation_service_instance is None:
-    #     logging.error("FATAL: Failed to initialize SupabaseConversationService. Application cannot continue.")
-    #     raise RuntimeError("SupabaseConversationService could not be initialized. Check Supabase configuration.")
-
-    # app.conversation_service = conversation_service_instance
-    # app.supabase_client = supabase_client_instance
-    # logging.info(f"Conversation service initialized in {service_mode} mode.")
-
-    # app.export_service = ExportService()
-    logging.info("Export service initialized.")
-
-    # logging.info(f"Service Status - Conversation: {'OK (' + service_mode + ')' if app.conversation_service else 'Failed'}, Analysis: {'OK' if app.analysis_service else 'Failed'}, Export: {'OK' if app.export_service else 'Failed'}")
-
-    if hasattr(app, 'elevenlabs_client') and app.elevenlabs_client and app.elevenlabs_client.api_key:
-        logging.info("Main ElevenLabsClient available on app context with API key.")
-    elif hasattr(app, 'elevenlabs_client') and app.elevenlabs_client:
-         logging.warning("Main ElevenLabsClient available on app context but MISSING API key.")
-    else:
-         logging.warning("Main ElevenLabsClient FAILED to initialize or is not attached to app context.")
-
-    # After loading config and before registering blueprints:
-    # --- Initialize Supabase Client and attach to app context ---
-    supabase_url = app.config.get('SUPABASE_URL')
-    supabase_key = app.config.get('SUPABASE_SERVICE_KEY')
-    if supabase_url and supabase_key:
+    logging.info("Initializing Supabase client...")
+    sb_url = flask_instance.config.get('SUPABASE_URL')
+    sb_key = flask_instance.config.get('SUPABASE_KEY')
+    if sb_url and sb_key:
         try:
-            app.supabase_client = SupabaseClient(supabase_url, supabase_key)
+            flask_instance.supabase_client = SupabaseClient(sb_url, sb_key)
             logging.info("Supabase client initialized and attached to app context.")
         except Exception as e:
-            app.supabase_client = None
+            flask_instance.supabase_client = None
             logging.error(f"Failed to initialize Supabase client: {e}", exc_info=True)
     else:
-        app.supabase_client = None
-        logging.warning("Supabase URL or key missing; Supabase client not initialized.")
+        flask_instance.supabase_client = None
+        logging.warning("Supabase URL or key missing in config; Supabase client not initialized.")
 
-    # --- Initialize Conversation & Analysis Services ---
+    logging.info("Initializing core services...")
     try:
         from app.services.supabase_conversation_service import SupabaseConversationService
         from app.services.analysis_service import AnalysisService
         from app.services.export_service import ExportService
 
-        if app.supabase_client:
-            app.conversation_service = SupabaseConversationService(supabase_client=app.supabase_client)
-            logging.info("SupabaseConversationService initialized and attached to app context.")
+        if flask_instance.supabase_client:
+            flask_instance.conversation_service = SupabaseConversationService(supabase_client=flask_instance.supabase_client)
+            logging.info("SupabaseConversationService initialized and attached.")
         else:
             logging.error("Supabase client unavailable; cannot initialize ConversationService.")
-            app.conversation_service = None
+            flask_instance.conversation_service = None
 
-        if app.conversation_service:
-            # Determine whether to run in lightweight mode based on presence of an OpenAI key.
-            lightweight_flag = False if os.getenv("OPENAI_API_KEY") else True
-
-            app.analysis_service = AnalysisService(
-                conversation_service=app.conversation_service,
+        if flask_instance.conversation_service:
+            # Determine lightweight mode based on OpenAI key *in config/env*
+            lightweight_flag = not bool(os.getenv("OPENAI_API_KEY"))
+            flask_instance.analysis_service = AnalysisService(
+                conversation_service=flask_instance.conversation_service,
                 cache=cache,
                 lightweight_mode=lightweight_flag,
             )
             mode_label = "Lightweight" if lightweight_flag else "Full‑LLM"
-            logging.info(f"AnalysisService initialized and attached to app context. Mode: {mode_label}")
+            logging.info(f"AnalysisService initialized and attached. Mode: {mode_label}")
         else:
             logging.warning("ConversationService not available; AnalysisService not initialized.")
-            app.analysis_service = None
+            flask_instance.analysis_service = None
 
-        app.export_service = ExportService()
-        logging.info("Export service initialized.")
+        flask_instance.export_service = ExportService()
+        logging.info("ExportService initialized and attached.")
 
     except Exception as svc_err:
         logging.error(f"Failed to initialize core services: {svc_err}", exc_info=True)
-        app.conversation_service = None
-        app.analysis_service = None
-        app.export_service = None
+        flask_instance.conversation_service = None
+        flask_instance.analysis_service = None
+        flask_instance.export_service = None
 
-    # After Supabase client initialization
-    @app.before_request
+    @flask_instance.before_request
     def attach_supabase_to_g():
-        if hasattr(app, 'supabase_client') and app.supabase_client:
-            g.supabase_client = app.supabase_client
+        if hasattr(flask_instance, 'supabase_client') and flask_instance.supabase_client:
+            g.supabase_client = flask_instance.supabase_client
 
-    # Register blueprints
     logging.info("Registering blueprints...")
-    # Import blueprints here
     from app.routes import main_bp
-    from app.api.routes import api as api_bp # Use alias to avoid name clash
+    from app.api.routes import api as api_bp
     from app.auth import auth_bp
     try:
-        app.register_blueprint(main_bp)
+        flask_instance.register_blueprint(main_bp)
         logging.info("Registered main_bp.")
-
-        app.register_blueprint(api_bp, url_prefix='/api')
+        flask_instance.register_blueprint(api_bp, url_prefix='/api')
         logging.info("Registered api blueprint.")
-
-        app.register_blueprint(auth_bp)
+        flask_instance.register_blueprint(auth_bp)
         logging.info("Registered auth blueprint.")
     except Exception as e:
         logging.error(f"Error registering blueprints: {e}", exc_info=True)
         raise # Reraise blueprint registration errors as they are critical
 
-    # Add security headers in production
-    if os.environ.get('FLASK_ENV') == 'production':
-        @app.after_request
+    if flask_instance.config.get('FLASK_ENV') == 'production':
+        @flask_instance.after_request
         def add_security_headers(response):
             # Strict-Transport-Security: Ensures the browser only uses HTTPS
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
@@ -373,8 +252,7 @@ def create_app(test_config=None):
             return response
         logging.info("Security headers configured for production.")
 
-    # Enforce authentication for protected routes
-    @app.before_request
+    @flask_instance.before_request
     def enforce_login():
         if request.path.startswith('/api/'):
             return  # Allow API endpoints to handle their own auth or be public
@@ -387,20 +265,18 @@ def create_app(test_config=None):
 
     logging.info("create_app finished successfully.")
 
-    # --- Register CLI Commands --- #
+    # Register CLI Commands
     # Import the sync function
     from app.tasks.sync import sync_new_conversations
-    import click # Import click
+    import click
 
-    @app.cli.command("sync")
-    @click.option('--force', is_flag=True, help='Force sync even if recently completed.') # Example option
+    @flask_instance.cli.command("sync")
+    @click.option('--force', is_flag=True, help='Force sync even if recently completed.')
     def sync_command(force):
         """Run the ElevenLabs conversation sync task."""
         logging.info(f"CLI: Starting manual sync (Force={force})...")
         try:
-            # Pass the app instance to the sync function
-            # Note: sync_new_conversations currently doesn't use 'force', but we pass it for future use.
-            result, status_code = sync_new_conversations(app)
+            result, status_code = sync_new_conversations(flask_instance)
             logging.info(f"CLI: Sync finished with status {status_code}. Result: {result}")
             if status_code >= 400:
                 sys.exit(2) # Exit with error code if sync failed
@@ -409,7 +285,7 @@ def create_app(test_config=None):
             sys.exit(1) # Exit with error code
         logging.info("CLI: Sync command finished.")
 
-    @app.cli.command("clear-cache")
+    @flask_instance.cli.command("clear-cache")
     def clear_cache_command():
         """Clear the application cache."""
         try:
@@ -419,49 +295,33 @@ def create_app(test_config=None):
             click.echo(f"Failed to clear cache: {e}", err=True)
             sys.exit(1)
 
-    # --- Attach GlassFrog client & service ---
+    # Attach GlassFrog client & service
     try:
         from tools.glassfrog_client import GlassFrogClient
         from app.services.glassfrog_service import GlassFrogService
         gf_client = GlassFrogClient()
-        app.glassfrog_client = gf_client
-        app.glassfrog_service = GlassFrogService(client=gf_client, cache=cache)
+        flask_instance.glassfrog_client = gf_client
+        flask_instance.glassfrog_service = GlassFrogService(client=gf_client, cache=cache)
         logging.info("GlassFrog client & service initialised.")
     except Exception as e:
         logging.error(f"Failed to initialise GlassFrog integration: {e}", exc_info=True)
-        app.glassfrog_client = None
-        app.glassfrog_service = None
+        flask_instance.glassfrog_client = None
+        flask_instance.glassfrog_service = None
 
-    # Configure logging
-    if not app.debug and not app.testing:
+    # Configure production logging
+    if not flask_instance.debug and not flask_instance.testing:
         if not os.path.exists('logs'):
             os.mkdir('logs')
         file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
         file_handler.setLevel(logging.INFO)
-        app.logger.addHandler(file_handler)
+        flask_instance.logger.addHandler(file_handler)
 
-        app.logger.setLevel(logging.INFO)
-        app.logger.info('Application startup')
+        flask_instance.logger.setLevel(logging.INFO)
+        flask_instance.logger.info('Application startup')
 
-    return app
+    return flask_instance
 
-# --- Global error handlers ---
-# Example: Add a generic error handler
-# @app.errorhandler(Exception)
-# def handle_exception(e):
-#     # pass through HTTP errors
-#     if isinstance(e, HTTPException):
-#         return e
-#     # now you're handling non-HTTP exceptions only
-#     logging.error(f"Unhandled exception: {e}", exc_info=True)
-#     # Render a generic error page or return JSON
-#     # return render_template("500.html"), 500 
-#     return jsonify(error="An unexpected error occurred."), 500
-
-# This pattern requires the error handler to be registered *after* app creation.
-# Consider moving error handlers into create_app or registering them on the blueprint level.
-
-# >>> REMOVED GLOBAL SERVICE INSTANTIATIONS <<<
-# >>> MOVED INITIALIZATION INSIDE create_app <<<
+# Remove global error handlers or register them within create_app/blueprints
+# ...

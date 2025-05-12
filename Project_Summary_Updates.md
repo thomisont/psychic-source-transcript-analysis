@@ -63,3 +63,35 @@ Here is the context from the prior Agent working session.  Use it to orient arou
 • User/AI: Attempt Replit deployment again; analyze logs if errors persist.
 
 --- 
+
+### AGENT HAND‑OFF SUMMARY  (2025‑05‑12 13:30 UTC)
+
+1. Context & Goals
+• Resolve persistent Replit deployment failures blocking testing of new RLHF 'Human Input Notes' feature.
+• Issues included SQLAlchemy `__all__` error, missing C/C++ libraries, and Gunicorn config problems.
+
+2. Work Completed This Session
+• Diagnosed & fixed Nix environment issues (`regex._regex` C extension, `libstdc++.so.6` missing).
+• Corrected `replit.nix` to use `pkgs.libstdcxx5` instead of `pkgs.gcc.lib` (which caused recovery mode).
+• Fixed `ImportError` for `server_session` in `app/extensions.py`.
+• Resolved SQLAlchemy `__all__` error by deferring model imports in `app/tasks/sync.py`.
+• Corrected Gunicorn command in `.replit` to use \'\'\'app:create_app()\'\'\' and removed incorrect `cd workspace`.
+• Clarified required production environment variables (`FLASK_ENV=production`, `FLASK_DEBUG=0`).
+• Successfully deployed the application to Replit production.
+
+3. Outstanding Issues (blocking)
+• RLHF UI (`hi_notes` textarea & save): Functionality needs user testing on the newly deployed version.
+• `analysis_service.py`: Refactor with deferred model imports still pending (from previous session).
+• Replit secrets: Potential persistence issue noted in previous summary may still exist.
+
+4. New Learnings / Tech‑Stack Notes
+• Replit deployment env has different structure than dev; `workspace` dir may not exist at root.
+• `pkgs.gcc.lib` can break Replit Nix builds; `pkgs.libstdcxx5` is often the correct choice.
+• Deployment health checks run *after* 'Promote'; failures indicate runtime startup errors (not build errors).
+• SQLAlchemy `__all__` error often traces to model imports occurring before `db.init_app(app)`.
+• Gunicorn requires specific app string format based on factory pattern (`\'\'\'app:create_app()\'\'\``) vs direct instance.
+
+5. Immediate Next Steps (actionable)
+• User: Test the "Save Notes" (`hi_notes`) functionality on the deployed application.
+• User/AI: Continue refactoring `analysis_service.py` using deferred imports.
+• User: Monitor deployment stability and Replit secrets.  

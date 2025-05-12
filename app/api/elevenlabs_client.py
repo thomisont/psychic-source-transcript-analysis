@@ -112,7 +112,9 @@ class ElevenLabsClient:
                         to_time: int = None,   # Unix timestamp
                         limit: int = 100, 
                         offset: int = 0, # Offset is likely ignored by API but kept for signature consistency
-                        force_refresh: bool = False):
+                        force_refresh: bool = False,
+                        start_after_history_item_id: str = None):
+        logging.info(f"ELEVENLABS_CLIENT.get_conversations CALLED. All kwargs: {locals()}") # DIAGNOSTIC PRINT
         """
         Get conversations from the ElevenLabs API.
         Prioritizes from_time/to_time (Unix timestamps) if provided.
@@ -126,6 +128,7 @@ class ElevenLabsClient:
             limit (int, optional): Max number of conversations PER PAGE (API max is usually 1000).
             offset (int, optional): Ignored by API, pagination handled by cursor.
             force_refresh (bool, optional): Force refresh data, bypass cache.
+            start_after_history_item_id (str, optional): ID to start fetching after (for pagination).
             
         Returns:
             dict: API response containing 'conversations' list and potentially 'next_cursor'/'has_more'.
@@ -161,54 +164,60 @@ class ElevenLabsClient:
         all_results_conversations = []
         
         # Choose a large per‑page limit to minimize page count (API may cap at 1000)
-        PER_PAGE_LIMIT = 1000
+        PER_PAGE_LIMIT = limit # Use the passed limit for API calls, default 100, sync.py passes 1000
         
-        # --- Loop through Endpoints --- 
+        final_next_cursor_for_return = None # To store the cursor for the very next page after all operations
+
         for endpoint in endpoints_to_try:
             logging.info(f"=== Trying Endpoint: {endpoint} ===")
-            # Reset vars for this endpoint attempt
             endpoint_succeeded_at_all = False 
             current_endpoint_conversations = []
             pagination_complete = False
-
-            # --- Construct Parameter Formats (same as before) --- 
+            
+            # --- Construct Parameter Formats --- 
             parameter_formats_to_try = []
-            # Format 1: Unix timestamps
+            # Initial params setup - apply start_after_history_item_id if this is the first page fetch using it
+            initial_api_params = {'limit': PER_PAGE_LIMIT}
+            if start_after_history_item_id:
+                # This assumes the API uses 'start_after_history_item_id'. Adjust if API uses a different name.
+                initial_api_params['start_after_history_item_id'] = start_after_history_item_id
+
+            # Format 1: Unix timestamps (add to initial_api_params)
             if use_timestamps:
-                params_ts = {'limit': PER_PAGE_LIMIT}
+                params_ts = initial_api_params.copy()
                 if from_time is not None: params_ts['from_time'] = from_time
                 if to_time is not None: params_ts['to_time'] = to_time
                 parameter_formats_to_try.append(params_ts)
-            # Format 2: Derived timestamps
+            # Format 2: Derived timestamps (add to initial_api_params)
             elif formatted_start_from_date is not None or formatted_end_from_date is not None:
-                params_derived_ts = {'limit': PER_PAGE_LIMIT}
+                params_derived_ts = initial_api_params.copy()
                 if formatted_start_from_date is not None: params_derived_ts['from_time'] = formatted_start_from_date
                 if formatted_end_from_date is not None: params_derived_ts['to_time'] = formatted_end_from_date
                 parameter_formats_to_try.append(params_derived_ts)
-            # Format 3: ISO dates
+            # Format 3: ISO dates (add to initial_api_params)
             if not use_timestamps and (start_date or end_date):
-                params_iso = {'limit': PER_PAGE_LIMIT}
+                params_iso = initial_api_params.copy()
                 if start_date: params_iso['start_date'] = start_date
                 if end_date: params_iso['end_date'] = end_date
-                if len(params_iso) > 1 and params_iso not in parameter_formats_to_try:
+                if len(params_iso) > (1 + (1 if start_after_history_item_id else 0)) and params_iso not in parameter_formats_to_try: # ensure more than just limit and cursor
                     parameter_formats_to_try.append(params_iso)
-            # Format 4: Limit only
-            params_limit_only = {'limit': PER_PAGE_LIMIT}
-            if params_limit_only not in parameter_formats_to_try:
-                 parameter_formats_to_try.append(params_limit_only)
+            
+            # Format 4: Limit and potentially start_after_history_item_id only
+            # This ensures that if only start_after_history_item_id is passed (with limit), it's tried.
+            # And if no time filters AND no start_after_history_item_id, it tries with just limit.
+            if initial_api_params not in parameter_formats_to_try:
+                 parameter_formats_to_try.append(initial_api_params.copy())
+            
             logging.debug(f"Endpoint {endpoint}: Parameter formats to try: {parameter_formats_to_try}")
 
             # --- Loop through Parameter Formats for this endpoint --- 
-            for params in parameter_formats_to_try:
-                # Skip to next format if we already completed pagination with a previous format for this endpoint
+            for params_for_first_call in parameter_formats_to_try:
                 if pagination_complete: continue 
-
-                logging.info(f"Endpoint {endpoint}: Trying parameter format: {params}")
+                logging.info(f"Endpoint {endpoint}: Trying parameter format for first call: {params_for_first_call}")
                 try:
-                    # --- Initial Request --- 
-                    response = self.session.get(endpoint, params=params)
+                    response = self.session.get(endpoint, params=params_for_first_call)
                     response_status = response.status_code
-                    logging.info(f"Endpoint {endpoint}, Params {params}: Initial response status: {response_status}")
+                    logging.info(f"Endpoint {endpoint}, Params {params_for_first_call}: Initial response status: {response_status}")
                     if response_status != 200:
                         # Log error detail if possible
                         try: logging.info(f"Error detail: {response.json().get('detail', response.text[:100])}")
@@ -223,65 +232,64 @@ class ElevenLabsClient:
                     elif 'items' in data: initial_conversations = data.get('items', [])
                     
                     if not initial_conversations and not data.get('next_cursor'): # Check if response is empty AND no cursor
-                        logging.info(f"Endpoint {endpoint}, Params {params}: No conversations found and no cursor. Trying next format.")
+                        logging.info(f"Endpoint {endpoint}, Params {params_for_first_call}: No conversations found and no cursor. Trying next format.")
                         continue # Try next parameter format
                     
-                    logging.info(f"Endpoint {endpoint}, Params {params}: Found {len(initial_conversations)} initial conversations. Starting pagination...")
-                    endpoint_succeeded_at_all = True # Mark this endpoint as having worked at least once
-                    current_endpoint_conversations = list(initial_conversations) # Reset list for this attempt
-                    successful_params = params 
-                    next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
-                    has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
-                    current_page = 0
-                    max_pages = 100  # Allow up to 100 pages (1000 * 100 = 100k rows)
+                    logging.info(f"Endpoint {endpoint}, Params {params_for_first_call}: Found {len(initial_conversations)} initial conversations. Starting pagination if cursor exists...")
+                    endpoint_succeeded_at_all = True
+                    current_endpoint_conversations = list(initial_conversations)
+                    successful_params_base = params_for_first_call.copy()
+                    # Remove time/date params for subsequent pagination calls if API uses a pure cursor
+                    # However, some APIs might require time filters to remain for cursor pagination.
+                    # For now, assume cursor is enough for subsequent pages.
+                    # Keep only 'limit' and the cursor param for pagination calls.
+                    pagination_base_params = {'limit': PER_PAGE_LIMIT}
 
-                    # --- Pagination Loop (for this endpoint/param format) --- 
-                    while next_cursor and current_page < max_pages:
+                    current_page_next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
+                    current_page = 0
+                    max_pages = 100 
+
+                    while current_page_next_cursor and current_page < max_pages:
                         current_page += 1
-                        logging.info(f"PAGINATION ({endpoint}): Entering page {current_page+1}/{max_pages}. Cursor: {next_cursor}")
-                        pagination_params = successful_params.copy()
+                        logging.info(f"PAGINATION ({endpoint}): Page {current_page+1}/{max_pages}. Cursor: {current_page_next_cursor}")
                         
-                        # Detect cursor param name (simplified)
-                        cursor_param_name = 'cursor' # Default guess
-                        if 'next_page_token' in data: cursor_param_name = 'page_token'
-                        elif 'after_id' in data: cursor_param_name = 'after_id'
-                        pagination_params[cursor_param_name] = next_cursor
-                        logging.debug(f"PAGINATION ({endpoint}): Requesting page {current_page+1} with params: {pagination_params}")
+                        page_params = pagination_base_params.copy()
+                        # This needs to align with what the API expects for its cursor parameter name.
+                        # Common names: 'cursor', 'page_token', 'start_after_history_item_id', 'offset' (though offset is different)
+                        # Assuming a generic 'cursor' or the specific 'start_after_history_item_id' if that's what API uses for subsequent pages.
+                        # The parameter name might be different for the *first* call vs subsequent calls.
+                        page_params['start_after_history_item_id'] = current_page_next_cursor # Try with the known param name
+                        # Or, if the API uses a different name like 'cursor': page_params['cursor'] = current_page_next_cursor
                         
-                        response = self.session.get(endpoint, params=pagination_params)
+                        logging.debug(f"PAGINATION ({endpoint}): Requesting page {current_page+1} with params: {page_params}")
+                        response_page = self.session.get(endpoint, params=page_params)
                         
-                        if response.status_code == 200:
-                            data = response.json() # Update data for next cursor check
+                        if response_page.status_code == 200:
+                            data_page = response_page.json()
                             page_conversations = []
-                            if 'conversations' in data: page_conversations = data.get('conversations', [])
-                            elif 'history' in data: page_conversations = data.get('history', [])
-                            elif 'items' in data: page_conversations = data.get('items', [])
+                            if 'conversations' in data_page: page_conversations = data_page.get('conversations', [])
+                            elif 'history' in data_page: page_conversations = data_page.get('history', [])
+                            elif 'items' in data_page: page_conversations = data_page.get('items', [])
                             logging.info(f"PAGINATION ({endpoint}): Retrieved {len(page_conversations)} conversations on page {current_page+1}")
                             current_endpoint_conversations.extend(page_conversations)
                             
-                            next_cursor = data.get('next_cursor') or data.get('next_page_token') or data.get('next')
-                            has_more = data.get('has_more', False) or data.get('more', False) or (next_cursor is not None)
-                            logging.info(f"PAGINATION ({endpoint}): After page {current_page+1} - next_cursor: {next_cursor}, has_more: {has_more}")
+                            current_page_next_cursor = data_page.get('next_cursor') or data_page.get('next_page_token') or data_page.get('next')
+                            has_more_from_api = data_page.get('has_more', False) or (current_page_next_cursor is not None)
                             
-                            if not has_more and not next_cursor:
+                            if not has_more_from_api:
                                 logging.info(f"PAGINATION ({endpoint}): Stopping - API reports no more data.")
-                                pagination_complete = True # Mark pagination as complete for this endpoint
+                                pagination_complete = True
                                 break
                         else:
-                            logging.error(f"PAGINATION ({endpoint}): Error fetching page {current_page+1}. Status: {response.status_code}. Stopping pagination for this attempt.")
-                            break # Stop pagination for this endpoint/param attempt
-
-                    # Mark pagination complete if loop finished naturally or hit max pages
-                    if not pagination_complete: 
-                         pagination_complete = True 
-                         logging.info(f"PAGINATION ({endpoint}): Finished (max pages reached or no more cursor).")
-
-                    # Since this parameter format worked and pagination completed, break from parameter format loop
-                    logging.info(f"Endpoint {endpoint}: Successfully completed fetch/pagination with params {successful_params}.")
-                    break # Exit the parameter format loop
-
+                            logging.error(f"PAGINATION ({endpoint}): Error fetching page {current_page+1}. Status: {response_page.status_code}. Stopping pagination.")
+                            current_page_next_cursor = None # Stop pagination
+                            break
+                    
+                    final_next_cursor_for_return = current_page_next_cursor # Store the last known next cursor for the return value
+                    if not current_page_next_cursor: pagination_complete = True
+                    break # Exit parameter format loop as this one succeeded
                 except Exception as e:
-                    logging.error(f"Endpoint {endpoint}, Params {params}: Error during fetch/pagination: {e}")
+                    logging.error(f"Endpoint {endpoint}, Params {params_for_first_call}: Error during fetch/pagination: {e}")
                     # Do not set pagination_complete = True on error, allow next format to be tried
                     continue # Try next parameter format
 
@@ -316,9 +324,16 @@ class ElevenLabsClient:
 
         # Return deduplicated result, optionally limited for caller convenience
         limited_convs = deduped[:limit] if (limit and limit > 0) else deduped
+        # +++ Add next_cursor to the return value +++
+        # This is a bit heuristic: we return the next_cursor found during the last successful pagination attempt.
+        # The caller (sync.py) will need to be aware of this.
+        # If multiple endpoints were tried, this `next_cursor` belongs to the last one that successfully paginated.
+        # For robust API-level pagination, sync.py should ideally handle calling this method iteratively.
+        # However, for now, let's return what the client found internally.
         return {
             'conversations': limited_convs,
-            'total_count': total_found
+            'total_count': total_found,
+            'next_cursor': final_next_cursor_for_return # Return the stored next cursor
         }
     
     def _apply_date_filtering(self, conversations, start_date=None, end_date=None):
