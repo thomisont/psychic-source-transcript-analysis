@@ -94,7 +94,7 @@ def create_app(test_config=None):
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = True # Enable SQLAlchemy query logging
-    
+
     # Session configuration
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['SESSION_FILE_DIR'] = os.path.join(app.instance_path, 'sessions')
@@ -164,11 +164,12 @@ def create_app(test_config=None):
         raise # Re-raise exception to halt app creation if DB fails
     logging.info("Extensions initialized.")
 
-    # Initialize models without app context
+    # Import models here after db initialization
     logging.info("Importing models...")
     try:
-        import app.models
-        logging.info("Models imported successfully.")
+        with app.app_context():
+            import app.models
+            logging.info("Models imported successfully.")
     except Exception as e:
         logging.error(f"Error importing models: {e}", exc_info=True)
         # Log error but continue app creation
