@@ -1,8 +1,5 @@
 from datetime import datetime
-from sqlalchemy import func, DateTime, Text, Float, Boolean, Integer
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-import uuid
-
+from sqlalchemy.sql import func
 from app.extensions import db
 
 # Define models

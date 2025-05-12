@@ -86,7 +86,10 @@ def create_app(test_config=None):
     # Load configuration from environment variables first
     logging.info("Loading configuration...")
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///:memory:')
+    database_url = os.environ.get('DATABASE_URL', 'sqlite:///:memory:')
+    if database_url.startswith('https://'):
+        database_url = 'postgresql://' + database_url.split('://', 1)[1]
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = True # Enable SQLAlchemy query logging
     
