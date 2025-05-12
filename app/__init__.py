@@ -94,6 +94,12 @@ def create_app(test_config=None):
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ECHO'] = True # Enable SQLAlchemy query logging
+    
+    # Session configuration
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SESSION_FILE_DIR'] = os.path.join(app.instance_path, 'sessions')
+    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_USE_SIGNER'] = True
 
     # >>> ADD Supabase config explicitly from env vars <<<
     app.config['SUPABASE_URL'] = os.environ.get('SUPABASE_URL')
@@ -200,6 +206,7 @@ def create_app(test_config=None):
     # Ensure instance folder exists
     try:
         os.makedirs(app.instance_path, exist_ok=True)
+        os.makedirs(os.path.join(app.instance_path, 'sessions'), exist_ok=True)
     except OSError:
         pass
 
